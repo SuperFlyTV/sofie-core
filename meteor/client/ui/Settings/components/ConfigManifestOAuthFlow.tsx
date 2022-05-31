@@ -146,6 +146,11 @@ export const ConfigManifestOAuthFlowComponent = withTranslation()(
 												t('Waiting for gateway to generate URL...')
 											)}
 										</div>
+										<div className="mod mvs mhs">
+											<button className="btn btn-secondary" onClick={() => this.resetAuthentication()}>
+												{t('Reset Authentication')}
+											</button>
+										</div>
 									</div>
 								</label>
 							)}
