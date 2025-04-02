@@ -421,23 +421,6 @@ export namespace MongoMock {
 			mockCollections[id] = {}
 		})
 	}
-
-	/**
-	 * The Mock Collection type does a sleep before starting on executing the bulkWrite.
-	 * This simulates the async nature of writes to mongo, and aims to detect race conditions in our code.
-	 * This method will change the duration of the sleep, and returns the old delay value
-	 */
-	export function setCollectionAsyncBulkWriteDelay(collection: AsyncOnlyMongoCollection<any>, delay: number): number {
-		const collection2 = collection as any
-		if (typeof collection2.asyncWriteDelay !== 'number') {
-			throw new Error(
-				"asyncWriteDelay must be defined already, or this won't do anything. Perhaps some refactoring?"
-			)
-		}
-		const oldDelay = collection2.asyncWriteDelay
-		collection2.asyncWriteDelay = delay
-		return oldDelay
-	}
 }
 export function setup(): any {
 	return {

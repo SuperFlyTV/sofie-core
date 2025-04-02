@@ -11,6 +11,7 @@ import { LiveQueryHandle, lazyIgnore } from '../lib'
 import { CustomPublish, CustomPublishChanges } from './publish'
 import { waitForAllObserversReady } from '../../publications/lib/lib'
 import { WrappedAsyncMongoCollection } from '../../collections/implementations/asyncCollection'
+import { Collection } from 'mongodb'
 
 const apmNamespace = 'optimizedObserver'
 
@@ -213,7 +214,8 @@ async function createOptimizedObserverWorker<
 				if (
 					obj instanceof Mongo.Collection ||
 					obj instanceof ReactiveCacheCollection ||
-					obj instanceof WrappedAsyncMongoCollection
+					obj instanceof WrappedAsyncMongoCollection ||
+					obj instanceof Collection
 				) {
 					return false
 				}

@@ -95,7 +95,7 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	async observeChanges(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveChangesCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection'>
 	): Promise<Meteor.LiveQueryHandle> {
 		const span = profiler.startSpan(`MongoCollection.${this.name}.observeChanges`)
 		if (span) {
@@ -125,7 +125,7 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	async observe(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection'>
 	): Promise<Meteor.LiveQueryHandle> {
 		const span = profiler.startSpan(`MongoCollection.${this.name}.observeChanges`)
 		if (span) {

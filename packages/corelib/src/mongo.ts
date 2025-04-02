@@ -198,44 +198,54 @@ export function mongoFindOptions<TDoc extends { _id: ProtectedString<any> }>(
 		}
 		const projection = (options.projection || options.fields) as any
 		if (projection !== undefined) {
-			const idVal = projection['_id']
-			const includeKeys = _.keys(projection).filter((key) => key !== '_id' && projection[key] !== 0)
-			const excludeKeys: string[] = _.keys(projection).filter((key) => key !== '_id' && projection[key] === 0)
-
-			// Mongo does not allow mixed include and exclude (exception being excluding _id)
-			// https://docs.mongodb.com/manual/reference/method/db.collection.find/#projection
-			if (includeKeys.length !== 0 && excludeKeys.length !== 0) {
-				throw new Error(`options.projection cannot contain both include and exclude rules`)
-			}
-
-			if (includeKeys.length !== 0) {
-				if (idVal !== 0) includeKeys.push('_id')
-				docs = docs.map((doc) => {
-					const newDoc: any = {} // any since includeKeys breaks strict typings anyway
-
-					for (const key of includeKeys) {
-						objectPath.set(newDoc, key, objectPath.get(doc, key))
-					}
-
-					return newDoc
-				})
-			} else if (excludeKeys.length !== 0) {
-				if (idVal === 0) excludeKeys.push('_id')
-				docs = docs.map((doc) => {
-					const newDoc = clone<any>(doc) // any since excludeKeys breaks strict typings anyway
-
-					for (const key of excludeKeys) {
-						objectPath.del(newDoc, key)
-					}
-
-					return newDoc
-				})
-			}
+			docs = mongoApplyProjection(docs, projection) as TDoc[]
 		}
 
 		// options.reactive // Not used server-side
 	}
 	return docs
+}
+
+export function mongoApplyProjection<TDoc extends { _id: ProtectedString<any> }>(
+	docs: TDoc[],
+	projection0: MongoFieldSpecifier<TDoc>
+): Partial<TDoc>[] {
+	const projection = projection0 as any
+	const idVal = projection['_id']
+	const includeKeys = _.keys(projection).filter((key) => key !== '_id' && projection[key] !== 0)
+	const excludeKeys: string[] = _.keys(projection).filter((key) => key !== '_id' && projection[key] === 0)
+
+	// Mongo does not allow mixed include and exclude (exception being excluding _id)
+	// https://docs.mongodb.com/manual/reference/method/db.collection.find/#projection
+	if (includeKeys.length !== 0 && excludeKeys.length !== 0) {
+		throw new Error(`options.projection cannot contain both include and exclude rules`)
+	}
+
+	if (includeKeys.length !== 0) {
+		if (idVal !== 0) includeKeys.push('_id')
+		return docs.map((doc) => {
+			const newDoc: any = {} // any since includeKeys breaks strict typings anyway
+
+			for (const key of includeKeys) {
+				objectPath.set(newDoc, key, objectPath.get(doc, key))
+			}
+
+			return newDoc
+		})
+	} else if (excludeKeys.length !== 0) {
+		if (idVal === 0) excludeKeys.push('_id')
+		return docs.map((doc) => {
+			const newDoc = clone<any>(doc) // any since excludeKeys breaks strict typings anyway
+
+			for (const key of excludeKeys) {
+				objectPath.del(newDoc, key)
+			}
+
+			return newDoc
+		})
+	} else {
+		return docs
+	}
 }
 
 export function mongoModify<TDoc extends { _id: ProtectedString<any> }>(

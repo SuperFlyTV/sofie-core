@@ -56,13 +56,13 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 	async observeChanges(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveChangesCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection'>
 	): Promise<MongoLiveQueryHandle> {
 		const hasCallback = Object.values<any>(callbacks).filter(Boolean).length > 0
 		if (!hasCallback) throw new Meteor.Error(500, 'No callbacks provided to observeChanges')
 
 		return this._startObserver(selector, options, async (change) => {
-			// nocommit - apply selector, and options?
+			// nocommit - apply selector, and options
 			switch (change.operationType) {
 				case 'insert':
 					if (callbacks.added) {
@@ -101,13 +101,13 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 	async observe(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection'>
 	): Promise<MongoLiveQueryHandle> {
 		const hasCallback = Object.values<any>(callbacks).filter(Boolean).length > 0
 		if (!hasCallback) throw new Meteor.Error(500, 'No callbacks provided to observe')
 
 		return this._startObserver(selector, options, async (change) => {
-			// nocommit - apply selector, and options?
+			// nocommit - apply selector, and options
 			switch (change.operationType) {
 				case 'insert':
 					if (callbacks.added) {

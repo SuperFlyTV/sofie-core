@@ -16,7 +16,13 @@ import type {
 	UpdateResult,
 } from 'mongodb'
 import { ObserveCallbacks, ObserveChangesCallbacks } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import { mongoWhere, mongoFindOptions, mongoModify, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
+import {
+	mongoWhere,
+	mongoFindOptions,
+	mongoModify,
+	MongoQuery,
+	mongoApplyProjection,
+} from '@sofie-automation/corelib/dist/mongo'
 import { AsyncOnlyMongoCollection } from '../server/collections/collection'
 import type { Collection as RawCollection, FindOptions } from 'mongodb'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
@@ -301,7 +307,7 @@ export namespace MongoMock {
 		async mockObserve(
 			selector: MongoQuery<T> | T['_id'],
 			callbacks: PromisifyCallbacks<ObserveCallbacks<T>>,
-			options?: FindOptions<T> | undefined
+			options?: Pick<FindOptions<T>, 'projection'> | undefined
 		): Promise<Meteor.LiveQueryHandle> {
 			// Force this to be performed async
 			await MeteorMock.sleepNoFakeTimers(0)
@@ -317,8 +323,9 @@ export namespace MongoMock {
 
 			if (callbacks.added) {
 				const docs = this.find(selector, options)._fetchRaw()
-				for (const doc of docs) {
-					await callbacks.added(doc)
+				const docs2 = options?.projection ? mongoApplyProjection(docs, options.projection as any) : docs
+				for (const doc of docs2) {
+					await callbacks.added(doc as T)
 				}
 			}
 
@@ -334,7 +341,7 @@ export namespace MongoMock {
 		async mockObserveChanges(
 			selector: MongoQuery<T> | T['_id'],
 			callbacks: PromisifyCallbacks<ObserveChangesCallbacks<T>>,
-			options?: FindOptions<T> | undefined
+			options?: Pick<FindOptions<T>, 'projection'> | undefined
 		): Promise<Meteor.LiveQueryHandle> {
 			// Force this to be performed async
 			await MeteorMock.sleepNoFakeTimers(0)
@@ -350,8 +357,9 @@ export namespace MongoMock {
 
 			if (callbacks.added) {
 				const docs = this.find(selector, options)._fetchRaw()
-				for (const doc of docs) {
-					await callbacks.added(doc._id, doc)
+				const docs2 = options?.projection ? mongoApplyProjection(docs, options.projection as any) : docs
+				for (const doc of docs2) {
+					await callbacks.added(doc._id!, doc as T)
 				}
 			}
 

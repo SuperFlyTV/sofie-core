@@ -191,9 +191,6 @@ export namespace MongoMock {
 				_.each(_.clone(this.observers), (obs) => {
 					if (mongoWhere(d, obs.query)) {
 						const fields = _.keys(_.omit(d, '_id'))
-						if (obs.callbacksChanges?.addedBefore) {
-							obs.callbacksChanges.addedBefore(d._id, fields, null as any)
-						}
 						if (obs.callbacksChanges?.added) {
 							obs.callbacksChanges.added(d._id, fields)
 						}

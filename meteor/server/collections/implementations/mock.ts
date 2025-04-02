@@ -32,7 +32,7 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 	override async observe(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface> | undefined
+		options?: Pick<FindOptions<DBInterface>, 'projection'> | undefined
 	): Promise<Meteor.LiveQueryHandle> {
 		const collection = await this.mockCollection
 
@@ -42,7 +42,7 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 	override async observeChanges(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveChangesCallbacks<DBInterface>>,
-		options?: FindOptions<DBInterface> | undefined
+		options?: Pick<FindOptions<DBInterface>, 'projection'> | undefined
 	): Promise<Meteor.LiveQueryHandle> {
 		const collection = await this.mockCollection
 
