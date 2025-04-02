@@ -9,9 +9,8 @@ import {
 	ObserveChangesCallbacks,
 	ObserveCallbacks,
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import type { AnyBulkWriteOperation, Collection as RawCollection, FindOptions } from 'mongodb'
+import type { AnyBulkWriteOperation, Collection as RawCollection, FindOptions, CreateIndexesOptions } from 'mongodb'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
-import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { profiler } from '../../api/profiler'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
 import { AsyncOnlyMongoCollection, TmpCollectionPair } from '../collection'
@@ -241,10 +240,7 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		}
 	}
 
-	async createIndex(
-		keys: IndexSpecifier<DBInterface> | string,
-		options?: NpmModuleMongodb.CreateIndexesOptions
-	): Promise<void> {
+	async createIndex(keys: IndexSpecifier<DBInterface> | string, options?: CreateIndexesOptions): Promise<void> {
 		const span = profiler.startSpan(`MongoCollection.${this.name}.createIndex`)
 		if (span) {
 			span.addLabels({
@@ -253,10 +249,9 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const collection = await this._collection
-			const res = collection.createIndex(keys as any, options)
+			const collection = (await this._rawCollection).rawCollection
+			await collection.createIndex(keys as any, options)
 			if (span) span.end()
-			return res
 		} catch (e) {
 			if (span) span.end()
 			this.wrapMongoError(e)

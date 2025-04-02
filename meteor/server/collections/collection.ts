@@ -2,9 +2,14 @@ import { MongoModifier, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
-import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
-import { MongoClient, type AnyBulkWriteOperation, type Collection as RawCollection, FindOptions } from 'mongodb'
+import {
+	MongoClient,
+	type AnyBulkWriteOperation,
+	type Collection as RawCollection,
+	FindOptions,
+	CreateIndexesOptions,
+} from 'mongodb'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import { registerCollection } from './lib'
 import { WrappedMockCollection } from './implementations/mock'
@@ -258,5 +263,5 @@ export interface AsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id: Pro
 	 */
 	countDocuments(selector?: MongoQuery<DBInterface>, options?: FindOptions<DBInterface>): Promise<number>
 
-	createIndex(indexSpec: IndexSpecifier<DBInterface>, options?: NpmModuleMongodb.CreateIndexesOptions): Promise<void>
+	createIndex(indexSpec: IndexSpecifier<DBInterface>, options?: CreateIndexesOptions): Promise<void>
 }
