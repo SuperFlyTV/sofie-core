@@ -3,7 +3,7 @@ import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 
 export interface MongoAPI {
 	insertDocument(collectionName: CollectionName, newDocument: any): Promise<ProtectedString<any>>
-	updateDocument(collectionName: CollectionName, selector: any, modifier: any, options: any): Promise<any>
+	updateDocument(collectionName: CollectionName, selector: any, modifier: any, options: any): Promise<number>
 	removeDocument(collectionName: CollectionName, selector: any): Promise<any>
 }
 
