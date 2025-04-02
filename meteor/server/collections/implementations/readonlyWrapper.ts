@@ -17,11 +17,6 @@ export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: Protected
 		return this.#mutableCollection._isMock
 	}
 
-	public get mockCollection(): Promise<any> {
-		// @ts-expect-error re-export private property
-		return this.#mutableCollection.mockCollection
-	}
-
 	get mutableCollection(): AsyncOnlyMongoCollection<DBInterface> {
 		return this.#mutableCollection
 	}

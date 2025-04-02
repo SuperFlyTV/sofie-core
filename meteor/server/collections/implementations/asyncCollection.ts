@@ -54,10 +54,6 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		return Mongo.Collection._isMock
 	}
 
-	public get mockCollection(): Promise<MinimalMeteorMongoCollection<DBInterface>> {
-		return this._collection
-	}
-
 	get mutableCollection(): AsyncOnlyMongoCollection<DBInterface> {
 		return this
 	}

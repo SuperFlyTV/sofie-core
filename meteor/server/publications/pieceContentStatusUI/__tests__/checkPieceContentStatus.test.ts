@@ -17,7 +17,6 @@ import {
 	VTContent,
 } from '@sofie-automation/blueprints-integration'
 import { Complete, literal } from '@sofie-automation/corelib/dist/lib'
-import { MongoMock } from '../../../../__mocks__/mongo'
 import {
 	PieceGeneric,
 	PieceStatusCode,
@@ -37,8 +36,6 @@ import { MediaObjects } from '../../../collections'
 import { PieceDependencies } from '../common'
 import { DEFAULT_MINIMUM_TAKE_SPAN } from '@sofie-automation/shared-lib/dist/core/constants'
 import { PieceContentStatusMessageFactory } from '../messageFactory'
-
-const pMockMediaObjectsCollection = MongoMock.getInnerMockCollection<MediaObject>(MediaObjects)
 
 describe('lib/mediaObjects', () => {
 	describe('buildFormatString', () => {
@@ -244,7 +241,7 @@ describe('lib/mediaObjects', () => {
 	})
 
 	test('checkPieceContentStatus', async () => {
-		const mockMediaObjectsCollection = await pMockMediaObjectsCollection
+		const mockMediaObjectsCollection = await MediaObjects.rawCollection()
 
 		const mockStudioSettings: IStudioSettings = {
 			supportedMediaFormats: '1920x1080i5000, 1280x720, i5000, i5000tff',
@@ -269,7 +266,7 @@ describe('lib/mediaObjects', () => {
 			packageContainers: applyAndValidateOverrides(mockDefaultStudio.packageContainersWithOverrides).obj,
 		}
 
-		await mockMediaObjectsCollection.insertAsync(
+		await mockMediaObjectsCollection.insertOne(
 			literal<MediaObject>({
 				_id: protectString(''),
 				_attachments: {},
@@ -356,7 +353,7 @@ describe('lib/mediaObjects', () => {
 			type: SourceLayerType.LIVE_SPEAK,
 		})
 
-		await mockMediaObjectsCollection.insertAsync(
+		await mockMediaObjectsCollection.insertOne(
 			literal<MediaObject>({
 				_id: protectString(''),
 				_attachments: {},

@@ -6,7 +6,7 @@ import { runAllTimers, runTimersUntilNow, waitUntil } from '../../../../__mocks_
 import { MongoMock } from '../../../../__mocks__/mongo'
 import { RundownsObserver } from '../rundownsObserver'
 
-const RundownsMock0 = (Rundowns as any).mockCollection as Promise<MongoMock.Collection<Rundown>>
+const RundownsMock0 = Rundowns.rawCollection() as any as Promise<MongoMock.Collection<Rundown>>
 
 const MAX_WAIT_TIME = 4000
 

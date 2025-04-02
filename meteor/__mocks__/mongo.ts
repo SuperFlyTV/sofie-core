@@ -10,14 +10,13 @@ import {
 	FindOneOptions,
 	FindOptions,
 	MongoCursor,
-	MongoReadOnlyCollection,
 	ObserveCallbacks,
 	ObserveChangesCallbacks,
 	UpdateOptions,
 	UpsertOptions,
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
 import { mongoWhere, mongoFindOptions, mongoModify, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
-import { AsyncOnlyMongoCollection, AsyncOnlyReadOnlyMongoCollection } from '../server/collections/collection'
+import { AsyncOnlyMongoCollection } from '../server/collections/collection'
 import type {
 	MinimalMeteorMongoCollection,
 	MinimalMongoCursor,
@@ -440,12 +439,6 @@ export namespace MongoMock {
 		const oldDelay = collection2.asyncWriteDelay
 		collection2.asyncWriteDelay = delay
 		return oldDelay
-	}
-
-	export async function getInnerMockCollection<T extends { _id: ProtectedString<any> }>(
-		collection: MongoReadOnlyCollection<T> | AsyncOnlyReadOnlyMongoCollection<T>
-	): Promise<MinimalMeteorMongoCollection<T>> {
-		return (collection as any).mockCollection
 	}
 }
 export function setup(): any {
