@@ -22,6 +22,8 @@ import { logger } from '../../logging'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
 import { Meteor } from 'meteor/meteor'
 import { LiveQueryHandle } from '../../lib/lib'
+import { mongoCompileProjection, mongoWhere } from '@sofie-automation/corelib/dist/mongo'
+import { EJSON } from 'meteor/ejson'
 
 type SupportedChangeStreamDocument<TSchema extends { _id: ProtectedString<any> }> =
 	| ChangeStreamInsertDocument<TSchema>
@@ -32,15 +34,19 @@ type SupportedChangeStreamDocument<TSchema extends { _id: ProtectedString<any> }
 interface ObserverInstance<DBInterface extends { _id: ProtectedString<any> }> {
 	readonly id: string
 	readonly query: MongoQuery<DBInterface> | DBInterface['_id']
+	readonly projection: ((doc: any) => any) | undefined
 
-	readonly changeCallback: (change: SupportedChangeStreamDocument<DBInterface>) => Promise<void>
+	readonly changeCallback: (
+		change: SupportedChangeStreamDocument<DBInterface>,
+		instance: ObserverInstance<DBInterface>
+	) => Promise<void>
 
 	// Whether the update loop is running
 	isRunning: boolean
 	// Any unprocessed changes that need to be checked for validity and executed
 	queuedDocuments: SupportedChangeStreamDocument<DBInterface>[]
 
-	readonly knownDocumentIds: Set<DBInterface['_id']>
+	readonly documentCache: Map<DBInterface['_id'], Partial<DBInterface>>
 }
 
 export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> }> {
@@ -61,39 +67,55 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 		const hasCallback = Object.values<any>(callbacks).filter(Boolean).length > 0
 		if (!hasCallback) throw new Meteor.Error(500, 'No callbacks provided to observeChanges')
 
-		return this._startObserver(selector, options, async (change) => {
-			// nocommit - apply selector, and options
-			switch (change.operationType) {
-				case 'insert':
-					if (callbacks.added) {
-						await callbacks.added(change.fullDocument._id, change.fullDocument)
-					}
-					break
-				case 'update':
-					if (callbacks.changed) {
-						const changes: Record<string, any> = {
-							...change.updateDescription.updatedFields,
+		return this._startObserver(selector, options, async (change, instance) => {
+			if (change.operationType === 'delete') {
+				const id = change.documentKey._id as DBInterface['_id']
+				if (instance.documentCache.has(id)) {
+					instance.documentCache.delete(id)
+
+					await callbacks.removed?.(id)
+				}
+
+				return
+			}
+
+			const newDoc = change.fullDocument as DBInterface
+			if (mongoWhere(newDoc, selector)) {
+				const oldDoc = instance.documentCache.get(newDoc._id)
+
+				const newDocFiltered = instance.projection ? instance.projection(newDoc) : newDoc
+
+				if (oldDoc) {
+					// Update the cache
+					instance.documentCache.set(newDoc._id, newDocFiltered)
+
+					// Check if the document has changed
+					const fields: Partial<DBInterface> = {}
+					const allKeys = new Set<string>([...Object.keys(newDocFiltered), ...Object.keys(oldDoc)])
+					for (const key0 of allKeys) {
+						const key = key0 as keyof DBInterface
+						if (!EJSON.equals(newDocFiltered[key], (oldDoc as any)[key])) {
+							fields[key] = newDocFiltered[key]
 						}
-						for (const field of change.updateDescription.removedFields || []) {
-							changes[field] = undefined
-						}
-						await callbacks.changed(change.documentKey._id, changes)
 					}
-					break
-				case 'replace':
-					if (callbacks.changed) {
-						// Lets be lazy, and claim the whole doc changed.
-						await callbacks.changed(change.documentKey._id, change.fullDocument)
+
+					if (Object.keys(fields).length > 0) {
+						await callbacks.changed?.(newDoc._id, fields)
 					}
-					break
-				case 'delete':
-					if (callbacks.removed) {
-						await callbacks.removed(change.documentKey._id as any)
-					}
-					break
-				default:
-					assertNever(change)
-					break
+				} else {
+					// New document, add it to the cache
+					instance.documentCache.set(newDoc._id, newDocFiltered)
+
+					await callbacks.added?.(newDoc._id, newDocFiltered as DBInterface)
+				}
+			} else {
+				// No match, mark as deleted if needed
+				const cachedDoc = instance.documentCache.get(newDoc._id)
+				if (cachedDoc) {
+					instance.documentCache.delete(newDoc._id)
+
+					await callbacks.removed?.(newDoc._id)
+				}
 			}
 		})
 	}
@@ -106,28 +128,47 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 		const hasCallback = Object.values<any>(callbacks).filter(Boolean).length > 0
 		if (!hasCallback) throw new Meteor.Error(500, 'No callbacks provided to observe')
 
-		return this._startObserver(selector, options, async (change) => {
-			// nocommit - apply selector, and options
-			switch (change.operationType) {
-				case 'insert':
-					if (callbacks.added) {
-						await callbacks.added(change.fullDocument)
+		return this._startObserver(selector, options, async (change, instance) => {
+			if (change.operationType === 'delete') {
+				const id = change.documentKey._id as DBInterface['_id']
+				const cachedDoc = instance.documentCache.get(id)
+				if (cachedDoc) {
+					instance.documentCache.delete(id)
+
+					await callbacks.removed?.(cachedDoc as DBInterface)
+				}
+
+				return
+			}
+
+			const newDoc = change.fullDocument as DBInterface
+			if (mongoWhere(newDoc, selector)) {
+				const oldDoc = instance.documentCache.get(newDoc._id)
+
+				const newDocFiltered = instance.projection ? instance.projection(newDoc) : newDoc
+
+				if (oldDoc) {
+					// Update the cache
+					instance.documentCache.set(newDoc._id, newDocFiltered)
+
+					// Check if the document has changed
+					if (!EJSON.equals(newDocFiltered, oldDoc as any)) {
+						await callbacks.changed?.(newDocFiltered, oldDoc as DBInterface)
 					}
-					break
-				case 'update':
-				case 'replace':
-					if (callbacks.changed) {
-						await callbacks.changed(change.fullDocument!, change.fullDocumentBeforeChange!)
-					}
-					break
-				case 'delete':
-					if (callbacks.removed) {
-						await callbacks.removed(change.documentKey._id as any)
-					}
-					break
-				default:
-					assertNever(change)
-					break
+				} else {
+					// New document, add it to the cache
+					instance.documentCache.set(newDoc._id, newDocFiltered)
+
+					await callbacks.added?.(newDocFiltered as DBInterface)
+				}
+			} else {
+				// No match, mark as deleted if needed
+				const cachedDoc = instance.documentCache.get(newDoc._id)
+				if (cachedDoc) {
+					instance.documentCache.delete(newDoc._id)
+
+					await callbacks.removed?.(cachedDoc as DBInterface)
+				}
 			}
 		})
 	}
@@ -141,13 +182,14 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 		const instance: ObserverInstance<DBInterface> = {
 			id: getRandomString(),
 			query: selector,
+			projection: options?.projection ? mongoCompileProjection(options.projection) : undefined,
 
 			changeCallback,
 
 			isRunning: true,
 			queuedDocuments: [],
 
-			knownDocumentIds: new Set(),
+			documentCache: new Map(),
 		}
 
 		try {
@@ -155,25 +197,32 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 
 			// Load the initial version of the matched documents, and apply any concurrent changes
 			const initialDocuments = await this.#collection.find(selector, options).toArray()
-			const processedDocuments = applyChangesToDocuments(initialDocuments, instance.queuedDocuments)
+			const processedDocuments = applyChangesToDocuments(
+				initialDocuments,
+				instance.queuedDocuments,
+				instance.projection
+			)
 			instance.queuedDocuments = []
 			// TODO: is this safe? could there be some non-idempotent changes?
 
 			// Perform the initial callbacks, terminating the observer if any of them throw
 			for (const doc of processedDocuments) {
-				await changeCallback({
-					_id: null,
-					operationType: 'insert',
-					fullDocument: doc as DBInterface,
-					ns: {
-						db: '',
-						coll: '',
+				await changeCallback(
+					{
+						_id: null,
+						operationType: 'insert',
+						fullDocument: doc as DBInterface,
+						ns: {
+							db: '',
+							coll: '',
+						},
+						documentKey: {
+							_id: doc._id,
+						},
+						collectionUUID: null as any,
 					},
-					documentKey: {
-						_id: doc._id,
-					},
-					collectionUUID: null as any,
-				})
+					instance
+				)
 			}
 
 			return {
@@ -239,7 +288,7 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 			}
 
 			observer
-				.changeCallback(change)
+				.changeCallback(change, observer)
 				.then(
 					() => {
 						this._triggerObserverUpdate(observer)
@@ -260,21 +309,24 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 
 function applyChangesToDocuments<DBInterface extends { _id: ProtectedString<any> }>(
 	initialDocuments: WithId<DBInterface>[],
-	queuedDocuments: SupportedChangeStreamDocument<DBInterface>[]
+	queuedDocuments: SupportedChangeStreamDocument<DBInterface>[],
+	projection0: ((doc: any) => any) | undefined
 ): WithId<DBInterface>[] {
 	if (queuedDocuments.length === 0) return initialDocuments
+
+	const projection = projection0 || ((doc) => doc)
 
 	const initialDocumentsMap = normalizeArrayToMap(initialDocuments, '_id')
 	for (const change of queuedDocuments) {
 		switch (change.operationType) {
 			case 'insert':
-				initialDocumentsMap.set(change.fullDocument._id as any, change.fullDocument as any)
+				initialDocumentsMap.set(change.fullDocument._id as any, projection(change.fullDocument as any))
 				break
 			case 'replace':
-				initialDocumentsMap.set(change.documentKey._id as any, change.fullDocument as any)
+				initialDocumentsMap.set(change.documentKey._id as any, projection(change.fullDocument as any))
 				break
 			case 'update':
-				initialDocumentsMap.set(change.documentKey._id as any, change.fullDocument! as any)
+				initialDocumentsMap.set(change.documentKey._id as any, projection(change.fullDocument! as any))
 				break
 			case 'delete':
 				initialDocumentsMap.delete(change.documentKey._id as any)

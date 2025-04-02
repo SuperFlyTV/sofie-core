@@ -6020,6 +6020,7 @@ __metadata:
   dependencies:
     "@sofie-automation/blueprints-integration": "npm:1.53.0-in-development"
     "@sofie-automation/shared-lib": "npm:1.53.0-in-development"
+    ejson: "npm:^2.2.3"
     fast-clone: "npm:^1.5.13"
     i18next: "npm:^21.10.0"
     influx: "npm:^5.9.7"

@@ -1043,55 +1043,6 @@ function operatorBranchedMatcher(valueSelector, matcher, isRoot) {
   return andBranchedMatchers(operatorMatchers);
 }
 
-// paths - Array: list of mongo style paths
-// newLeafFn - Function: of form function(path) should return a scalar value to
-//                       put into list created for that path
-// conflictFn - Function: of form function(node, path, fullPath) is called
-//                        when building a tree path for 'fullPath' node on
-//                        'path' was already a leaf with a value. Must return a
-//                        conflict resolution.
-// initial tree - Optional Object: starting tree.
-// @returns - Object: tree represented as a set of nested objects
-export function pathsToTree(paths, newLeafFn, conflictFn, root = {}) {
-  paths.forEach(path => {
-    const pathArray = path.split('.');
-    let tree = root;
-
-    // use .every just for iteration with break
-    const success = pathArray.slice(0, -1).every((key, i) => {
-      if (!hasOwn.call(tree, key)) {
-        tree[key] = {};
-      } else if (tree[key] !== Object(tree[key])) {
-        tree[key] = conflictFn(
-          tree[key],
-          pathArray.slice(0, i + 1).join('.'),
-          path
-        );
-
-        // break out of loop if we are failing for this path
-        if (tree[key] !== Object(tree[key])) {
-          return false;
-        }
-      }
-
-      tree = tree[key];
-
-      return true;
-    });
-
-    if (success) {
-      const lastKey = pathArray[pathArray.length - 1];
-      if (hasOwn.call(tree, lastKey)) {
-        tree[lastKey] = conflictFn(tree[lastKey], path, path);
-      } else {
-        tree[lastKey] = newLeafFn(path);
-      }
-    }
-  });
-
-  return root;
-}
-
 // Makes sure we get 2 elements array and assume the first one to be x and
 // the second one to y no matter what user passes.
 // In case user passes { lon: x, lat: y } returns [x, y]
@@ -1195,79 +1146,6 @@ export function selectorIsId (selector) {
   return typeof selector === 'number' ||
   typeof selector === 'string'
 };
-
-
-// Traverses the keys of passed projection and constructs a tree where all
-// leaves are either all True or all False
-// @returns Object:
-//  - tree - Object - tree representation of keys involved in projection
-//  (exception for '_id' as it is a special case handled separately)
-//  - including - Boolean - "take only certain fields" type of projection
-export function projectionDetails(fields) {
-  // Find the non-_id keys (_id is handled specially because it is included
-  // unless explicitly excluded). Sort the keys, so that our code to detect
-  // overlaps like 'foo' and 'foo.bar' can assume that 'foo' comes first.
-  let fieldsKeys = Object.keys(fields).sort();
-
-  // If _id is the only field in the projection, do not remove it, since it is
-  // required to determine if this is an exclusion or exclusion. Also keep an
-  // inclusive _id, since inclusive _id follows the normal rules about mixing
-  // inclusive and exclusive fields. If _id is not the only field in the
-  // projection and is exclusive, remove it so it can be handled later by a
-  // special case, since exclusive _id is always allowed.
-  if (!(fieldsKeys.length === 1 && fieldsKeys[0] === '_id') &&
-      !(fieldsKeys.includes('_id') && fields._id)) {
-    fieldsKeys = fieldsKeys.filter(key => key !== '_id');
-  }
-
-  let including = null; // Unknown
-
-  fieldsKeys.forEach(keyPath => {
-    const rule = !!fields[keyPath];
-
-    if (including === null) {
-      including = rule;
-    }
-
-    // This error message is copied from MongoDB shell
-    if (including !== rule) {
-      throw MinimongoError(
-        'You cannot currently mix including and excluding fields.'
-      );
-    }
-  });
-
-  const projectionRulesTree = pathsToTree(
-    fieldsKeys,
-    path => including,
-    (node, path, fullPath) => {
-      // Check passed projection fields' keys: If you have two rules such as
-      // 'foo.bar' and 'foo.bar.baz', then the result becomes ambiguous. If
-      // that happens, there is a probability you are doing something wrong,
-      // framework should notify you about such mistake earlier on cursor
-      // compilation step than later during runtime.  Note, that real mongo
-      // doesn't do anything about it and the later rule appears in projection
-      // project, more priority it takes.
-      //
-      // Example, assume following in mongo shell:
-      // > db.coll.insert({ a: { b: 23, c: 44 } })
-      // > db.coll.find({}, { 'a': 1, 'a.b': 1 })
-      // {"_id": ObjectId("520bfe456024608e8ef24af3"), "a": {"b": 23}}
-      // > db.coll.find({}, { 'a.b': 1, 'a': 1 })
-      // {"_id": ObjectId("520bfe456024608e8ef24af3"), "a": {"b": 23, "c": 44}}
-      //
-      // Note, how second time the return set of keys is different.
-      const currentPath = fullPath;
-      const anotherPath = path;
-      throw MinimongoError(
-        `both ${currentPath} and ${anotherPath} found in fields option, ` +
-        'using both of them may trigger unexpected behavior. Did you mean to ' +
-        'use only one of them?'
-      );
-    });
-
-  return {including, tree: projectionRulesTree};
-}
 
 // Takes a RegExp object and returns an element matcher.
 export function regexpElementMatcher(regexp) {

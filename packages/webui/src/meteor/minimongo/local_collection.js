@@ -5,7 +5,6 @@ import {
   isNumericKey,
   isOperatorObject,
   populateDocumentWithQueryFields,
-  projectionDetails,
   MinimongoError,
   compileDocumentSelector,
   nothingMatcher,
@@ -24,6 +23,7 @@ import { IdMap } from './lib/id-map.js'
 import { OrderedDict } from './lib/ordered-dict.js'
 import { getRandomString } from '@sofie-automation/corelib/dist/lib'
 import { SynchronousQueue } from './lib/synchronous-queue.js';
+import { mongoCompileProjection } from '@sofie-automation/corelib/dist/mongo'
 
 // XXX type checking on selectors (graceful error if malformed)
 
@@ -787,97 +787,6 @@ LocalCollection._binarySearch = (cmp, array, value) => {
   }
 
   return first;
-};
-
-LocalCollection._checkSupportedProjection = fields => {
-  if (fields !== Object(fields) || Array.isArray(fields)) {
-    throw MinimongoError('fields option must be an object');
-  }
-
-  Object.keys(fields).forEach(keyPath => {
-    if (keyPath.split('.').includes('$')) {
-      throw MinimongoError(
-        'Minimongo doesn\'t support $ operator in projections yet.'
-      );
-    }
-
-    const value = fields[keyPath];
-
-    if (typeof value === 'object' &&
-        ['$elemMatch', '$meta', '$slice'].some(key =>
-          hasOwn.call(value, key)
-        )) {
-      throw MinimongoError(
-        'Minimongo doesn\'t support operators in projections yet.'
-      );
-    }
-
-    if (![1, 0, true, false].includes(value)) {
-      throw MinimongoError(
-        'Projection values should be one of 1, 0, true, or false'
-      );
-    }
-  });
-};
-
-// Knows how to compile a fields projection to a predicate function.
-// @returns - Function: a closure that filters out an object according to the
-//            fields projection rules:
-//            @param obj - Object: MongoDB-styled document
-//            @returns - Object: a document with the fields filtered out
-//                       according to projection rules. Doesn't retain subfields
-//                       of passed argument.
-LocalCollection._compileProjection = fields => {
-  LocalCollection._checkSupportedProjection(fields);
-
-  const _idProjection = fields._id === undefined ? true : fields._id;
-  const details = projectionDetails(fields);
-
-  // returns transformed doc according to ruleTree
-  const transform = (doc, ruleTree) => {
-    // Special case for "sets"
-    if (Array.isArray(doc)) {
-      return doc.map(subdoc => transform(subdoc, ruleTree));
-    }
-
-    const result = details.including ? {} : EJSON.clone(doc);
-
-    Object.keys(ruleTree).forEach(key => {
-      if (doc == null || !hasOwn.call(doc, key)) {
-        return;
-      }
-
-      const rule = ruleTree[key];
-
-      if (rule === Object(rule)) {
-        // For sub-objects/subsets we branch
-        if (doc[key] === Object(doc[key])) {
-          result[key] = transform(doc[key], rule);
-        }
-      } else if (details.including) {
-        // Otherwise we don't even touch this subfield
-        result[key] = EJSON.clone(doc[key]);
-      } else {
-        delete result[key];
-      }
-    });
-
-    return doc != null ? result : doc;
-  };
-
-  return doc => {
-    const result = transform(doc, details.tree);
-
-    if (_idProjection && hasOwn.call(doc, '_id')) {
-      result._id = doc._id;
-    }
-
-    if (!_idProjection && hasOwn.call(result, '_id')) {
-      delete result._id;
-    }
-
-    return result;
-  };
 };
 
 // Calculates the document to insert in case we're doing an upsert and the
@@ -2446,7 +2355,7 @@ LocalCollection.Cursor = class Cursor {
     this.limit = options.limit;
     this.fields = options.projection || options.fields;
 
-    this._projectionFn = LocalCollection._compileProjection(this.fields || {});
+    this._projectionFn = mongoCompileProjection(this.fields || {});
 
     // by default, queries register w/ Tracker when it is available.
     if (typeof Tracker !== 'undefined') {

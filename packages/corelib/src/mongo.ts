@@ -3,7 +3,8 @@ import { ProtectedString } from './protectedString'
 import * as objectPath from 'object-path'
 // eslint-disable-next-line node/no-extraneous-import
 import type { Condition, Filter, UpdateFilter } from 'mongodb'
-import { clone } from './lib'
+// @ts-expect-error No types available
+import EJSON from 'ejson'
 
 /** Hack's using typings pulled from meteor */
 
@@ -210,42 +211,8 @@ export function mongoApplyProjection<TDoc extends { _id: ProtectedString<any> }>
 	docs: TDoc[],
 	projection0: MongoFieldSpecifier<TDoc>
 ): Partial<TDoc>[] {
-	const projection = projection0 as any
-	const idVal = projection['_id']
-	const includeKeys = _.keys(projection).filter((key) => key !== '_id' && projection[key] !== 0)
-	const excludeKeys: string[] = _.keys(projection).filter((key) => key !== '_id' && projection[key] === 0)
-
-	// Mongo does not allow mixed include and exclude (exception being excluding _id)
-	// https://docs.mongodb.com/manual/reference/method/db.collection.find/#projection
-	if (includeKeys.length !== 0 && excludeKeys.length !== 0) {
-		throw new Error(`options.projection cannot contain both include and exclude rules`)
-	}
-
-	if (includeKeys.length !== 0) {
-		if (idVal !== 0) includeKeys.push('_id')
-		return docs.map((doc) => {
-			const newDoc: any = {} // any since includeKeys breaks strict typings anyway
-
-			for (const key of includeKeys) {
-				objectPath.set(newDoc, key, objectPath.get(doc, key))
-			}
-
-			return newDoc
-		})
-	} else if (excludeKeys.length !== 0) {
-		if (idVal === 0) excludeKeys.push('_id')
-		return docs.map((doc) => {
-			const newDoc = clone<any>(doc) // any since excludeKeys breaks strict typings anyway
-
-			for (const key of excludeKeys) {
-				objectPath.del(newDoc, key)
-			}
-
-			return newDoc
-		})
-	} else {
-		return docs
-	}
+	const compiledFn = mongoCompileProjection(projection0)
+	return docs.map((doc) => compiledFn(doc))
 }
 
 export function mongoModify<TDoc extends { _id: ProtectedString<any> }>(
@@ -470,4 +437,215 @@ export function renamePath(obj: Record<string, unknown>, oldPath: string, newPat
 		setOntoPath(obj, newPath, {}, parentObj[key])
 		delete parentObj[key]
 	})
+}
+
+// nocommit - testing here
+
+// Knows how to compile a fields projection to a predicate function.
+// @returns - Function: a closure that filters out an object according to the
+//            fields projection rules:
+//            @param obj - Object: MongoDB-styled document
+//            @returns - Object: a document with the fields filtered out
+//                       according to projection rules. Doesn't retain subfields
+//                       of passed argument.
+export function mongoCompileProjection(fields: MongoFieldSpecifier<any>): (doc: any) => any {
+	checkSupportedProjection(fields)
+
+	const _idProjection = fields._id === undefined ? true : fields._id
+	const details = projectionDetails(fields)
+
+	// returns transformed doc according to ruleTree
+	const transform = (doc: any | any[], ruleTree: PathsTreeNode): any | any[] => {
+		// Special case for "sets"
+		if (Array.isArray(doc)) {
+			return doc.map((subdoc) => transform(subdoc, ruleTree))
+		}
+
+		const result = details.including ? {} : EJSON.clone(doc)
+
+		Object.keys(ruleTree).forEach((key) => {
+			if (doc == null || !Object.prototype.hasOwnProperty.call(doc, key)) {
+				return
+			}
+
+			const rule = ruleTree[key]
+
+			if (rule === Object(rule)) {
+				// For sub-objects/subsets we branch
+				if (doc[key] === Object(doc[key])) {
+					result[key] = transform(doc[key], rule as PathsTreeNode)
+				}
+			} else if (details.including) {
+				// Otherwise we don't even touch this subfield
+				result[key] = EJSON.clone(doc[key])
+			} else {
+				delete result[key]
+			}
+		})
+
+		return doc != null ? result : doc
+	}
+
+	return (doc) => {
+		const result = transform(doc, details.tree)
+
+		if (_idProjection && Object.prototype.hasOwnProperty.call(doc, '_id')) {
+			result._id = doc._id
+		}
+
+		if (!_idProjection && Object.prototype.hasOwnProperty.call(result, '_id')) {
+			delete result._id
+		}
+
+		return result
+	}
+}
+
+function checkSupportedProjection(fields: MongoFieldSpecifier<any>): void {
+	if (fields !== Object(fields) || Array.isArray(fields)) {
+		throw Error('fields option must be an object')
+	}
+
+	Object.keys(fields).forEach((keyPath) => {
+		if (keyPath.split('.').includes('$')) {
+			throw Error("Minimongo doesn't support $ operator in projections yet.")
+		}
+
+		const value = fields[keyPath]
+
+		if (
+			typeof value === 'object' &&
+			['$elemMatch', '$meta', '$slice'].some((key) => Object.prototype.hasOwnProperty.call(value, key))
+		) {
+			throw Error("Minimongo doesn't support operators in projections yet.")
+		}
+
+		if (![1, 0, true, false].includes(value as any)) {
+			throw Error('Projection values should be one of 1, 0, true, or false')
+		}
+	})
+}
+
+// Traverses the keys of passed projection and constructs a tree where all
+// leaves are either all True or all False
+// @returns Object:
+//  - tree - Object - tree representation of keys involved in projection
+//  (exception for '_id' as it is a special case handled separately)
+//  - including - Boolean - "take only certain fields" type of projection
+function projectionDetails(fields: MongoFieldSpecifier<any>) {
+	// Find the non-_id keys (_id is handled specially because it is included
+	// unless explicitly excluded). Sort the keys, so that our code to detect
+	// overlaps like 'foo' and 'foo.bar' can assume that 'foo' comes first.
+	let fieldsKeys = Object.keys(fields).sort()
+
+	// If _id is the only field in the projection, do not remove it, since it is
+	// required to determine if this is an exclusion or exclusion. Also keep an
+	// inclusive _id, since inclusive _id follows the normal rules about mixing
+	// inclusive and exclusive fields. If _id is not the only field in the
+	// projection and is exclusive, remove it so it can be handled later by a
+	// special case, since exclusive _id is always allowed.
+	if (!(fieldsKeys.length === 1 && fieldsKeys[0] === '_id') && !(fieldsKeys.includes('_id') && fields._id)) {
+		fieldsKeys = fieldsKeys.filter((key) => key !== '_id')
+	}
+
+	let including: boolean | null = null // Unknown
+
+	for (const keyPath of fieldsKeys) {
+		const rule = !!fields[keyPath]
+
+		if (including === null) {
+			including = rule
+		}
+
+		// This error message is copied from MongoDB shell
+		if (including !== rule) {
+			throw Error('You cannot currently mix including and excluding fields.')
+		}
+	}
+
+	const projectionRulesTree = pathsToTree(
+		fieldsKeys,
+		(_path) => including,
+		(_node, path, fullPath) => {
+			// Check passed projection fields' keys: If you have two rules such as
+			// 'foo.bar' and 'foo.bar.baz', then the result becomes ambiguous. If
+			// that happens, there is a probability you are doing something wrong,
+			// framework should notify you about such mistake earlier on cursor
+			// compilation step than later during runtime.  Note, that real mongo
+			// doesn't do anything about it and the later rule appears in projection
+			// project, more priority it takes.
+			//
+			// Example, assume following in mongo shell:
+			// > db.coll.insert({ a: { b: 23, c: 44 } })
+			// > db.coll.find({}, { 'a': 1, 'a.b': 1 })
+			// {"_id": ObjectId("520bfe456024608e8ef24af3"), "a": {"b": 23}}
+			// > db.coll.find({}, { 'a.b': 1, 'a': 1 })
+			// {"_id": ObjectId("520bfe456024608e8ef24af3"), "a": {"b": 23, "c": 44}}
+			//
+			// Note, how second time the return set of keys is different.
+			const currentPath = fullPath
+			const anotherPath = path
+			throw Error(
+				`both ${currentPath} and ${anotherPath} found in fields option, ` +
+					'using both of them may trigger unexpected behavior. Did you mean to ' +
+					'use only one of them?'
+			)
+		}
+	)
+
+	return { including, tree: projectionRulesTree }
+}
+
+interface PathsTreeNode {
+	[key: string]: PathsTreeNode | boolean | null | undefined
+}
+
+// paths - Array: list of mongo style paths
+// newLeafFn - Function: of form function(path) should return a scalar value to
+//                       put into list created for that path
+// conflictFn - Function: of form function(node, path, fullPath) is called
+//                        when building a tree path for 'fullPath' node on
+//                        'path' was already a leaf with a value. Must return a
+//                        conflict resolution.
+// initial tree - Optional Object: starting tree.
+// @returns - Object: tree represented as a set of nested objects
+function pathsToTree(
+	paths: string[],
+	newLeafFn: (path: string) => boolean | null,
+	conflictFn: (node: unknown, path: string, fullPath: string) => boolean | null,
+	root: PathsTreeNode = {}
+): PathsTreeNode {
+	for (const path of paths) {
+		const pathArray = path.split('.')
+		let tree = root
+
+		// use .every just for iteration with break
+		const success = pathArray.slice(0, -1).every((key, i) => {
+			if (!Object.prototype.hasOwnProperty.call(tree, key)) {
+				tree[key] = {}
+			} else if (tree[key] !== Object(tree[key])) {
+				tree[key] = conflictFn(tree[key], pathArray.slice(0, i + 1).join('.'), path)
+
+				// break out of loop if we are failing for this path
+				if (tree[key] !== Object(tree[key])) {
+					return false
+				}
+			}
+
+			tree = tree[key] as PathsTreeNode
+
+			return true
+		})
+
+		if (success) {
+			const lastKey = pathArray[pathArray.length - 1]
+			if (Object.prototype.hasOwnProperty.call(tree, lastKey)) {
+				tree[lastKey] = conflictFn(tree[lastKey], path, path)
+			} else {
+				tree[lastKey] = newLeafFn(path)
+			}
+		}
+	}
+
+	return root
 }
