@@ -57,6 +57,7 @@ import { RundownBaselineAdLibItem } from '@sofie-automation/corelib/dist/dataMod
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
 import { restartRandomId } from '../random'
 import { MongoMock } from '../mongo'
+import { MongoMock as MongoMock2 } from '../mongo2'
 import { defaultRundownPlaylist, defaultStudio } from '../defaultCollectionObjects'
 import { PackageInfo } from '../../server/coreSystem'
 import { DBTriggeredActions } from '@sofie-automation/meteor-lib/dist/collections/TriggeredActions'
@@ -159,6 +160,7 @@ export async function setupMockCore(doc?: Partial<ICoreSystem>): Promise<ICoreSy
 	// Reset everything mongo, to keep the ids predictable
 	restartRandomId()
 	MongoMock.deleteAllData()
+	MongoMock2.deleteAllData()
 
 	doc = doc || {}
 

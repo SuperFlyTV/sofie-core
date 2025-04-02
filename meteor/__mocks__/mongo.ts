@@ -22,6 +22,7 @@ import type {
 	MinimalMongoCursor,
 } from '../server/collections/implementations/asyncCollection'
 const clone = require('fast-clone')
+import { MongoMock as MongoMockOld } from './mongo2'
 
 export namespace MongoMock {
 	interface ObserverEntry<T extends CollectionObject> {
@@ -41,7 +42,7 @@ export namespace MongoMock {
 		_id: ProtectedString<any>
 	}
 
-	const mockCollections: MockCollections<any> = {}
+	const mockCollections: MockCollections<any> = MongoMockOld.mockCollections
 	export class Collection<T extends CollectionObject> implements Omit<MinimalMeteorMongoCollection<T>, 'find'> {
 		public _name: string
 		private _isTemporaryCollection: boolean
