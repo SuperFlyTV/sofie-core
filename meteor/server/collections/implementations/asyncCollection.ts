@@ -3,15 +3,13 @@ import { ProtectedString, protectString } from '@sofie-automation/corelib/dist/p
 import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
 import {
-	UpdateOptions,
 	UpsertOptions,
 	IndexSpecifier,
 	MongoCursor,
-	FindOptions,
 	ObserveChangesCallbacks,
 	ObserveCallbacks,
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import type { AnyBulkWriteOperation, Collection as RawCollection } from 'mongodb'
+import type { AnyBulkWriteOperation, Collection as RawCollection, FindOptions } from 'mongodb'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
 import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { profiler } from '../../api/profiler'

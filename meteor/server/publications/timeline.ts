@@ -10,7 +10,7 @@ import {
 } from '@sofie-automation/corelib/dist/dataModel/Timeline'
 import { meteorPublish } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
-import { FindOptions } from '@sofie-automation/meteor-lib/dist/collections/lib'
+import type { FindOptions } from 'mongodb'
 import {
 	CustomPublish,
 	meteorCustomPublish,
@@ -44,7 +44,7 @@ meteorPublish(CorelibPubSub.timelineDatastore, async function (studioId: StudioI
 
 	if (!studioId) throw new Meteor.Error(400, 'selector argument missing')
 	const modifier: FindOptions<DBTimelineDatastoreEntry> = {
-		fields: {},
+		projection: {},
 	}
 
 	return TimelineDatastore.findWithCursor({ studioId }, modifier)
@@ -75,7 +75,7 @@ meteorPublish(
 		if (!studioId) return null
 
 		const modifier: FindOptions<DBTimelineDatastoreEntry> = {
-			fields: {},
+			projection: {},
 		}
 
 		return TimelineDatastore.findWithCursor({ studioId }, modifier)
@@ -128,7 +128,7 @@ async function setupTimelinePublicationObservers(
 				removed: () => triggerUpdate({ invalidateStudio: true }),
 			},
 			{
-				fields: {
+				projection: {
 					// It should be enough to watch the mappingsHash, since that should change whenever there is a
 					// change to the mappings or the routes
 					mappingsHash: 1,

@@ -13,7 +13,7 @@ import {
 } from '../lib/customPublication'
 import { literal } from '../lib/tempLib'
 import { ReadonlyDeep } from 'type-fest'
-import { FindOptions } from '@sofie-automation/meteor-lib/dist/collections/lib'
+import type { FindOptions } from 'mongodb'
 import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { PeripheralDeviceId, StudioId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
@@ -58,7 +58,7 @@ meteorPublish(
 
 		if (!selector) throw new Meteor.Error(400, 'selector argument missing')
 		const modifier: FindOptions<ExternalMessageQueueObj> = {
-			fields: {},
+			projection: {},
 		}
 
 		return ExternalMessageQueue.findWithCursor(selector, modifier)
@@ -164,7 +164,7 @@ async function setupMappingsPublicationObservers(
 				removed: () => triggerUpdate({ invalidateStudio: true }),
 			},
 			{
-				fields: {
+				projection: {
 					// It should be enough to watch the mappingsHash, since that should change whenever there is a
 					// change to the mappings or the routes
 					mappingsHash: 1,

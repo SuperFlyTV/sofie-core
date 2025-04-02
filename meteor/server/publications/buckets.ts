@@ -1,4 +1,4 @@
-import { FindOptions } from '@sofie-automation/meteor-lib/dist/collections/lib'
+import type { FindOptions } from 'mongodb'
 import { meteorPublish } from './lib/lib'
 import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
 import { BucketAdLibActions, BucketAdLibs, Buckets } from '../collections'
@@ -19,7 +19,7 @@ meteorPublish(
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		const modifier: FindOptions<Bucket> = {
-			fields: {},
+			projection: {},
 		}
 
 		const selector: MongoQuery<Bucket> = {
@@ -49,7 +49,7 @@ meteorPublish(
 		if (bucketId) selector.bucketId = bucketId
 
 		return BucketAdLibs.findWithCursor(selector, {
-			fields: {
+			projection: {
 				ingestInfo: 0, // This is a large blob, and is not of interest to the UI
 			},
 		})
@@ -74,7 +74,7 @@ meteorPublish(
 		if (bucketId) selector.bucketId = bucketId
 
 		return BucketAdLibActions.findWithCursor(selector, {
-			fields: {
+			projection: {
 				ingestInfo: 0, // This is a large blob, and is not of interest to the UI
 			},
 		})

@@ -4,7 +4,7 @@ import { Blueprint } from '@sofie-automation/corelib/dist/dataModel/Blueprint'
 import { Evaluation } from '@sofie-automation/meteor-lib/dist/collections/Evaluations'
 import { SnapshotItem } from '@sofie-automation/meteor-lib/dist/collections/Snapshots'
 import { UserActionsLogItem } from '@sofie-automation/meteor-lib/dist/collections/UserActionsLog'
-import { FindOptions } from '@sofie-automation/meteor-lib/dist/collections/lib'
+import type { FindOptions } from 'mongodb'
 import { DBOrganization } from '@sofie-automation/meteor-lib/dist/collections/Organization'
 import { Blueprints, Evaluations, Organizations, Snapshots, UserActionsLog } from '../collections'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
@@ -25,7 +25,7 @@ meteorPublish(
 		const selector: MongoQuery<DBOrganization> = { _id: organizationId }
 
 		const modifier: FindOptions<DBOrganization> = {
-			fields: {
+			projection: {
 				name: 1,
 				applications: 1,
 				broadcastMediums: 1,
@@ -52,7 +52,7 @@ meteorPublish(
 		if (blueprintIds) selector._id = { $in: blueprintIds }
 
 		return Blueprints.findWithCursor(selector, {
-			fields: {
+			projection: {
 				code: 0,
 			},
 		})

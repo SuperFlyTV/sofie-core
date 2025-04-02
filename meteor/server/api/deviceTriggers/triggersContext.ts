@@ -154,7 +154,6 @@ async function fetchInfoForSelectedPart(partInfo: SelectedPartInstance | null): 
 
 	const partInstance = (await PartInstances.findOneAsync(partInfo.partInstanceId, {
 		projection: {
-			// @ts-expect-error deep property
 			'part._id': 1,
 			segmentId: 1,
 		},

@@ -26,7 +26,6 @@ export const addSteps = addMigrationSteps('1.44.0', [
 					},
 					{
 						sort: {
-							/* @ts-expect-error Field has been removed */
 							_rank: 1,
 							_id: 1,
 						},
