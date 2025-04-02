@@ -19,6 +19,7 @@ import { WrappedCollection } from '../new-collection'
 
 /**
  * A stripped down version of Meteor's Mongo.Cursor, with only the async methods
+ * @deprecated
  */
 export type MinimalMongoCursor<T extends { _id: ProtectedString<any> }> = Pick<
 	MongoCursor<T>,
@@ -91,28 +92,6 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			const collection = await this._rawCollection
 			return collection.findOne(selector, options)
 		} catch (e) {
-			this.wrapMongoError(e)
-		}
-	}
-
-	async findWithCursor(
-		selector?: MongoQuery<DBInterface> | DBInterface['_id'],
-		options?: FindOptions<DBInterface>
-	): Promise<MinimalMongoCursor<DBInterface>> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.findCursor`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
-		try {
-			const collection = await this._collection
-			const res = collection.find((selector ?? {}) as any, options as any)
-			if (span) span.end()
-			return res
-		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}

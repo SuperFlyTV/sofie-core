@@ -21,8 +21,8 @@ import { RundownContentObserver } from './RundownContentObserver'
 import { RundownsObserver } from './RundownsObserver'
 import { RundownPlaylists, Rundowns, ShowStyleBases } from '../../collections'
 import { PromiseDebounce } from '../../publications/lib/PromiseDebounce'
-import { MinimalMongoCursor } from '../../collections/implementations/asyncCollection'
 import { PieceInstancesObserver } from './PieceInstancesObserver'
+import { ObserveCallbacks } from '@sofie-automation/meteor-lib/dist/collections/lib'
 
 type RundownContentChangeHandler = (showStyleBaseId: ShowStyleBaseId, cache: ContentCache) => () => void
 type PieceInstancesChangeHandler = (showStyleBaseId: ShowStyleBaseId, cache: PieceInstancesContentCache) => () => void
@@ -86,16 +86,17 @@ export class StudioObserver extends EventEmitter {
 		this.#playlistInStudioLiveQuery = observerChain()
 			.next(
 				'activePlaylist',
-				async () =>
-					RundownPlaylists.findWithCursor(
+				async (callbacks: ObserveCallbacks<Pick<DBRundownPlaylist, RundownPlaylistFields>>) =>
+					RundownPlaylists.observe(
 						{
 							studioId: studioId,
 							activationId: { $exists: true },
 						},
+						callbacks,
 						{
 							projection: rundownPlaylistFieldSpecifier,
 						}
-					) as Promise<MinimalMongoCursor<Pick<DBRundownPlaylist, RundownPlaylistFields>>>
+					)
 			)
 			.end(this.updatePlaylistInStudio)
 	}
@@ -144,24 +145,18 @@ export class StudioObserver extends EventEmitter {
 
 	private setupShowStyleOfRundownObserver = (rundownId: RundownId): Meteor.LiveQueryHandle => {
 		return observerChain()
-			.next(
-				'currentRundown',
-				async () =>
-					Rundowns.findWithCursor(
-						{ _id: rundownId },
-						{ projection: rundownFieldSpecifier, limit: 1 }
-					) as Promise<MinimalMongoCursor<Pick<DBRundown, RundownFields>>>
+			.next('currentRundown', async (callbacks: ObserveCallbacks<Pick<DBRundown, RundownFields>>) =>
+				Rundowns.observe({ _id: rundownId }, callbacks, { projection: rundownFieldSpecifier, limit: 1 })
 			)
-			.next('showStyleBase', async (chain) =>
-				chain.currentRundown
-					? (ShowStyleBases.findWithCursor(
-							{ _id: chain.currentRundown.showStyleBaseId },
-							{
+			.next(
+				'showStyleBase',
+				async (callbacks: ObserveCallbacks<Pick<DBShowStyleBase, ShowStyleBaseFields>>, chain) =>
+					chain.currentRundown
+						? ShowStyleBases.observe({ _id: chain.currentRundown.showStyleBaseId }, callbacks, {
 								projection: showStyleBaseFieldSpecifier,
 								limit: 1,
-							}
-					  ) as Promise<MinimalMongoCursor<Pick<DBShowStyleBase, ShowStyleBaseFields>>>)
-					: null
+						  })
+						: null
 			)
 			.end(this.updateShowStyle.call)
 	}

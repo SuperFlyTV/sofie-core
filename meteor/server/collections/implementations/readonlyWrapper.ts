@@ -2,7 +2,6 @@ import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
 import type { Collection } from 'mongodb'
 import type { AsyncOnlyMongoCollection, AsyncOnlyReadOnlyMongoCollection } from '../collection'
-import type { MinimalMongoCursor } from './asyncCollection'
 
 export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: ProtectedString<any> }>
 	implements AsyncOnlyReadOnlyMongoCollection<DBInterface>
@@ -45,12 +44,6 @@ export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: Protected
 		...args: Parameters<AsyncOnlyReadOnlyMongoCollection<DBInterface>['findOneAsync']>
 	): Promise<DBInterface | undefined> {
 		return this.#mutableCollection.findOneAsync(...args)
-	}
-
-	async findWithCursor(
-		...args: Parameters<AsyncOnlyReadOnlyMongoCollection<DBInterface>['findWithCursor']>
-	): Promise<MinimalMongoCursor<DBInterface>> {
-		return this.#mutableCollection.findWithCursor(...args)
 	}
 
 	async observeChanges(

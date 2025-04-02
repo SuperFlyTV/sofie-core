@@ -1,8 +1,6 @@
-import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
-import { MongoCursor } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import type { AnyBulkWriteOperation, FindOptions } from 'mongodb'
+import type { AnyBulkWriteOperation } from 'mongodb'
 import { AsyncOnlyMongoCollection, TmpCollectionPair } from '../collection'
 import { WrappedAsyncMongoCollection } from './asyncCollection'
 import { Mongo } from 'meteor/mongo'
@@ -21,17 +19,6 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 
 	get mutableCollection(): AsyncOnlyMongoCollection<DBInterface> {
 		return this
-	}
-
-	/**
-	 * Retrieve a cursor for use in a publication
-	 * @param selector A query describing the documents to find
-	 */
-	override async findWithCursor(
-		_selector?: MongoQuery<DBInterface> | DBInterface['_id'],
-		_options?: FindOptions<DBInterface>
-	): Promise<MongoCursor<DBInterface>> {
-		throw new Error('findWithCursor not supported in tests')
 	}
 
 	override async bulkWriteAsync(ops: Array<AnyBulkWriteOperation<DBInterface>>): Promise<void> {

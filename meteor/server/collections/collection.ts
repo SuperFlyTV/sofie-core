@@ -18,7 +18,6 @@ import {
 	UpdateOptions,
 	UpsertOptions,
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import { MinimalMongoCursor } from './implementations/asyncCollection'
 import { UserPermissions } from '@sofie-automation/meteor-lib/dist/userPermissions'
 import { WrappedCollection } from './new-collection'
 import { RawAgent } from '../api/profiler/apm'
@@ -232,15 +231,6 @@ export interface AsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id: Pro
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		options?: FindOptions<DBInterface>
 	): Promise<DBInterface | undefined>
-
-	/**
-	 * Retrieve a cursor for use in a publication
-	 * @param selector A query describing the documents to find
-	 */
-	findWithCursor(
-		selector?: MongoQuery<DBInterface> | DBInterface['_id'],
-		options?: FindOptions<DBInterface>
-	): Promise<MinimalMongoCursor<DBInterface>>
 
 	/**
 	 * Observe changes on this collection
