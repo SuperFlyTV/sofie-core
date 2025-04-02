@@ -31,7 +31,7 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 		throw new Error('Not supported')
 	}
 
-	async updateDocument(collectionName: CollectionName, selector: any, modifier: any, options: any): Promise<number> {
+	async updateDocument(collectionName: CollectionName, selector: any, modifier: any, _options: any): Promise<number> {
 		triggerWriteAccess()
 
 		if (!this.connection) throw new Meteor.Error(403, 'Only supported from the client')
@@ -39,7 +39,7 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 		const validator = collectionsAllowDenyCache.get(collectionName)
 		if (!validator) throw new Meteor.Error(403, `Not allowed to update collection: "${collectionName}`)
 
-		const collection = collectionsCache.get(collectionName)?.meteorCollection
+		const collection = await collectionsCache.get(collectionName)?.rawCollection
 		if (!collection) throw new Meteor.Error(403, `Unknown collection: "${collectionName}`)
 
 		const permissions = parseConnectionPermissions(this.connection)
@@ -81,7 +81,7 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 			}
 		})
 
-		const currentDocument = await collection.findOneAsync(selector)
+		const currentDocument = await collection.findOne(selector)
 		if (!currentDocument) throw new Meteor.Error(404, `Document not found`)
 
 		// Perform check
@@ -89,7 +89,7 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 		if (!isAllowed) throw new Meteor.Error(403, `Not allowed to update collection: "${collectionName}"`)
 
 		// Perform update
-		return collection.updateAsync(currentDocument._id, modifier, options)
+		return collection.update(currentDocument._id, modifier)
 	}
 
 	async removeDocument(collectionName: CollectionName, _selector: any): Promise<any> {

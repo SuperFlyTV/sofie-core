@@ -20,6 +20,8 @@ import {
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
 import { MinimalMongoCursor } from './implementations/asyncCollection'
 import { UserPermissions } from '@sofie-automation/meteor-lib/dist/userPermissions'
+import { WrappedCollection } from './new-collection'
+import { RawAgent } from '../api/profiler/apm'
 
 export async function createMongoConnection(mongoUri: string): Promise<MongoClient> {
 	const client = new MongoClient(mongoUri, {
@@ -49,7 +51,7 @@ export const collectionsAllowDenyCache = new Map<string, CustomMongoAllowRules<a
 
 export interface TmpCollectionPair {
 	meteorCollection: Mongo.Collection<any>
-	rawCollection: Promise<RawCollection>
+	rawCollection: Promise<WrappedCollection<any>>
 }
 /**
  * Map of current collection objects.
@@ -65,7 +67,8 @@ function getOrCreateMongoCollection(name: string): TmpCollectionPair {
 	const meteorCollection = new Mongo.Collection(name)
 	const rawCollection = DefaultMongoClient.then((client) => {
 		const db = client.db()
-		return db.collection(name)
+		const col = db.collection<any>(name)
+		return new WrappedCollection<any>(col, (name) => RawAgent?.startSpan(name))
 	})
 
 	const pair: TmpCollectionPair = {

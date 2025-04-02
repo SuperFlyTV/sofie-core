@@ -7,9 +7,9 @@ import type { Span as ApmSpan } from 'elastic-apm-node'
 /** Wrap some APM and better error small query modifications around a Mongo.Collection */
 export class WrappedCollectionCore<TDoc extends { _id: ProtectedString<any> }> implements ICollectionCore<TDoc> {
 	readonly #collection: MongoCollection<TDoc>
-	readonly #startSpan: (name: string) => ApmSpan | undefined
+	readonly #startSpan: (name: string) => ApmSpan | null | undefined
 
-	constructor(collection: MongoCollection<TDoc>, startSpan: (name: string) => ApmSpan | undefined) {
+	constructor(collection: MongoCollection<TDoc>, startSpan: (name: string) => ApmSpan | null | undefined) {
 		this.#collection = collection
 		this.#startSpan = startSpan
 	}
