@@ -1,14 +1,5 @@
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
-import {
-	MongoClient,
-	AnyBulkWriteOperation,
-	Filter,
-	FindOptions,
-	UpdateFilter,
-	Collection as MongoCollection,
-	ChangeStreamDocument,
-	CountOptions,
-} from 'mongodb'
+import { MongoClient, ChangeStreamDocument } from 'mongodb'
 import { wrapMongoCollection } from './collection'
 import { AdLibAction } from '@sofie-automation/corelib/dist/dataModel/AdlibAction'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -40,24 +31,15 @@ import { ExpectedPackageDB } from '@sofie-automation/corelib/dist/dataModel/Expe
 import { PackageInfoDB } from '@sofie-automation/corelib/dist/dataModel/PackageInfos'
 import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { literal } from '@sofie-automation/corelib/dist/lib'
-import { ReadonlyDeep } from 'type-fest'
 import { ExternalMessageQueueObj } from '@sofie-automation/corelib/dist/dataModel/ExternalMessageQueue'
 import { MediaObjects } from '@sofie-automation/corelib/dist/dataModel/MediaObjects'
 import type { DBNotificationObj } from '@sofie-automation/corelib/dist/dataModel/Notifications'
 import type { EventEmitter } from 'events'
+import type { ICollectionCore, IReadOnlyCollectionCore } from '@sofie-automation/corelib/dist/db/collections'
 
-export type MongoQuery<TDoc> = Filter<TDoc>
-export type MongoModifier<TDoc> = UpdateFilter<TDoc>
+export type * from '@sofie-automation/corelib/dist/db/collections'
 
-export interface IReadOnlyCollection<TDoc extends { _id: ProtectedString<any> }> {
-	readonly name: string
-
-	readonly rawCollection: MongoCollection<TDoc>
-
-	findFetch(selector?: MongoQuery<TDoc>, options?: FindOptions<TDoc>): Promise<Array<TDoc>>
-	findOne(selector?: MongoQuery<TDoc> | TDoc['_id'], options?: FindOptions<TDoc>): Promise<TDoc | undefined>
-	count(selector?: MongoQuery<TDoc> | TDoc['_id'], options?: CountOptions): Promise<number>
-
+export interface IReadOnlyCollection<TDoc extends { _id: ProtectedString<any> }> extends IReadOnlyCollectionCore<TDoc> {
 	/**
 	 * Watch the collection for changes
 	 * This will throw when done in the context of a workqueue job
@@ -66,17 +48,9 @@ export interface IReadOnlyCollection<TDoc extends { _id: ProtectedString<any> }>
 	watch(pipeline: any[]): IChangeStream<TDoc>
 }
 
-export interface ICollection<TDoc extends { _id: ProtectedString<any> }> extends IReadOnlyCollection<TDoc> {
-	insertOne(doc: TDoc | ReadonlyDeep<TDoc>): Promise<TDoc['_id']>
-	// insertMany(docs: Array<TDoc | ReadonlyDeep<TDoc>>): Promise<Array<TDoc['_id']>>
-	remove(selector: MongoQuery<TDoc> | TDoc['_id']): Promise<number>
-	update(selector: MongoQuery<TDoc> | TDoc['_id'], modifier: MongoModifier<TDoc>): Promise<number>
-
-	/** Returns true if a doc was replaced, false if inserted */
-	replace(doc: TDoc | ReadonlyDeep<TDoc>): Promise<boolean>
-
-	bulkWrite(ops: Array<AnyBulkWriteOperation<TDoc>>): Promise<unknown>
-}
+export interface ICollection<TDoc extends { _id: ProtectedString<any> }>
+	extends IReadOnlyCollection<TDoc>,
+		ICollectionCore<TDoc> {}
 
 export type IChangeStreamEvents<TDoc extends { _id: ProtectedString<any> }> = {
 	error: [e: Error]

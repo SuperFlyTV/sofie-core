@@ -92,8 +92,7 @@ describe('cronjobs', () => {
 						value: enabled,
 					}),
 				},
-			},
-			{ multi: true }
+			}
 		)
 	}
 

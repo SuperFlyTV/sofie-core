@@ -102,8 +102,7 @@ describe('ClientAPI', () => {
 							hasReply: true,
 							reply: 'OK',
 						},
-					},
-					{ multi: true }
+					}
 				)
 				return promise.then(async (value) => {
 					const log = (await UserActionsLog.findOneAsync({
@@ -169,8 +168,7 @@ describe('ClientAPI', () => {
 							hasReply: true,
 							replyError: 'Failed',
 						},
-					},
-					{ multi: true }
+					}
 				)
 
 				// This will probably resolve after around 3s, since that is the timeout time

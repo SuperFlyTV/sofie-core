@@ -143,9 +143,6 @@ class ServerStudiosAPI extends MethodContextAPI implements NewStudiosAPI {
 				$unset: {
 					studioAndConfigId: 1,
 				},
-			},
-			{
-				multi: true,
 			}
 		)
 

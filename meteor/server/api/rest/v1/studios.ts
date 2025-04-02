@@ -173,8 +173,7 @@ class StudiosServerAPI implements StudiosRestAPI {
 
 		await PeripheralDevices.updateAsync(
 			{ 'studioAndConfigId.studioId': studioId },
-			{ $unset: { studioAndConfigId: 1 } },
-			{ multi: true }
+			{ $unset: { studioAndConfigId: 1 } }
 		)
 
 		const rundownPlaylists = (await RundownPlaylists.findFetchAsync(

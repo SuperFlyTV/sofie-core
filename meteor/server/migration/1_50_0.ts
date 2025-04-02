@@ -665,9 +665,6 @@ export const addSteps = addMigrationSteps('1.50.0', [
 					$unset: {
 						configManifest: 1,
 					},
-				},
-				{
-					multi: true,
 				}
 			)
 		},
@@ -756,9 +753,6 @@ export const addSteps = addMigrationSteps('1.50.0', [
 							subdeviceManifest: {},
 						},
 					},
-				},
-				{
-					multi: true,
 				}
 			)
 		},
@@ -850,8 +844,7 @@ export const addSteps = addMigrationSteps('1.50.0', [
 					$set: {
 						'settings.minimumTakeSpan': DEFAULT_MINIMUM_TAKE_SPAN,
 					},
-				},
-				{ multi: true }
+				}
 			)
 		},
 	},

@@ -87,8 +87,7 @@ Meteor.startup(async () => {
 						$set: {
 							blueprintConfigPresetIdUnlinked: true,
 						},
-					},
-					{ multi: true }
+					}
 				),
 			])
 		}

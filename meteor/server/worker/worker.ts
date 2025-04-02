@@ -246,16 +246,12 @@ async function fastTrackTimeline(newTimeline: TimelineComplete): Promise<void> {
 		selector.organizationId = studio.organizationId
 	}
 
-	await UserActionsLog.updateAsync(
-		selector,
-		{
-			$set: {
-				timelineHash: newTimeline.timelineHash,
-				timelineGenerated: newTimeline.generated,
-			},
+	await UserActionsLog.updateAsync(selector, {
+		$set: {
+			timelineHash: newTimeline.timelineHash,
+			timelineGenerated: newTimeline.generated,
 		},
-		{ multi: false }
-	)
+	})
 }
 
 async function logLine(msg: LogEntry): Promise<void> {

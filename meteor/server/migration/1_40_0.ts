@@ -63,8 +63,7 @@ export const addSteps = addMigrationSteps('1.40.0', [
 					$set: {
 						'settings.frameRate': oldFrameRate,
 					},
-				},
-				{ multi: true }
+				}
 			)
 		},
 	},
@@ -94,8 +93,7 @@ export const addSteps = addMigrationSteps('1.40.0', [
 						$set: {
 							'settings.allowRundownResetOnAir': OldSettings.allowRundownResetOnAir,
 						},
-					},
-					{ multi: true }
+					}
 				)
 			}
 		},

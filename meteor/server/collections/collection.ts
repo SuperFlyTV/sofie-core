@@ -21,19 +21,13 @@ import {
 import { MinimalMongoCursor } from './implementations/asyncCollection'
 import { UserPermissions } from '@sofie-automation/meteor-lib/dist/userPermissions'
 
-export async function createMongoConnection(fullMongoUri: string): Promise<{ client: MongoClient; dbName: string }> {
-	// Meteor wants the dbname as the path of the mongo url, but the mongodb driver needs it separate
-	const rawUrl = new URL(fullMongoUri)
-	const dbName = rawUrl.pathname.substring(1) // Trim off first '/'
-	rawUrl.pathname = ''
-	const mongoUri = rawUrl.toString()
-
+export async function createMongoConnection(mongoUri: string): Promise<MongoClient> {
 	const client = new MongoClient(mongoUri, {
 		ignoreUndefined: true,
 	})
 	await client.connect()
 
-	return { client, dbName }
+	return client
 }
 
 if (!process.env.MONGO_URL) throw new Error('MONGO_URL must be defined to launch Sofie')
@@ -53,20 +47,34 @@ export interface CustomMongoAllowRules<DBInterface> {
 
 export const collectionsAllowDenyCache = new Map<string, CustomMongoAllowRules<any>>()
 
+export interface TmpCollectionPair {
+	meteorCollection: Mongo.Collection<any>
+	rawCollection: Promise<RawCollection>
+}
 /**
  * Map of current collection objects.
  * Future: Could this weakly hold the collections?
  */
-export const collectionsCache = new Map<string, Mongo.Collection<any>>()
-export async function getOrCreateMongoCollection(name: string): Promise<Mongo.Collection<any>> {
+export const collectionsCache = new Map<string, TmpCollectionPair>()
+function getOrCreateMongoCollection(name: string): TmpCollectionPair {
 	const collection = collectionsCache.get(name)
 	if (collection) {
 		return collection
 	}
 
-	const newCollection = new Mongo.Collection(name)
-	collectionsCache.set(name, newCollection)
-	return newCollection
+	const meteorCollection = new Mongo.Collection(name)
+	const rawCollection = DefaultMongoClient.then((client) => {
+		const db = client.db()
+		return db.collection(name)
+	})
+
+	const pair: TmpCollectionPair = {
+		meteorCollection,
+		rawCollection,
+	}
+
+	collectionsCache.set(name, pair)
+	return pair
 }
 
 /**
@@ -112,7 +120,7 @@ export function createAsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id
 }
 
 function wrapMeteorCollectionIntoAsyncCollection<DBInterface extends { _id: ProtectedString<any> }>(
-	collection: Promise<Mongo.Collection<DBInterface>>,
+	collection: TmpCollectionPair,
 	name: CollectionName
 ) {
 	if ((Mongo.Collection as any)._isMock) {
@@ -147,17 +155,7 @@ export interface AsyncOnlyMongoCollection<DBInterface extends { _id: ProtectedSt
 	 * @param modifier The operation to apply to each matching document
 	 * @param options Options for the operation
 	 */
-	updateAsync(
-		selector: DBInterface['_id'] | ({ _id: DBInterface['_id'] } & MongoQuery<Omit<DBInterface, '_id'>>),
-		modifier: MongoModifier<DBInterface>,
-		options?: UpdateOptions
-	): Promise<number>
-	updateAsync(
-		selector: MongoQuery<DBInterface>,
-		modifier: MongoModifier<DBInterface>,
-		// Require { multi } to be set when selecting multiple documents to be updated, otherwise only the first found document will be updated
-		options: UpdateOptions & Required<Pick<UpdateOptions, 'multi'>>
-	): Promise<number>
+	updateAsync(selector: MongoQuery<DBInterface>, modifier: MongoModifier<DBInterface>): Promise<number>
 
 	/**
 	 * Perform an update/insert of a document

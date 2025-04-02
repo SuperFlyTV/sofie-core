@@ -2,8 +2,8 @@ import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
 import { FindOptions, MongoCursor } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import type { AnyBulkWriteOperation, Db as RawDb } from 'mongodb'
-import { AsyncOnlyMongoCollection } from '../collection'
+import type { AnyBulkWriteOperation } from 'mongodb'
+import { AsyncOnlyMongoCollection, TmpCollectionPair } from '../collection'
 import { WrappedAsyncMongoCollection } from './asyncCollection'
 import { Mongo } from 'meteor/mongo'
 
@@ -12,7 +12,7 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 	extends WrappedAsyncMongoCollection<DBInterface>
 	implements AsyncOnlyMongoCollection<DBInterface>
 {
-	constructor(collection: Promise<Mongo.Collection<DBInterface>>, name: string | null) {
+	constructor(collection: TmpCollectionPair, name: string | null) {
 		super(collection, name)
 
 		if (!(Mongo.Collection as any)._isMock)
@@ -21,10 +21,6 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 
 	get mutableCollection(): AsyncOnlyMongoCollection<DBInterface> {
 		return this
-	}
-
-	protected override async rawDatabase(): Promise<RawDb> {
-		throw new Error('rawDatabase not supported in tests')
 	}
 
 	/**

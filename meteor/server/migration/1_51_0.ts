@@ -86,9 +86,6 @@ export const addSteps = addMigrationSteps('1.51.0', [
 					$set: {
 						orphaned: RundownOrphanedReason.DELETED,
 					},
-				},
-				{
-					multi: true,
 				}
 			)
 		},

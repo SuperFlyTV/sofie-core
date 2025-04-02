@@ -1,5 +1,5 @@
 import * as _ from 'underscore'
-import { Time } from '../lib/tempLib'
+import { protectString, Time } from '../lib/tempLib'
 import { sleep, getCurrentTime } from '../lib/lib'
 import { registerClassToMeteorMethods } from '../methods'
 import { MethodContextAPI, MethodContext } from './methodContext'
@@ -154,7 +154,7 @@ async function doSystemBenchmarkInner() {
 			const insertedIds: string[] = []
 			for (let i = 0; i < 100; i++) {
 				const objectToInsert = {
-					_id: 'myObject' + i,
+					_id: protectString('myObject' + i),
 					prop0: {
 						asdf: 'asdf',
 						ghjk: 123456,
@@ -179,7 +179,7 @@ async function doSystemBenchmarkInner() {
 			const insertedIds: string[] = []
 			for (let i = 0; i < 10; i++) {
 				const objectToInsert = {
-					_id: 'myObject' + i,
+					_id: protectString('myObject' + i),
 					objs: _.range(0, 1000).map((j) => {
 						return {
 							id: 'innerObj' + j,
@@ -213,7 +213,7 @@ async function doSystemBenchmarkInner() {
 			// Prepare data in db:
 			for (let i = 0; i < DOC_COUNT; i++) {
 				const objectToInsert = {
-					_id: 'myObject' + i,
+					_id: protectString('myObject' + i),
 					objs: _.range(0, 100).map((j) => {
 						return {
 							id: 'innerObj' + j,

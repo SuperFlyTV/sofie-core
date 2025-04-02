@@ -96,8 +96,7 @@ class AbstractMigrationContextWithTriggeredActions {
 				},
 				{
 					$set: newObj,
-				},
-				{ multi: true }
+				}
 			)
 		}
 	}

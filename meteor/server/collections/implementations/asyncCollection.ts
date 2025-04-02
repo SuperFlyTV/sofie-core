@@ -1,5 +1,5 @@
 import { MongoModifier, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
-import { ProtectedString, protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
+import { ProtectedString, protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
 import {
@@ -11,12 +11,13 @@ import {
 	ObserveChangesCallbacks,
 	ObserveCallbacks,
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
-import type { AnyBulkWriteOperation, Collection as RawCollection, Db as RawDb } from 'mongodb'
+import type { AnyBulkWriteOperation, Collection as RawCollection } from 'mongodb'
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
 import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { profiler } from '../../api/profiler'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
-import { AsyncOnlyMongoCollection } from '../collection'
+import { AsyncOnlyMongoCollection, TmpCollectionPair } from '../collection'
+import { WrappedCollection } from '../new-collection'
 
 /**
  * A stripped down version of Meteor's Mongo.Cursor, with only the async methods
@@ -40,11 +41,13 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	implements AsyncOnlyMongoCollection<DBInterface>
 {
 	protected readonly _collection: Promise<MinimalMeteorMongoCollection<DBInterface>>
+	protected readonly _rawCollection: Promise<WrappedCollection<DBInterface>>
 
 	public readonly name: string | null
 
-	constructor(collection: Promise<Mongo.Collection<DBInterface>>, name: string | null) {
-		this._collection = collection as any
+	constructor(collection: TmpCollectionPair, name: string | null) {
+		this._collection = Promise.resolve(collection.meteorCollection) as any
+		this._rawCollection = collection.rawCollection as any
 		this.name = name
 	}
 
@@ -67,32 +70,17 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	}
 
 	async rawCollection(): Promise<RawCollection<DBInterface>> {
-		const collection = await this._collection
-		return collection.rawCollection() as any
-	}
-	protected async rawDatabase(): Promise<RawDb> {
-		const collection = await this._collection
-		return collection.rawDatabase() as any
+		return (await this._rawCollection).rawCollection
 	}
 
 	async findFetchAsync(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		options?: FindOptions<DBInterface>
 	): Promise<Array<DBInterface>> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.findFetch`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const res = await collection.find((selector ?? {}) as any, options as any).fetchAsync()
-			if (span) span.end()
-			return res
+			const collection = await this._rawCollection
+			return collection.findFetch(selector, options)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
@@ -101,20 +89,10 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		options?: FindOptions<DBInterface>
 	): Promise<DBInterface | undefined> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.findOne`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const arr = await collection.find((selector ?? {}) as any, { ...(options as any), limit: 1 }).fetchAsync()
-			if (span) span.end()
-			return arr[0]
+			const collection = await this._rawCollection
+			return collection.findOne(selector, options)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
@@ -188,42 +166,22 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	}
 
 	public async countDocuments(
-		selector?: MongoQuery<DBInterface>,
+		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		options?: FindOptions<DBInterface>
 	): Promise<number> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.countDocuments`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const res = await collection.find((selector ?? {}) as any, options as any).countAsync()
-			if (span) span.end()
-			return res
+			const collection = await this._rawCollection
+			return collection.count(selector, options)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
 
 	public async insertAsync(doc: DBInterface): Promise<DBInterface['_id']> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.insert`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				id: unprotectString(doc._id),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const resultId = await collection.insertAsync(doc as unknown as Mongo.OptionalId<DBInterface>)
-			if (span) span.end()
-			return protectString(resultId)
+			const collection = await this._rawCollection
+			return collection.insertOne(doc)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
@@ -233,42 +191,21 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	}
 
 	public async removeAsync(selector: MongoQuery<DBInterface> | DBInterface['_id']): Promise<number> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.remove`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const res = await collection.removeAsync(selector as any)
-			if (span) span.end()
-			return res
+			const collection = await this._rawCollection
+			return collection.remove(selector)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
 	public async updateAsync(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'] | { _id: DBInterface['_id'] },
-		modifier: MongoModifier<DBInterface>,
-		options?: UpdateOptions
+		modifier: MongoModifier<DBInterface>
 	): Promise<number> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.update`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				query: JSON.stringify(selector),
-			})
-		}
 		try {
-			const collection = await this._collection
-			const res = await collection.updateAsync(selector as any, modifier as any, options)
-			if (span) span.end()
-			return res
+			const collection = await this._rawCollection
+			return collection.update(selector, modifier)
 		} catch (e) {
-			if (span) span.end()
 			this.wrapMongoError(e)
 		}
 	}
@@ -321,27 +258,16 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 	}
 
 	async bulkWriteAsync(ops: Array<AnyBulkWriteOperation<DBInterface>>): Promise<void> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.bulkWrite`)
-		if (span) {
-			span.addLabels({
-				collection: this.name,
-				opCount: ops.length,
-			})
-		}
-
-		if (ops.length > 0) {
-			const rawCollection = await this.rawCollection()
-			const bulkWriteResult = await rawCollection.bulkWrite(ops, {
-				ordered: false,
-			})
-
-			const writeErrors = bulkWriteResult?.getWriteErrors() ?? []
-			if (writeErrors.length) {
-				throw new Meteor.Error(500, `Errors in rawCollection.bulkWrite: ${writeErrors.join(',')}`)
+		try {
+			const rawCollection = await this._rawCollection
+			await rawCollection.bulkWrite(ops)
+		} catch (e) {
+			if (e instanceof Error) {
+				throw new Meteor.Error(500, e.message)
+			} else {
+				this.wrapMongoError(e)
 			}
 		}
-
-		if (span) span.end()
 	}
 
 	async createIndex(
