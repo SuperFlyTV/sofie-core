@@ -4,7 +4,7 @@ import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
 import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
-import { type AnyBulkWriteOperation, type Collection as RawCollection } from 'mongodb'
+import { MongoClient, type AnyBulkWriteOperation, type Collection as RawCollection } from 'mongodb'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import { registerCollection } from './lib'
 import { WrappedMockCollection } from './implementations/mock'
@@ -21,14 +21,23 @@ import {
 import { MinimalMongoCursor } from './implementations/asyncCollection'
 import { UserPermissions } from '@sofie-automation/meteor-lib/dist/userPermissions'
 
-// export async function createMongoConnection(mongoUri: string): Promise<MongoClient> {
-// 	const client = new MongoClient(mongoUri, {
-// 		ignoreUndefined: true,
-// 	})
-// 	await client.connect()
-// 	return client
-// }
-// export const DefaultMongoClient = await createMongoConnection(process.env.MONGO_URL)
+export async function createMongoConnection(fullMongoUri: string): Promise<{ client: MongoClient; dbName: string }> {
+	// Meteor wants the dbname as the path of the mongo url, but the mongodb driver needs it separate
+	const rawUrl = new URL(fullMongoUri)
+	const dbName = rawUrl.pathname.substring(1) // Trim off first '/'
+	rawUrl.pathname = ''
+	const mongoUri = rawUrl.toString()
+
+	const client = new MongoClient(mongoUri, {
+		ignoreUndefined: true,
+	})
+	await client.connect()
+
+	return { client, dbName }
+}
+
+if (!process.env.MONGO_URL) throw new Error('MONGO_URL must be defined to launch Sofie')
+export const DefaultMongoClient = createMongoConnection(process.env.MONGO_URL)
 
 export interface CustomMongoAllowRules<DBInterface> {
 	// insert?: (userId: UserId | null, doc: DBInterface) => Promise<boolean> | boolean

@@ -7,6 +7,7 @@ import { logger } from '../logging'
 import { collectionsAllowDenyCache, collectionsCache } from '../collections/collection'
 import { Meteor } from 'meteor/meteor'
 import { checkHasOneOfPermissions, parseConnectionPermissions } from '../security/auth'
+import { triggerWriteAccess } from '../security/securityVerify'
 
 const hasOwn = Object.prototype.hasOwnProperty
 const ALLOWED_UPDATE_OPERATIONS = {
@@ -24,11 +25,15 @@ const ALLOWED_UPDATE_OPERATIONS = {
 
 class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 	async insertDocument(collectionName: CollectionName, _newDocument: any): Promise<ProtectedString<any>> {
+		triggerWriteAccess()
+
 		logger.error(`MongoAPI.insertDocument for "${collectionName}"`)
 		throw new Error('Not supported')
 	}
 
 	async updateDocument(collectionName: CollectionName, selector: any, modifier: any, options: any): Promise<number> {
+		triggerWriteAccess()
+
 		if (!this.connection) throw new Meteor.Error(403, 'Only supported from the client')
 
 		const validator = collectionsAllowDenyCache.get(collectionName)
@@ -88,6 +93,8 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 	}
 
 	async removeDocument(collectionName: CollectionName, _selector: any): Promise<any> {
+		triggerWriteAccess()
+
 		logger.error(`MongoAPI.insertDocument for "${collectionName}"`)
 		throw new Meteor.Error(500, 'Not supported')
 	}
