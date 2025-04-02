@@ -55,6 +55,7 @@ export namespace MediaScannerIntegration {
 		// logger.debug('updateMediaObject')
 		const peripheralDevice = await checkAccessAndGetPeripheralDevice(deviceId, deviceToken, context)
 		const studioId = await getStudioIdFromDevice(peripheralDevice)
+		if (!studioId) throw new Meteor.Error(500, 'updateMediaObject: Device has no studio')
 
 		const _id: MediaObjId = protectString(collectionId + '_' + objId)
 		if (doc === null) {
@@ -63,7 +64,7 @@ export namespace MediaScannerIntegration {
 			if (doc.mediaId !== doc.mediaId.toUpperCase())
 				throw new Meteor.Error(400, 'mediaId must only use uppercase characters')
 
-			const doc2 = {
+			const doc2: MediaObject = {
 				...doc,
 				studioId: studioId,
 				collectionId: collectionId,
@@ -72,7 +73,7 @@ export namespace MediaScannerIntegration {
 			}
 
 			// logger.debug(doc2)
-			await MediaObjects.upsertAsync(_id, { $set: doc2 })
+			await MediaObjects.replaceAsync(doc2)
 		} else {
 			throw new Meteor.Error(400, 'missing doc argument')
 		}

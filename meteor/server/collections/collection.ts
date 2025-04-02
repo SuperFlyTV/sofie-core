@@ -160,6 +160,12 @@ export interface AsyncOnlyMongoCollection<DBInterface extends { _id: ProtectedSt
 	updateAsync(selector: MongoQuery<DBInterface>, modifier: MongoModifier<DBInterface>): Promise<number>
 
 	/**
+	 * Insert or update a document
+	 * @param doc The document to insert/update
+	 */
+	replaceAsync(doc: DBInterface): Promise<boolean>
+
+	/**
 	 * Perform an update/insert of a document
 	 * @param selector A query describing the documents to update. Typically this will be an id
 	 * @param modifier The operation to apply to each matching document
@@ -176,12 +182,6 @@ export interface AsyncOnlyMongoCollection<DBInterface extends { _id: ProtectedSt
 		// Require { multi } to be set when selecting multiple documents to be updated, otherwise only the first found document will be updated
 		options: UpdateOptions & Required<Pick<UpdateOptions, 'multi'>>
 	): Promise<{ numberAffected?: number; insertedId?: DBInterface['_id'] }>
-
-	/**
-	 * Perform an upsert for multiple documents, based on the `_id` of each document
-	 * @param documents Documents to upsert
-	 */
-	upsertManyAsync(doc: DBInterface[]): Promise<{ numberAffected: number; insertedIds: DBInterface['_id'][] }>
 
 	/**
 	 * Remove one or more documents

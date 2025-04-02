@@ -1,5 +1,5 @@
 import { MongoModifier, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
-import { ProtectedString, protectString } from '@sofie-automation/corelib/dist/protectedString'
+import { ProtectedString } from '@sofie-automation/corelib/dist/protectedString'
 import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
 import {
@@ -167,6 +167,15 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		return Promise.all(docs.map(async (doc) => this.insertAsync(doc)))
 	}
 
+	public async replaceAsync(doc: DBInterface): Promise<boolean> {
+		try {
+			const collection = await this._rawCollection
+			return collection.replace(doc)
+		} catch (e) {
+			this.wrapMongoError(e)
+		}
+	}
+
 	public async removeAsync(selector: MongoQuery<DBInterface> | DBInterface['_id']): Promise<number> {
 		try {
 			const collection = await this._rawCollection
@@ -202,36 +211,21 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const collection = await this._collection
-			const result = await collection.upsertAsync(selector as any, modifier as any, options)
+			const collection = (await this._rawCollection).rawCollection
+			const result = await collection.updateOne(selector, modifier, {
+				...options,
+				upsert: true,
+			})
+
 			if (span) span.end()
 			return {
-				numberAffected: result.numberAffected,
-				insertedId: protectString(result.insertedId),
+				numberAffected: result.modifiedCount,
+				insertedId: result.upsertedId ?? undefined,
 			}
 		} catch (e) {
 			if (span) span.end()
 			this.wrapMongoError(e)
 		}
-	}
-
-	async upsertManyAsync(docs: DBInterface[]): Promise<{ numberAffected: number; insertedIds: DBInterface['_id'][] }> {
-		const result: {
-			numberAffected: number
-			insertedIds: DBInterface['_id'][]
-		} = {
-			numberAffected: 0,
-			insertedIds: [],
-		}
-		await Promise.all(
-			docs.map(async (doc) =>
-				this.upsertAsync(doc._id, { $set: doc }).then((r) => {
-					if (r.numberAffected) result.numberAffected += r.numberAffected
-					if (r.insertedId) result.insertedIds.push(r.insertedId)
-				})
-			)
-		)
-		return result
 	}
 
 	async bulkWriteAsync(ops: Array<AnyBulkWriteOperation<DBInterface>>): Promise<void> {

@@ -98,11 +98,11 @@ export namespace MediaManagerIntegration {
 		check(obj, Match.Maybe(Object))
 
 		if (obj) {
-			check(obj._id, String)
+			obj._id = workFlowId
 			obj.deviceId = peripheralDevice._id
 			obj.studioId = peripheralDevice.studioAndConfigId.studioId
 
-			await MediaWorkFlows.upsertAsync(workFlowId, obj)
+			await MediaWorkFlows.replaceAsync(obj)
 
 			if (obj.finished && !obj.success) {
 				logger.info('mm job failed')
@@ -138,18 +138,18 @@ export namespace MediaManagerIntegration {
 		check(obj, Match.Maybe(Object))
 
 		if (obj) {
-			check(obj._id, String)
 			check(obj.workFlowId, String)
 
 			const workflow = await MediaWorkFlows.findOneAsync(obj.workFlowId)
 
 			if (!workflow) throw new Meteor.Error(404, `Workflow "${obj.workFlowId}" not found`)
 
+			obj._id = stepId
 			obj.workFlowId = workflow._id
 			obj.deviceId = peripheralDevice._id
 			obj.studioId = peripheralDevice.studioAndConfigId.studioId
 
-			await MediaWorkFlowSteps.upsertAsync(stepId, obj)
+			await MediaWorkFlowSteps.replaceAsync(obj)
 		} else {
 			await MediaWorkFlowSteps.removeAsync(stepId)
 		}

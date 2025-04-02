@@ -85,7 +85,7 @@ shelfLayoutsRouter.post(
 
 			layout.showStyleBaseId = showStyleBase._id
 
-			await RundownLayouts.upsertAsync(layout._id, layout)
+			await RundownLayouts.replaceAsync(layout)
 
 			ctx.response.status = 200
 			ctx.body = ''

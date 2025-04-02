@@ -4,19 +4,13 @@ import { MethodContext } from '../methodContext'
 import { checkAccessAndGetPeripheralDevice } from '../../security/check'
 import { ExpectedPackageStatusAPI, PackageInfo } from '@sofie-automation/blueprints-integration'
 import { ExpectedPackageWorkStatus } from '@sofie-automation/corelib/dist/dataModel/ExpectedPackageWorkStatuses'
-import { assertNever, literal, protectString } from '../../lib/tempLib'
+import { assertNever, protectString } from '../../lib/tempLib'
 import { getCurrentTime } from '../../lib/lib'
-import {
-	getPackageContainerPackageId,
-	PackageContainerPackageStatusDB,
-} from '@sofie-automation/corelib/dist/dataModel/PackageContainerPackageStatus'
+import { getPackageContainerPackageId } from '@sofie-automation/corelib/dist/dataModel/PackageContainerPackageStatus'
 import { getPackageInfoId, PackageInfoDB } from '@sofie-automation/corelib/dist/dataModel/PackageInfos'
 import type { AnyBulkWriteOperation } from 'mongodb'
 import { onUpdatedPackageInfo } from '../ingest/packageInfo'
-import {
-	getPackageContainerId,
-	PackageContainerStatusDB,
-} from '@sofie-automation/corelib/dist/dataModel/PackageContainerStatus'
+import { getPackageContainerId } from '@sofie-automation/corelib/dist/dataModel/PackageContainerStatus'
 import {
 	ExpectedPackageId,
 	ExpectedPackageWorkStatusId,
@@ -210,16 +204,14 @@ export namespace PackageManagerIntegration {
 							// The PackageContainerStatus doesn't exist
 							// Create it on the fly:
 
-							await PackageContainerPackageStatuses.upsertAsync(id, {
-								$set: literal<PackageContainerPackageStatusDB>({
-									_id: id,
-									studioId: studioId,
-									containerId: change.containerId,
-									deviceId: peripheralDevice._id,
-									packageId: protectString<ExpectedPackageId>(change.packageId),
-									status: change.status,
-									modified: getCurrentTime(),
-								}),
+							await PackageContainerPackageStatuses.replaceAsync({
+								_id: id,
+								studioId: studioId,
+								containerId: change.containerId,
+								deviceId: peripheralDevice._id,
+								packageId: protectString<ExpectedPackageId>(change.packageId),
+								status: change.status,
+								modified: getCurrentTime(),
 							})
 						}
 					})
@@ -298,15 +290,13 @@ export namespace PackageManagerIntegration {
 							// The PackageContainerStatus doesn't exist
 							// Create it on the fly:
 
-							await PackageContainerStatuses.upsertAsync(id, {
-								$set: literal<PackageContainerStatusDB>({
-									_id: id,
-									studioId: studioId,
-									containerId: change.containerId,
-									deviceId: peripheralDevice._id,
-									status: change.status,
-									modified: getCurrentTime(),
-								}),
+							await PackageContainerStatuses.replaceAsync({
+								_id: id,
+								studioId: studioId,
+								containerId: change.containerId,
+								deviceId: peripheralDevice._id,
+								status: change.status,
+								modified: getCurrentTime(),
 							})
 						}
 					})
@@ -406,12 +396,7 @@ export namespace PackageManagerIntegration {
 			type: type,
 			payload: payload,
 		}
-		await PackageInfos.upsertAsync(id, {
-			$set: doc,
-			$unset: {
-				removeTime: 1,
-			},
-		})
+		await PackageInfos.replaceAsync(doc)
 
 		await onUpdatedPackageInfo(packageId, doc)
 	}
