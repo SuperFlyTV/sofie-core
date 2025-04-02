@@ -13,8 +13,9 @@ import type { AnyBulkWriteOperation, Collection as RawCollection, FindOptions, C
 import { stringifyError } from '@sofie-automation/shared-lib/dist/lib/stringifyError'
 import { profiler } from '../../api/profiler'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
-import { AsyncOnlyMongoCollection, TmpCollectionPair } from '../collection'
+import { AsyncOnlyMongoCollection } from '../collection'
 import { WrappedCollection } from '../new-collection'
+import { CollectionObserver } from './collectionObserver'
 
 /**
  * A stripped down version of Meteor's Mongo.Cursor, with only the async methods
@@ -38,14 +39,14 @@ export type MinimalMeteorMongoCollection<T extends { _id: ProtectedString<any> }
 export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedString<any> }>
 	implements AsyncOnlyMongoCollection<DBInterface>
 {
-	protected readonly _collection: Promise<MinimalMeteorMongoCollection<DBInterface>>
 	protected readonly _rawCollection: Promise<WrappedCollection<DBInterface>>
+
+	protected _observer: Promise<CollectionObserver<DBInterface>> | undefined
 
 	public readonly name: string | null
 
-	constructor(collection: TmpCollectionPair, name: string | null) {
-		this._collection = Promise.resolve(collection.meteorCollection) as any
-		this._rawCollection = collection.rawCollection as any
+	constructor(collection: Promise<WrappedCollection<any>>, name: string | null) {
+		this._rawCollection = collection as any
 		this.name = name
 	}
 
@@ -103,11 +104,18 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 				query: JSON.stringify(selector),
 			})
 		}
+
 		try {
-			const collection = await this._collection
-			const res = await collection.find((selector ?? {}) as any, options as any).observeChangesAsync(callbacks)
+			if (!this._observer)
+				this._observer = this._rawCollection.then(
+					(collection) => new CollectionObserver(collection.rawCollection)
+				)
+
+			const observer = await this._observer
+
+			const handle = await observer.observeChanges(selector, callbacks, options)
 			if (span) span.end()
-			return res
+			return handle
 		} catch (e) {
 			if (span) span.end()
 			this.wrapMongoError(e)
@@ -119,18 +127,25 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		callbacks: PromisifyCallbacks<ObserveCallbacks<DBInterface>>,
 		options?: FindOptions<DBInterface>
 	): Promise<Meteor.LiveQueryHandle> {
-		const span = profiler.startSpan(`MongoCollection.${this.name}.observe`)
+		const span = profiler.startSpan(`MongoCollection.${this.name}.observeChanges`)
 		if (span) {
 			span.addLabels({
 				collection: this.name,
 				query: JSON.stringify(selector),
 			})
 		}
+
 		try {
-			const collection = await this._collection
-			const res = await collection.find((selector ?? {}) as any, options as any).observeAsync(callbacks)
+			if (!this._observer)
+				this._observer = this._rawCollection.then(
+					(collection) => new CollectionObserver(collection.rawCollection)
+				)
+
+			const observer = await this._observer
+
+			const handle = await observer.observe(selector, callbacks, options)
 			if (span) span.end()
-			return res
+			return handle
 		} catch (e) {
 			if (span) span.end()
 			this.wrapMongoError(e)

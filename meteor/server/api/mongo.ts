@@ -39,7 +39,7 @@ class MongoAPIClass extends MethodContextAPI implements MongoAPI {
 		const validator = collectionsAllowDenyCache.get(collectionName)
 		if (!validator) throw new Meteor.Error(403, `Not allowed to update collection: "${collectionName}`)
 
-		const collection = await collectionsCache.get(collectionName)?.rawCollection
+		const collection = await collectionsCache.get(collectionName)
 		if (!collection) throw new Meteor.Error(403, `Unknown collection: "${collectionName}`)
 
 		const permissions = parseConnectionPermissions(this.connection)

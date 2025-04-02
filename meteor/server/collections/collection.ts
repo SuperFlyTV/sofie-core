@@ -61,27 +61,21 @@ export interface TmpCollectionPair {
  * Map of current collection objects.
  * Future: Could this weakly hold the collections?
  */
-export const collectionsCache = new Map<string, TmpCollectionPair>()
-function getOrCreateMongoCollection(name: string): TmpCollectionPair {
+export const collectionsCache = new Map<string, Promise<WrappedCollection<any>>>()
+async function getOrCreateMongoCollection(name: string): Promise<WrappedCollection<any>> {
 	const collection = collectionsCache.get(name)
 	if (collection) {
 		return collection
 	}
 
-	const meteorCollection = new Mongo.Collection(name)
 	const rawCollection = DefaultMongoClient.then((client) => {
 		const db = client.db()
 		const col = db.collection<any>(name)
 		return new WrappedCollection<any>(col, (name) => RawAgent?.startSpan(name))
 	})
 
-	const pair: TmpCollectionPair = {
-		meteorCollection,
-		rawCollection,
-	}
-
-	collectionsCache.set(name, pair)
-	return pair
+	collectionsCache.set(name, rawCollection)
+	return rawCollection
 }
 
 /**
@@ -127,7 +121,7 @@ export function createAsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id
 }
 
 function wrapMeteorCollectionIntoAsyncCollection<DBInterface extends { _id: ProtectedString<any> }>(
-	collection: TmpCollectionPair,
+	collection: Promise<WrappedCollection<any>>,
 	name: CollectionName
 ) {
 	if ((Mongo.Collection as any)._isMock) {
