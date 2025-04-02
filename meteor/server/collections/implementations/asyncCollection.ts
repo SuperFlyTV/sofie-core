@@ -111,6 +111,10 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 					(collection) => new CollectionObserver(collection.rawCollection)
 				)
 
+			if (typeof selector === 'string') {
+				selector = { _id: selector }
+			}
+
 			const observer = await this._observer
 
 			const handle = await observer.observeChanges(selector, callbacks, options)
@@ -140,6 +144,10 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 				this._observer = this._rawCollection.then(
 					(collection) => new CollectionObserver(collection.rawCollection)
 				)
+
+			if (typeof selector === 'string') {
+				selector = { _id: selector }
+			}
 
 			const observer = await this._observer
 

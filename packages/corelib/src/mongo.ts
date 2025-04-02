@@ -3,8 +3,7 @@ import { ProtectedString } from './protectedString'
 import * as objectPath from 'object-path'
 // eslint-disable-next-line node/no-extraneous-import
 import type { Condition, Filter, UpdateFilter } from 'mongodb'
-// @ts-expect-error No types available
-import EJSON from 'ejson'
+import * as EJSON from 'ejson'
 
 /** Hack's using typings pulled from meteor */
 
