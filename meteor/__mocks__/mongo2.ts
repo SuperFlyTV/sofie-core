@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import * as _ from 'underscore'
-import { ProtectedString, unprotectString, protectString } from '../server/lib/tempLib'
+import { ProtectedString, unprotectString, protectString, getRandomString, literal } from '../server/lib/tempLib'
 import { RandomMock } from './random'
 import { MeteorMock } from './meteor'
 import { Meteor } from 'meteor/meteor'
@@ -19,6 +19,7 @@ import { ObserveCallbacks, ObserveChangesCallbacks } from '@sofie-automation/met
 import { mongoWhere, mongoFindOptions, mongoModify, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { AsyncOnlyMongoCollection } from '../server/collections/collection'
 import type { Collection as RawCollection, FindOptions } from 'mongodb'
+import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
 const clone = require('fast-clone')
 
 export namespace MongoMock {
@@ -106,12 +107,7 @@ export namespace MongoMock {
 					: docsArray.filter((doc) => mongoWhere(doc, query))
 			)
 			docs = mongoFindOptions(docs, options as any)
-			// const observers = this.observers
-			// const removeObserver = (id: string): void => {
-			// 	const index = observers.findIndex((o) => o.id === id)
-			// 	if (index === -1) throw new Meteor.Error(500, 'Cannot stop observer that is not registered')
-			// 	observers.splice(index, 1)
-			// }
+
 			const res: Pick<FindCursor<T>, 'toArray'> & { _fetchRaw: () => T[] } = {
 				_fetchRaw: () => {
 					return docs
@@ -122,41 +118,6 @@ export namespace MongoMock {
 
 					return clone(docs)
 				},
-				// async observeAsync(clbs: ObserveCallbacks<T>): Promise<Meteor.LiveQueryHandle> {
-				// 	// Force this to be performed async
-				// 	await MeteorMock.sleepNoFakeTimers(0)
-				// 	const id = Random.id(5)
-				// 	observers.push(
-				// 		literal<ObserverEntry<T>>({
-				// 			id: id,
-				// 			callbacksObserve: clbs,
-				// 			query: query,
-				// 		})
-				// 	)
-				// 	return {
-				// 		stop() {
-				// 			removeObserver(id)
-				// 		},
-				// 	}
-				// },
-				// async observeChangesAsync(clbs: ObserveChangesCallbacks<T>): Promise<Meteor.LiveQueryHandle> {
-				// 	// Force this to be performed async
-				// 	await MeteorMock.sleepNoFakeTimers(0)
-				// 	// todo - finish implementing uses of callbacks
-				// 	const id = Random.id(5)
-				// 	observers.push(
-				// 		literal<ObserverEntry<T>>({
-				// 			id: id,
-				// 			callbacksChanges: clbs,
-				// 			query: query,
-				// 		})
-				// 	)
-				// 	return {
-				// 		stop() {
-				// 			removeObserver(id)
-				// 		},
-				// 	}
-				// },
 			}
 			return res as any
 		}
@@ -286,9 +247,6 @@ export namespace MongoMock {
 				_.each(_.clone(this.observers), (obs) => {
 					if (mongoWhere(d, obs.query)) {
 						const fields = _.keys(_.omit(d, '_id'))
-						if (obs.callbacksChanges?.addedBefore) {
-							obs.callbacksChanges.addedBefore(d._id, fields, null as any)
-						}
 						if (obs.callbacksChanges?.added) {
 							obs.callbacksChanges.added(d._id, fields)
 						}
@@ -337,6 +295,72 @@ export namespace MongoMock {
 			return {
 				acknowledged: true,
 				deletedCount: docs.length,
+			}
+		}
+
+		async mockObserve(
+			selector: MongoQuery<T> | T['_id'],
+			callbacks: PromisifyCallbacks<ObserveCallbacks<T>>,
+			options?: FindOptions<T> | undefined
+		): Promise<Meteor.LiveQueryHandle> {
+			// Force this to be performed async
+			await MeteorMock.sleepNoFakeTimers(0)
+
+			const id = getRandomString(5)
+			this.observers.push(
+				literal<ObserverEntry<T>>({
+					id: id,
+					callbacksObserve: callbacks,
+					query: selector,
+				})
+			)
+
+			if (callbacks.added) {
+				const docs = this.find(selector, options)._fetchRaw()
+				for (const doc of docs) {
+					await callbacks.added(doc)
+				}
+			}
+
+			return {
+				stop: () => {
+					const index = this.observers.findIndex((o) => o.id === id)
+					if (index === -1) throw new Meteor.Error(500, 'Cannot stop observer that is not registered')
+					this.observers.splice(index, 1)
+				},
+			}
+		}
+
+		async mockObserveChanges(
+			selector: MongoQuery<T> | T['_id'],
+			callbacks: PromisifyCallbacks<ObserveChangesCallbacks<T>>,
+			options?: FindOptions<T> | undefined
+		): Promise<Meteor.LiveQueryHandle> {
+			// Force this to be performed async
+			await MeteorMock.sleepNoFakeTimers(0)
+
+			const id = getRandomString(5)
+			this.observers.push(
+				literal<ObserverEntry<T>>({
+					id: id,
+					callbacksChanges: callbacks,
+					query: selector,
+				})
+			)
+
+			if (callbacks.added) {
+				const docs = this.find(selector, options)._fetchRaw()
+				for (const doc of docs) {
+					await callbacks.added(doc._id, doc)
+				}
+			}
+
+			return {
+				stop: () => {
+					const index = this.observers.findIndex((o) => o.id === id)
+					if (index === -1) throw new Meteor.Error(500, 'Cannot stop observer that is not registered')
+					this.observers.splice(index, 1)
+				},
 			}
 		}
 

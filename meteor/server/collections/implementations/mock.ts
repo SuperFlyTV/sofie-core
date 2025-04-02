@@ -7,6 +7,7 @@ import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { ObserveCallbacks, ObserveChangesCallbacks } from '@sofie-automation/meteor-lib/dist/collections/lib'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
 import { WrappedCollection } from '../new-collection'
+import type { MongoMock } from '../../../__mocks__/mongo2'
 
 /** This is for the mock mongo collection, as internally it is sync and so we dont need or want to play around with fibers */
 export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<any> }>
@@ -24,12 +25,18 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 		return this
 	}
 
+	private get mockCollection(): Promise<MongoMock.Collection<DBInterface>> {
+		return this.rawCollection() as unknown as Promise<MongoMock.Collection<DBInterface>>
+	}
+
 	override async observe(
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
 		callbacks: PromisifyCallbacks<ObserveCallbacks<DBInterface>>,
 		options?: FindOptions<DBInterface> | undefined
 	): Promise<Meteor.LiveQueryHandle> {
-		// TODO
+		const collection = await this.mockCollection
+
+		return collection.mockObserve(selector, callbacks, options)
 	}
 
 	override async observeChanges(
@@ -37,7 +44,9 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 		callbacks: PromisifyCallbacks<ObserveChangesCallbacks<DBInterface>>,
 		options?: FindOptions<DBInterface> | undefined
 	): Promise<Meteor.LiveQueryHandle> {
-		// TODO
+		const collection = await this.mockCollection
+
+		return collection.mockObserveChanges(selector, callbacks, options)
 	}
 
 	override async bulkWriteAsync(ops: Array<AnyBulkWriteOperation<DBInterface>>): Promise<void> {
