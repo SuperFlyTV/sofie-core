@@ -1,4 +1,4 @@
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { CoreSystem, Notifications } from '../collections'
 import { RundownId, RundownPlaylistId, StudioId } from '@sofie-automation/corelib/dist/dataModel/Ids'
@@ -6,10 +6,10 @@ import { check } from 'meteor/check'
 import { SYSTEM_ID } from '@sofie-automation/meteor-lib/dist/collections/CoreSystem'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 
-meteorPublish(MeteorPubSub.coreSystem, async function (_token: string | undefined) {
+meteorPublishObserver(MeteorPubSub.coreSystem, async function (callbacks, _token: string | undefined) {
 	triggerWriteAccessBecauseNoCheckNecessary()
 
-	return CoreSystem.findWithCursor(SYSTEM_ID, {
+	return CoreSystem.observeChanges(SYSTEM_ID, callbacks, {
 		projection: {
 			// Include only specific fields in the result documents:
 			_id: 1,
@@ -25,33 +25,42 @@ meteorPublish(MeteorPubSub.coreSystem, async function (_token: string | undefine
 	})
 })
 
-meteorPublish(MeteorPubSub.notificationsForRundown, async function (studioId: StudioId, rundownId: RundownId) {
-	// HACK: This should do real auth
-	triggerWriteAccessBecauseNoCheckNecessary()
+meteorPublishObserver(
+	MeteorPubSub.notificationsForRundown,
+	async function (callbacks, studioId: StudioId, rundownId: RundownId) {
+		// HACK: This should do real auth
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	check(studioId, String)
-	check(rundownId, String)
+		check(studioId, String)
+		check(rundownId, String)
 
-	return Notifications.findWithCursor({
-		// Loosely match any notifications related to this rundown
-		'relatedTo.studioId': studioId,
-		'relatedTo.rundownId': rundownId,
-	})
-})
+		return Notifications.observeChanges(
+			{
+				// Loosely match any notifications related to this rundown
+				'relatedTo.studioId': studioId,
+				'relatedTo.rundownId': rundownId,
+			},
+			callbacks
+		)
+	}
+)
 
-meteorPublish(
+meteorPublishObserver(
 	MeteorPubSub.notificationsForRundownPlaylist,
-	async function (studioId: StudioId, playlistId: RundownPlaylistId) {
+	async function (callbacks, studioId: StudioId, playlistId: RundownPlaylistId) {
 		// HACK: This should do real auth
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		check(studioId, String)
 		check(playlistId, String)
 
-		return Notifications.findWithCursor({
-			// Loosely match any notifications related to this playlist
-			'relatedTo.studioId': studioId,
-			'relatedTo.playlistId': playlistId,
-		})
+		return Notifications.observeChanges(
+			{
+				// Loosely match any notifications related to this playlist
+				'relatedTo.studioId': studioId,
+				'relatedTo.playlistId': playlistId,
+			},
+			callbacks
+		)
 	}
 )

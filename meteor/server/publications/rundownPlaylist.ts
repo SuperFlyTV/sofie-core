@@ -1,4 +1,4 @@
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { RundownPlaylists } from '../collections'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
@@ -8,9 +8,10 @@ import { check, Match } from '../lib/check'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.rundownPlaylists,
 	async function (
+		callbacks,
 		rundownPlaylistIds: RundownPlaylistId[] | null,
 		studioIds: StudioId[] | null,
 		_token: string | undefined
@@ -29,22 +30,25 @@ meteorPublish(
 		if (rundownPlaylistIds) selector._id = { $in: rundownPlaylistIds }
 		if (studioIds) selector.studioId = { $in: studioIds }
 
-		return RundownPlaylists.findWithCursor(selector)
+		return RundownPlaylists.observeChanges(selector, callbacks)
 	}
 )
 
-meteorPublish(MeteorPubSub.rundownPlaylistForStudio, async function (studioId: StudioId, isActive: boolean) {
-	triggerWriteAccessBecauseNoCheckNecessary()
+meteorPublishObserver(
+	MeteorPubSub.rundownPlaylistForStudio,
+	async function (callbacks, studioId: StudioId, isActive: boolean) {
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	const selector: MongoQuery<DBRundownPlaylist> = {
-		studioId,
+		const selector: MongoQuery<DBRundownPlaylist> = {
+			studioId,
+		}
+
+		if (isActive) {
+			selector.activationId = { $exists: true }
+		} else {
+			selector.activationId = { $exists: false }
+		}
+
+		return RundownPlaylists.observeChanges(selector, callbacks)
 	}
-
-	if (isActive) {
-		selector.activationId = { $exists: true }
-	} else {
-		selector.activationId = { $exists: false }
-	}
-
-	return RundownPlaylists.findWithCursor(selector)
-})
+)

@@ -1,5 +1,5 @@
 import type { FindOptions } from 'mongodb'
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
 import { BucketAdLibActions, BucketAdLibs, Buckets } from '../collections'
 import { check, Match } from 'meteor/check'
@@ -10,9 +10,9 @@ import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { BucketAdLib } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibPiece'
 import { BucketAdLibAction } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibAction'
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.buckets,
-	async function (studioId: StudioId, bucketId: BucketId | null, _token: string | undefined) {
+	async function (callbacks, studioId: StudioId, bucketId: BucketId | null, _token: string | undefined) {
 		check(studioId, String)
 		check(bucketId, Match.Maybe(String))
 
@@ -27,13 +27,18 @@ meteorPublish(
 		}
 		if (bucketId) selector._id = bucketId
 
-		return Buckets.findWithCursor(selector, modifier)
+		return Buckets.observeChanges(selector, callbacks, modifier)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.bucketAdLibPieces,
-	async function (studioId: StudioId, bucketId: BucketId | null, showStyleVariantIds: ShowStyleVariantId[]) {
+	async function (
+		callbacks,
+		studioId: StudioId,
+		bucketId: BucketId | null,
+		showStyleVariantIds: ShowStyleVariantId[]
+	) {
 		check(studioId, String)
 		check(bucketId, Match.Maybe(String))
 		check(showStyleVariantIds, Array)
@@ -48,7 +53,7 @@ meteorPublish(
 		}
 		if (bucketId) selector.bucketId = bucketId
 
-		return BucketAdLibs.findWithCursor(selector, {
+		return BucketAdLibs.observeChanges(selector, callbacks, {
 			projection: {
 				ingestInfo: 0, // This is a large blob, and is not of interest to the UI
 			},
@@ -56,9 +61,14 @@ meteorPublish(
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.bucketAdLibActions,
-	async function (studioId: StudioId, bucketId: BucketId | null, showStyleVariantIds: ShowStyleVariantId[]) {
+	async function (
+		callbacks,
+		studioId: StudioId,
+		bucketId: BucketId | null,
+		showStyleVariantIds: ShowStyleVariantId[]
+	) {
 		check(studioId, String)
 		check(bucketId, Match.Maybe(String))
 		check(showStyleVariantIds, Array)
@@ -73,7 +83,7 @@ meteorPublish(
 		}
 		if (bucketId) selector.bucketId = bucketId
 
-		return BucketAdLibActions.findWithCursor(selector, {
+		return BucketAdLibActions.observeChanges(selector, callbacks, {
 			projection: {
 				ingestInfo: 0, // This is a large blob, and is not of interest to the UI
 			},

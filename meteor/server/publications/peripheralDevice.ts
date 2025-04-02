@@ -1,5 +1,5 @@
 import { check, Match } from '../lib/check'
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { PeripheralDevice } from '@sofie-automation/corelib/dist/dataModel/PeripheralDevice'
 import { MongoFieldSpecifierZeroes, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
@@ -20,9 +20,9 @@ const peripheralDeviceProjection: MongoFieldSpecifierZeroes<PeripheralDevice> = 
 	secretSettings: 0,
 }
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.peripheralDevices,
-	async function (peripheralDeviceIds: PeripheralDeviceId[] | null, token: string | undefined) {
+	async function (callbacks, peripheralDeviceIds: PeripheralDeviceId[] | null, token: string | undefined) {
 		check(peripheralDeviceIds, Match.Maybe(Array))
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -39,13 +39,13 @@ meteorPublish(
 			// in this case, send the secretSettings:
 			delete projection.secretSettings
 		}
-		return PeripheralDevices.findWithCursor(selector, {
+		return PeripheralDevices.observeChanges(selector, callbacks, {
 			projection,
 		})
 	}
 )
 
-meteorPublish(CorelibPubSub.peripheralDevicesAndSubDevices, async function (studioId: StudioId) {
+meteorPublishObserver(CorelibPubSub.peripheralDevicesAndSubDevices, async function (callbacks, studioId: StudioId) {
 	triggerWriteAccessBecauseNoCheckNecessary()
 
 	const selector: MongoQuery<PeripheralDevice> = {
@@ -57,7 +57,7 @@ meteorPublish(CorelibPubSub.peripheralDevicesAndSubDevices, async function (stud
 		Pick<PeripheralDevice, '_id'>
 	>
 
-	return PeripheralDevices.findWithCursor(
+	return PeripheralDevices.observeChanges(
 		{
 			$or: [
 				{
@@ -66,26 +66,27 @@ meteorPublish(CorelibPubSub.peripheralDevicesAndSubDevices, async function (stud
 				selector,
 			],
 		},
+		callbacks,
 		{
 			projection: peripheralDeviceProjection,
 		}
 	)
 })
-meteorPublish(
+meteorPublishObserver(
 	PeripheralDevicePubSub.peripheralDeviceCommands,
-	async function (deviceId: PeripheralDeviceId, token: string | undefined) {
+	async function (callbacks, deviceId: PeripheralDeviceId, token: string | undefined) {
 		await checkAccessAndGetPeripheralDevice(deviceId, token, this)
 
-		return PeripheralDeviceCommands.findWithCursor({ deviceId: deviceId })
+		return PeripheralDeviceCommands.observeChanges({ deviceId: deviceId }, callbacks)
 	}
 )
-meteorPublish(MeteorPubSub.mediaWorkFlows, async function (_token: string | undefined) {
+meteorPublishObserver(MeteorPubSub.mediaWorkFlows, async function (callbacks, _token: string | undefined) {
 	triggerWriteAccessBecauseNoCheckNecessary()
 
-	return MediaWorkFlows.findWithCursor({})
+	return MediaWorkFlows.observeChanges({}, callbacks)
 })
-meteorPublish(MeteorPubSub.mediaWorkFlowSteps, async function (_token: string | undefined) {
+meteorPublishObserver(MeteorPubSub.mediaWorkFlowSteps, async function (callbacks, _token: string | undefined) {
 	triggerWriteAccessBecauseNoCheckNecessary()
 
-	return MediaWorkFlowSteps.findWithCursor({})
+	return MediaWorkFlowSteps.observeChanges({}, callbacks)
 })

@@ -3,7 +3,7 @@ import { AllPubSubCollections, AllPubSubTypes } from '@sofie-automation/meteor-l
 import { extractFunctionSignature } from '../../lib'
 import { protectStringObject, unprotectString } from '../../lib/tempLib'
 import { MetricsGauge } from '@sofie-automation/corelib/dist/prometheus'
-import { MinimalMongoCursor } from '../../collections/implementations/asyncCollection'
+import { MongoLiveQueryHandle, ObserveChangesCallbacks } from '@sofie-automation/meteor-lib/dist/collections/lib'
 
 export const MeteorPublicationSignatures: { [key: string]: string[] } = {}
 export const MeteorPublications: { [key: string]: Function } = {}
@@ -53,40 +53,31 @@ export type PublishDocType<K extends keyof AllPubSubTypes> = ReturnType<
  * @param name
  * @param callback
  */
-export function meteorPublish<K extends keyof AllPubSubTypes>(
+export function meteorPublishObserver<K extends keyof AllPubSubTypes>(
 	name: K,
 	callback: (
 		this: SubscriptionContext,
+		callbacks: ObserveChangesCallbacks<PublishDocType<K>>,
 		...args: Parameters<AllPubSubTypes[K]>
-	) => Promise<MinimalMongoCursor<PublishDocType<K>> | null>
+	) => Promise<MongoLiveQueryHandle | null>
 ): void {
 	meteorPublishUnsafe(name, async function (this: SubscriptionContext, ...args: any[]) {
-		const cursor = await callback.call(this, ...(args as any))
-		if (!cursor) {
-			// No data, report it as ready now
-			this.ready()
-			return
+		const callbacks: ObserveChangesCallbacks<PublishDocType<K>> = {
+			added: (id, fields) => {
+				this.added(name, unprotectString(id), fields as Record<string, any>)
+			},
+			changed: (id, fields) => {
+				this.changed(name, unprotectString(id), fields as Record<string, any>)
+			},
+			removed: (id) => {
+				this.removed(name, unprotectString(id))
+			},
 		}
 
-		const observeHandle = await cursor.observeChangesAsync(
-			{
-				added: (id, fields) => {
-					this.added(name, unprotectString(id), fields as Record<string, any>)
-				},
-				changed: (id, fields) => {
-					this.changed(name, unprotectString(id), fields as Record<string, any>)
-				},
-				removed: (id) => {
-					this.removed(name, unprotectString(id))
-				},
-			},
-			// Publications don't mutate the documents
-			// This is tested by the `livedata - publish callbacks clone` test
-			{ nonMutatingCallbacks: true }
-		)
-
-		// register stop callback (expects lambda w/ no args).
-		this.onStop(async () => observeHandle.stop())
+		const observeHandle = await callback.call(this, callbacks, ...(args as any))
+		if (observeHandle) {
+			this.onStop(async () => observeHandle.stop())
+		}
 
 		this.ready()
 		return

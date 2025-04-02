@@ -1,5 +1,5 @@
 import { Meteor } from 'meteor/meteor'
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { MongoFieldSpecifierZeroes, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -46,9 +46,9 @@ import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 import { checkAccessAndGetPeripheralDevice } from '../security/check'
 
-meteorPublish(
+meteorPublishObserver(
 	PeripheralDevicePubSub.rundownsForDevice,
-	async function (deviceId: PeripheralDeviceId, token: string | undefined) {
+	async function (callbacks, deviceId: PeripheralDeviceId, token: string | undefined) {
 		check(deviceId, String)
 		check(token, String)
 
@@ -60,10 +60,11 @@ meteorPublish(
 		const studioId = peripheralDevice.studioAndConfigId?.studioId
 		if (!studioId) return null
 
-		return Rundowns.findWithCursor(
+		return Rundowns.observeChanges(
 			{
 				studioId: studioId,
 			},
+			callbacks,
 			{
 				projection: {
 					privateData: 0,
@@ -73,9 +74,9 @@ meteorPublish(
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.rundownsInPlaylists,
-	async function (playlistIds: RundownPlaylistId[], _token: string | undefined) {
+	async function (callbacks, playlistIds: RundownPlaylistId[], _token: string | undefined) {
 		check(playlistIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -93,12 +94,12 @@ meteorPublish(
 			},
 		}
 
-		return Rundowns.findWithCursor(selector, modifier)
+		return Rundowns.observeChanges(selector, callbacks, modifier)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.rundownsWithShowStyleBases,
-	async function (showStyleBaseIds: ShowStyleBaseId[], _token: string | undefined) {
+	async function (callbacks, showStyleBaseIds: ShowStyleBaseId[], _token: string | undefined) {
 		check(showStyleBaseIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -115,13 +116,18 @@ meteorPublish(
 			},
 		}
 
-		return Rundowns.findWithCursor(selector, modifier)
+		return Rundowns.observeChanges(selector, callbacks, modifier)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.segments,
-	async function (rundownIds: RundownId[], filter: { omitHidden?: boolean } | undefined, _token: string | undefined) {
+	async function (
+		callbacks,
+		rundownIds: RundownId[],
+		filter: { omitHidden?: boolean } | undefined,
+		_token: string | undefined
+	) {
 		check(rundownIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -133,7 +139,7 @@ meteorPublish(
 		}
 		if (filter?.omitHidden) selector.isHidden = { $ne: true }
 
-		return Segments.findWithCursor(selector, {
+		return Segments.observeChanges(selector, callbacks, {
 			projection: {
 				privateData: 0,
 			},
@@ -141,9 +147,9 @@ meteorPublish(
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.parts,
-	async function (rundownIds: RundownId[], segmentIds: SegmentId[] | null, _token: string | undefined) {
+	async function (callbacks, rundownIds: RundownId[], segmentIds: SegmentId[] | null, _token: string | undefined) {
 		check(rundownIds, Array)
 		check(segmentIds, Match.Maybe(Array))
 
@@ -164,12 +170,13 @@ meteorPublish(
 		}
 		if (segmentIds) selector.segmentId = { $in: segmentIds }
 
-		return Parts.findWithCursor(selector, modifier)
+		return Parts.observeChanges(selector, callbacks, modifier)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.partInstances,
 	async function (
+		callbacks,
 		rundownIds: RundownId[],
 		playlistActivationId: RundownPlaylistActivationId | null,
 		_token: string | undefined
@@ -193,12 +200,13 @@ meteorPublish(
 		}
 		if (playlistActivationId) selector.playlistActivationId = playlistActivationId
 
-		return PartInstances.findWithCursor(selector, modifier)
+		return PartInstances.observeChanges(selector, callbacks, modifier)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.partInstancesSimple,
 	async function (
+		callbacks,
 		rundownIds: RundownId[],
 		playlistActivationId: RundownPlaylistActivationId | null,
 		_token: string | undefined
@@ -216,7 +224,7 @@ meteorPublish(
 		}
 		if (playlistActivationId) selector.playlistActivationId = playlistActivationId
 
-		return PartInstances.findWithCursor(selector, {
+		return PartInstances.observeChanges(selector, callbacks, {
 			projection: literal<MongoFieldSpecifierZeroes<DBPartInstance>>({
 				// @ts-expect-error Mongo typings aren't clever enough yet
 				'part.privateData': 0,
@@ -232,9 +240,9 @@ const piecesSubFields: MongoFieldSpecifierZeroes<Piece> = {
 	timelineObjectsString: 0,
 }
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.pieces,
-	async function (rundownIds: RundownId[], partIds: PartId[] | null, _token: string | undefined) {
+	async function (callbacks, rundownIds: RundownId[], partIds: PartId[] | null, _token: string | undefined) {
 		check(rundownIds, Array)
 		check(partIds, Match.Maybe(Array))
 
@@ -248,15 +256,16 @@ meteorPublish(
 		}
 		if (partIds) selector.startPartId = { $in: partIds }
 
-		return Pieces.findWithCursor(selector, {
+		return Pieces.observeChanges(selector, callbacks, {
 			projection: piecesSubFields,
 		})
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.piecesInfiniteStartingBefore,
 	async function (
+		callbacks,
 		thisRundownId: RundownId,
 		segmentsIdsBefore: SegmentId[],
 		rundownIdsBefore: RundownId[],
@@ -291,7 +300,7 @@ meteorPublish(
 			],
 		}
 
-		return Pieces.findWithCursor(selector, {
+		return Pieces.observeChanges(selector, callbacks, {
 			projection: piecesSubFields,
 		})
 	}
@@ -302,37 +311,44 @@ const adlibPiecesSubFields: MongoFieldSpecifierZeroes<AdLibPiece> = {
 	timelineObjectsString: 0,
 }
 
-meteorPublish(CorelibPubSub.adLibPieces, async function (rundownIds: RundownId[], _token: string | undefined) {
-	check(rundownIds, Array)
+meteorPublishObserver(
+	CorelibPubSub.adLibPieces,
+	async function (callbacks, rundownIds: RundownId[], _token: string | undefined) {
+		check(rundownIds, Array)
 
-	triggerWriteAccessBecauseNoCheckNecessary()
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	if (rundownIds.length === 0) return null
+		if (rundownIds.length === 0) return null
 
-	const selector: MongoQuery<AdLibPiece> = {
-		rundownId: { $in: rundownIds },
-	}
-
-	return AdLibPieces.findWithCursor(selector, {
-		projection: adlibPiecesSubFields,
-	})
-})
-meteorPublish(MeteorPubSub.adLibPiecesForPart, async function (partId: PartId, sourceLayerIds: string[]) {
-	check(partId, String)
-	check(sourceLayerIds, Array)
-
-	triggerWriteAccessBecauseNoCheckNecessary()
-
-	return AdLibPieces.findWithCursor(
-		{
-			partId,
-			sourceLayerId: { $in: sourceLayerIds },
-		},
-		{
-			projection: adlibPiecesSubFields,
+		const selector: MongoQuery<AdLibPiece> = {
+			rundownId: { $in: rundownIds },
 		}
-	)
-})
+
+		return AdLibPieces.observeChanges(selector, callbacks, {
+			projection: adlibPiecesSubFields,
+		})
+	}
+)
+meteorPublishObserver(
+	MeteorPubSub.adLibPiecesForPart,
+	async function (callbacks, partId: PartId, sourceLayerIds: string[]) {
+		check(partId, String)
+		check(sourceLayerIds, Array)
+
+		triggerWriteAccessBecauseNoCheckNecessary()
+
+		return AdLibPieces.observeChanges(
+			{
+				partId,
+				sourceLayerId: { $in: sourceLayerIds },
+			},
+			callbacks,
+			{
+				projection: adlibPiecesSubFields,
+			}
+		)
+	}
+)
 
 const pieceInstanceFields: MongoFieldSpecifierZeroes<PieceInstance> = {
 	// @ts-expect-error Mongo typings aren't clever enough yet
@@ -340,9 +356,10 @@ const pieceInstanceFields: MongoFieldSpecifierZeroes<PieceInstance> = {
 	'piece.timelineObjectsString': 0,
 }
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.pieceInstances,
 	async function (
+		callbacks,
 		rundownIds: RundownId[],
 		partInstanceIds: PartInstanceId[] | null,
 		filter:
@@ -405,15 +422,16 @@ meteorPublish(
 			]
 		}
 
-		return PieceInstances.findWithCursor(selector, {
+		return PieceInstances.observeChanges(selector, callbacks, {
 			projection: pieceInstanceFields,
 		})
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.pieceInstancesSimple,
 	async function (
+		callbacks,
 		rundownIds: RundownId[],
 		playlistActivationId: RundownPlaylistActivationId | null,
 		_token: string | undefined
@@ -431,7 +449,7 @@ meteorPublish(
 		}
 		if (playlistActivationId) selector.playlistActivationId = playlistActivationId
 
-		return PieceInstances.findWithCursor(selector, {
+		return PieceInstances.observeChanges(selector, callbacks, {
 			projection: literal<MongoFieldSpecifierZeroes<PieceInstance>>({
 				...pieceInstanceFields,
 				plannedStartedPlayback: 0,
@@ -441,9 +459,9 @@ meteorPublish(
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	PeripheralDevicePubSub.expectedPlayoutItemsForDevice,
-	async function (deviceId: PeripheralDeviceId, token: string | undefined) {
+	async function (callbacks, deviceId: PeripheralDeviceId, token: string | undefined) {
 		check(deviceId, String)
 
 		const peripheralDevice = await checkAccessAndGetPeripheralDevice(deviceId, token, this)
@@ -451,13 +469,13 @@ meteorPublish(
 		const studioId = peripheralDevice.studioAndConfigId?.studioId
 		if (!studioId) return null
 
-		return ExpectedPlayoutItems.findWithCursor({ studioId })
+		return ExpectedPlayoutItems.observeChanges({ studioId }, callbacks)
 	}
 )
 // Note: this publication is for dev purposes only:
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.ingestDataCache,
-	async function (selector: MongoQuery<NrcsIngestDataCacheObj>, _token: string | undefined) {
+	async function (callbacks, selector: MongoQuery<NrcsIngestDataCacheObj>, _token: string | undefined) {
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		if (!selector) throw new Meteor.Error(400, 'selector argument missing')
@@ -465,12 +483,12 @@ meteorPublish(
 			projection: {},
 		}
 
-		return NrcsIngestDataCache.findWithCursor(selector, modifier)
+		return NrcsIngestDataCache.observeChanges(selector, callbacks, modifier)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.rundownBaselineAdLibPieces,
-	async function (rundownIds: RundownId[], _token: string | undefined) {
+	async function (callbacks, rundownIds: RundownId[], _token: string | undefined) {
 		check(rundownIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -481,7 +499,7 @@ meteorPublish(
 			rundownId: { $in: rundownIds },
 		}
 
-		return RundownBaselineAdLibPieces.findWithCursor(selector, {
+		return RundownBaselineAdLibPieces.observeChanges(selector, callbacks, {
 			projection: {
 				timelineObjectsString: 0,
 				privateData: 0,
@@ -494,41 +512,48 @@ const adlibActionSubFields: MongoFieldSpecifierZeroes<AdLibAction> = {
 	privateData: 0,
 }
 
-meteorPublish(CorelibPubSub.adLibActions, async function (rundownIds: RundownId[], _token: string | undefined) {
-	check(rundownIds, Array)
+meteorPublishObserver(
+	CorelibPubSub.adLibActions,
+	async function (callbacks, rundownIds: RundownId[], _token: string | undefined) {
+		check(rundownIds, Array)
 
-	triggerWriteAccessBecauseNoCheckNecessary()
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	if (rundownIds.length === 0) return null
+		if (rundownIds.length === 0) return null
 
-	const selector: MongoQuery<AdLibAction> = {
-		rundownId: { $in: rundownIds },
-	}
-
-	return AdLibActions.findWithCursor(selector, {
-		projection: adlibActionSubFields,
-	})
-})
-meteorPublish(MeteorPubSub.adLibActionsForPart, async function (partId: PartId, sourceLayerIds: string[]) {
-	check(partId, String)
-	check(sourceLayerIds, Array)
-
-	triggerWriteAccessBecauseNoCheckNecessary()
-
-	return AdLibActions.findWithCursor(
-		{
-			partId,
-			'display.sourceLayerId': { $in: sourceLayerIds },
-		},
-		{
-			projection: adlibActionSubFields,
+		const selector: MongoQuery<AdLibAction> = {
+			rundownId: { $in: rundownIds },
 		}
-	)
-})
 
-meteorPublish(
+		return AdLibActions.observeChanges(selector, callbacks, {
+			projection: adlibActionSubFields,
+		})
+	}
+)
+meteorPublishObserver(
+	MeteorPubSub.adLibActionsForPart,
+	async function (callbacks, partId: PartId, sourceLayerIds: string[]) {
+		check(partId, String)
+		check(sourceLayerIds, Array)
+
+		triggerWriteAccessBecauseNoCheckNecessary()
+
+		return AdLibActions.observeChanges(
+			{
+				partId,
+				'display.sourceLayerId': { $in: sourceLayerIds },
+			},
+			callbacks,
+			{
+				projection: adlibActionSubFields,
+			}
+		)
+	}
+)
+
+meteorPublishObserver(
 	CorelibPubSub.rundownBaselineAdLibActions,
-	async function (rundownIds: RundownId[], _token: string | undefined) {
+	async function (callbacks, rundownIds: RundownId[], _token: string | undefined) {
 		check(rundownIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -539,7 +564,7 @@ meteorPublish(
 			rundownId: { $in: rundownIds },
 		}
 
-		return RundownBaselineAdLibActions.findWithCursor(selector, {
+		return RundownBaselineAdLibActions.observeChanges(selector, callbacks, {
 			projection: adlibActionSubFields,
 		})
 	}

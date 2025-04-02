@@ -8,7 +8,7 @@ import {
 	serializeTimelineBlob,
 	TimelineBlob,
 } from '@sofie-automation/corelib/dist/dataModel/Timeline'
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import type { FindOptions } from 'mongodb'
 import {
@@ -39,16 +39,19 @@ import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settin
 import { checkAccessAndGetPeripheralDevice } from '../security/check'
 import { assertConnectionHasOneOfPermissions } from '../security/auth'
 
-meteorPublish(CorelibPubSub.timelineDatastore, async function (studioId: StudioId, _token: string | undefined) {
-	assertConnectionHasOneOfPermissions(this.connection, 'testing')
+meteorPublishObserver(
+	CorelibPubSub.timelineDatastore,
+	async function (callbacks, studioId: StudioId, _token: string | undefined) {
+		assertConnectionHasOneOfPermissions(this.connection, 'testing')
 
-	if (!studioId) throw new Meteor.Error(400, 'selector argument missing')
-	const modifier: FindOptions<DBTimelineDatastoreEntry> = {
-		projection: {},
+		if (!studioId) throw new Meteor.Error(400, 'selector argument missing')
+		const modifier: FindOptions<DBTimelineDatastoreEntry> = {
+			projection: {},
+		}
+
+		return TimelineDatastore.observeChanges({ studioId }, callbacks, modifier)
 	}
-
-	return TimelineDatastore.findWithCursor({ studioId }, modifier)
-})
+)
 
 meteorCustomPublish(
 	PeripheralDevicePubSub.timelineForDevice,
@@ -64,9 +67,9 @@ meteorCustomPublish(
 		await createObserverForTimelinePublication(pub, studioId)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	PeripheralDevicePubSub.timelineDatastoreForDevice,
-	async function (deviceId: PeripheralDeviceId, token: string | undefined) {
+	async function (callbacks, deviceId: PeripheralDeviceId, token: string | undefined) {
 		check(deviceId, String)
 
 		const peripheralDevice = await checkAccessAndGetPeripheralDevice(deviceId, token, this)
@@ -78,7 +81,7 @@ meteorPublish(
 			projection: {},
 		}
 
-		return TimelineDatastore.findWithCursor({ studioId }, modifier)
+		return TimelineDatastore.observeChanges({ studioId }, callbacks, modifier)
 	}
 )
 

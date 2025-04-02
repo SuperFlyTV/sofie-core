@@ -1,6 +1,6 @@
 import { Meteor } from 'meteor/meteor'
 import { check, Match } from '../lib/check'
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { getActiveRoutes, getRoutedMappings } from '@sofie-automation/meteor-lib/dist/collections/Studios'
 import { ExternalMessageQueueObj } from '@sofie-automation/corelib/dist/dataModel/ExternalMessageQueue'
@@ -36,24 +36,27 @@ import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityV
 import { checkAccessAndGetPeripheralDevice } from '../security/check'
 import { assertConnectionHasOneOfPermissions } from '../security/auth'
 
-meteorPublish(CorelibPubSub.studios, async function (studioIds: StudioId[] | null, _token: string | undefined) {
-	check(studioIds, Match.Maybe(Array))
+meteorPublishObserver(
+	CorelibPubSub.studios,
+	async function (callbacks, studioIds: StudioId[] | null, _token: string | undefined) {
+		check(studioIds, Match.Maybe(Array))
 
-	triggerWriteAccessBecauseNoCheckNecessary()
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	// If values were provided, they must have values
-	if (studioIds && studioIds.length === 0) return null
+		// If values were provided, they must have values
+		if (studioIds && studioIds.length === 0) return null
 
-	// Add the requested filter
-	const selector: MongoQuery<DBStudio> = {}
-	if (studioIds) selector._id = { $in: studioIds }
+		// Add the requested filter
+		const selector: MongoQuery<DBStudio> = {}
+		if (studioIds) selector._id = { $in: studioIds }
 
-	return Studios.findWithCursor(selector)
-})
+		return Studios.observeChanges(selector, callbacks)
+	}
+)
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.externalMessageQueue,
-	async function (selector: MongoQuery<ExternalMessageQueueObj>, _token: string | undefined) {
+	async function (callbacks, selector: MongoQuery<ExternalMessageQueueObj>, _token: string | undefined) {
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		if (!selector) throw new Meteor.Error(400, 'selector argument missing')
@@ -61,57 +64,72 @@ meteorPublish(
 			projection: {},
 		}
 
-		return ExternalMessageQueue.findWithCursor(selector, modifier)
+		return ExternalMessageQueue.observeChanges(selector, callbacks, modifier)
 	}
 )
 
-meteorPublish(CorelibPubSub.expectedPackages, async function (studioIds: StudioId[], _token: string | undefined) {
-	// Note: This differs from the expected packages sent to the Package Manager, instead @see PubSub.expectedPackagesForDevice
-	check(studioIds, Array)
+meteorPublishObserver(
+	CorelibPubSub.expectedPackages,
+	async function (callbacks, studioIds: StudioId[], _token: string | undefined) {
+		// Note: This differs from the expected packages sent to the Package Manager, instead @see PubSub.expectedPackagesForDevice
+		check(studioIds, Array)
 
-	triggerWriteAccessBecauseNoCheckNecessary()
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	if (studioIds.length === 0) return null
+		if (studioIds.length === 0) return null
 
-	return ExpectedPackages.findWithCursor({
-		studioId: { $in: studioIds },
-	})
-})
-meteorPublish(
+		return ExpectedPackages.observeChanges(
+			{
+				studioId: { $in: studioIds },
+			},
+			callbacks
+		)
+	}
+)
+meteorPublishObserver(
 	CorelibPubSub.expectedPackageWorkStatuses,
-	async function (studioIds: StudioId[], _token: string | undefined) {
+	async function (callbacks, studioIds: StudioId[], _token: string | undefined) {
 		check(studioIds, Array)
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		if (studioIds.length === 0) return null
 
-		return ExpectedPackageWorkStatuses.findWithCursor({
-			studioId: { $in: studioIds },
-		})
+		return ExpectedPackageWorkStatuses.observeChanges(
+			{
+				studioId: { $in: studioIds },
+			},
+			callbacks
+		)
 	}
 )
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.packageContainerStatuses,
-	async function (studioIds: StudioId[], _token: string | undefined) {
+	async function (callbacks, studioIds: StudioId[], _token: string | undefined) {
 		check(studioIds, Array)
 
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		if (studioIds.length === 0) return null
 
-		return PackageContainerStatuses.findWithCursor({
-			studioId: { $in: studioIds },
-		})
+		return PackageContainerStatuses.observeChanges(
+			{
+				studioId: { $in: studioIds },
+			},
+			callbacks
+		)
 	}
 )
 
-meteorPublish(CorelibPubSub.packageInfos, async function (deviceId: PeripheralDeviceId, _token: string | undefined) {
-	check(deviceId, String)
+meteorPublishObserver(
+	CorelibPubSub.packageInfos,
+	async function (callbacks, deviceId: PeripheralDeviceId, _token: string | undefined) {
+		check(deviceId, String)
 
-	triggerWriteAccessBecauseNoCheckNecessary()
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	return PackageInfos.findWithCursor({ deviceId })
-})
+		return PackageInfos.observeChanges({ deviceId }, callbacks)
+	}
+)
 
 meteorCustomPublish(
 	PeripheralDevicePubSub.mappingsForDevice,

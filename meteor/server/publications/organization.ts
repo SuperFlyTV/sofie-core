@@ -1,4 +1,4 @@
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { Blueprint } from '@sofie-automation/corelib/dist/dataModel/Blueprint'
 import { Evaluation } from '@sofie-automation/meteor-lib/dist/collections/Evaluations'
@@ -15,9 +15,9 @@ import { getCurrentTime } from '../lib/lib'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 import { assertConnectionHasOneOfPermissions } from '../security/auth'
 
-meteorPublish(
+meteorPublishObserver(
 	MeteorPubSub.organization,
-	async function (organizationId: OrganizationId | null, _token: string | undefined) {
+	async function (callbacks, organizationId: OrganizationId | null, _token: string | undefined) {
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		if (!organizationId) return null
@@ -33,13 +33,13 @@ meteorPublish(
 			},
 		}
 
-		return Organizations.findWithCursor({ _id: selector.organizationId }, modifier)
+		return Organizations.observeChanges({ _id: selector.organizationId }, callbacks, modifier)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.blueprints,
-	async function (blueprintIds: BlueprintId[] | null, _token: string | undefined) {
+	async function (callbacks, blueprintIds: BlueprintId[] | null, _token: string | undefined) {
 		assertConnectionHasOneOfPermissions(this.connection, 'configure')
 
 		check(blueprintIds, Match.Maybe(Array))
@@ -51,26 +51,29 @@ meteorPublish(
 		const selector: MongoQuery<Blueprint> = {}
 		if (blueprintIds) selector._id = { $in: blueprintIds }
 
-		return Blueprints.findWithCursor(selector, {
+		return Blueprints.observeChanges(selector, callbacks, {
 			projection: {
 				code: 0,
 			},
 		})
 	}
 )
-meteorPublish(MeteorPubSub.evaluations, async function (dateFrom: number, dateTo: number, _token: string | undefined) {
-	triggerWriteAccessBecauseNoCheckNecessary()
+meteorPublishObserver(
+	MeteorPubSub.evaluations,
+	async function (callbacks, dateFrom: number, dateTo: number, _token: string | undefined) {
+		triggerWriteAccessBecauseNoCheckNecessary()
 
-	const selector: MongoQuery<Evaluation> = {
-		timestamp: {
-			$gte: dateFrom,
-			$lt: dateTo,
-		},
+		const selector: MongoQuery<Evaluation> = {
+			timestamp: {
+				$gte: dateFrom,
+				$lt: dateTo,
+			},
+		}
+
+		return Evaluations.observeChanges(selector, callbacks)
 	}
-
-	return Evaluations.findWithCursor(selector)
-})
-meteorPublish(MeteorPubSub.snapshots, async function (_token: string | undefined) {
+)
+meteorPublishObserver(MeteorPubSub.snapshots, async function (callbacks, _token: string | undefined) {
 	assertConnectionHasOneOfPermissions(this.connection, 'configure')
 
 	const selector: MongoQuery<SnapshotItem> = {
@@ -79,11 +82,11 @@ meteorPublish(MeteorPubSub.snapshots, async function (_token: string | undefined
 		},
 	}
 
-	return Snapshots.findWithCursor(selector)
+	return Snapshots.observeChanges(selector, callbacks)
 })
-meteorPublish(
+meteorPublishObserver(
 	MeteorPubSub.userActionsLog,
-	async function (dateFrom: number, dateTo: number, _token: string | undefined) {
+	async function (callbacks, dateFrom: number, dateTo: number, _token: string | undefined) {
 		triggerWriteAccessBecauseNoCheckNecessary()
 
 		const selector: MongoQuery<UserActionsLogItem> = {
@@ -93,7 +96,7 @@ meteorPublish(
 			},
 		}
 
-		return UserActionsLog.findWithCursor(selector, {
+		return UserActionsLog.observeChanges(selector, callbacks, {
 			limit: 10_000, // this is to prevent having a publication that produces a very large array
 		})
 	}

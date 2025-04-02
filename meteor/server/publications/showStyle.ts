@@ -1,4 +1,4 @@
-import { meteorPublish } from './lib/lib'
+import { meteorPublishObserver } from './lib/lib'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
@@ -11,9 +11,9 @@ import { ShowStyleBaseId, ShowStyleVariantId } from '@sofie-automation/corelib/d
 import { check, Match } from '../lib/check'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.showStyleBases,
-	async function (showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
+	async function (callbacks, showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
 		check(showStyleBaseIds, Match.Maybe(Array))
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -25,13 +25,14 @@ meteorPublish(
 		const selector: MongoQuery<DBShowStyleBase> = {}
 		if (showStyleBaseIds) selector._id = { $in: showStyleBaseIds }
 
-		return ShowStyleBases.findWithCursor(selector)
+		return ShowStyleBases.observeChanges(selector, callbacks)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	CorelibPubSub.showStyleVariants,
 	async function (
+		callbacks,
 		showStyleBaseIds: ShowStyleBaseId[] | null,
 		showStyleVariantIds: ShowStyleVariantId[] | null,
 		_token: string | undefined
@@ -50,13 +51,13 @@ meteorPublish(
 		if (showStyleBaseIds) selector.showStyleBaseId = { $in: showStyleBaseIds }
 		if (showStyleVariantIds) selector._id = { $in: showStyleVariantIds }
 
-		return ShowStyleVariants.findWithCursor(selector)
+		return ShowStyleVariants.observeChanges(selector, callbacks)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	MeteorPubSub.rundownLayouts,
-	async function (showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
+	async function (callbacks, showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
 		check(showStyleBaseIds, Match.Maybe(Array))
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -67,13 +68,13 @@ meteorPublish(
 		const selector: MongoQuery<RundownLayoutBase> = {}
 		if (showStyleBaseIds) selector.showStyleBaseId = { $in: showStyleBaseIds }
 
-		return RundownLayouts.findWithCursor(selector)
+		return RundownLayouts.observeChanges(selector, callbacks)
 	}
 )
 
-meteorPublish(
+meteorPublishObserver(
 	MeteorPubSub.triggeredActions,
-	async function (showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
+	async function (callbacks, showStyleBaseIds: ShowStyleBaseId[] | null, _token: string | undefined) {
 		check(showStyleBaseIds, Match.Maybe(Array))
 
 		triggerWriteAccessBecauseNoCheckNecessary()
@@ -92,6 +93,6 @@ meteorPublish(
 				  }
 				: { showStyleBaseId: null }
 
-		return TriggeredActions.findWithCursor(selector)
+		return TriggeredActions.observeChanges(selector, callbacks)
 	}
 )
