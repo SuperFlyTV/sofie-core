@@ -225,6 +225,8 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 				)
 			}
 
+			instance.isRunning = false
+
 			return {
 				stop: () => {
 					this.#observers.delete(instance.id)
@@ -251,10 +253,21 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 	private _startChangeStreamIfStopped() {
 		if (this.#stream) return
 
-		this.#stream = this.#collection.watch(undefined, {
-			fullDocument: 'whenAvailable',
-			batchSize: 1,
-		})
+		this.#stream = this.#collection.watch(
+			[
+				{
+					$match: {
+						operationType: {
+							$in: ['insert', 'update', 'replace', 'delete'],
+						},
+					},
+				},
+			],
+			{
+				fullDocument: 'whenAvailable', // nocommit this isnt working, which is causing everything to fail due to not having documents...
+				batchSize: 1,
+			}
+		)
 
 		this.#stream.on('change', (change) => {
 			console.log('change', change)
@@ -289,16 +302,9 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 
 			observer
 				.changeCallback(change, observer)
-				.then(
-					() => {
-						this._triggerObserverUpdate(observer)
-					},
-					(e) => {
-						logger.error(
-							`Failed to process change stream for observer ${observer.id}: ${stringifyError(e)}`
-						)
-					}
-				)
+				.catch((e) => {
+					logger.error(`Failed to process change stream for observer ${observer.id}: ${stringifyError(e)}`)
+				})
 				.finally(() => {
 					// Try again in case there are more updates
 					this._triggerObserverUpdate(observer)
