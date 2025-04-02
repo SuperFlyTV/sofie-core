@@ -662,7 +662,7 @@ export function compileAdLibFilter(
 									playlistId: rundownPlaylistId,
 								},
 								{
-									fields: {
+									projection: {
 										_id: 1,
 									},
 								}
@@ -686,7 +686,7 @@ export function compileAdLibFilter(
 								rundownId: { $in: Array.from(rundownRankMap.keys()) },
 							},
 							{
-								fields: {
+								projection: {
 									_id: 1,
 									_rank: 1,
 								},
@@ -708,7 +708,7 @@ export function compileAdLibFilter(
 									rundownId: { $in: Array.from(rundownRankMap.keys()) },
 								},
 								{
-									fields: {
+									projection: {
 										_id: 1,
 										segmentId: 1,
 										rundownId: 1,
@@ -721,7 +721,7 @@ export function compileAdLibFilter(
 								computation,
 								{ _id: { $in: partFilter } },
 								{
-									fields: {
+									projection: {
 										_id: 1,
 										segmentId: 1,
 										rundownId: 1,

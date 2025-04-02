@@ -34,7 +34,7 @@ export interface TriggersAsyncCollection<DBInterface extends { _id: ProtectedStr
 	findFetchAsync(
 		computation: TriggerTrackerComputation | null,
 		selector: MongoQuery<DBInterface>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection' | 'sort' | 'limit' | 'skip'>
 	): Promise<Array<DBInterface>>
 
 	/**
@@ -44,7 +44,7 @@ export interface TriggersAsyncCollection<DBInterface extends { _id: ProtectedStr
 	findOneAsync(
 		computation: TriggerTrackerComputation | null,
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
-		options?: FindOneOptions<DBInterface>
+		options?: Pick<FindOneOptions<DBInterface>, 'projection'>
 	): Promise<DBInterface | undefined>
 }
 

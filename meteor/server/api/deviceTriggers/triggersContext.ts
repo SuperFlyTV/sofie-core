@@ -48,16 +48,21 @@ class MeteorTriggersCollectionWrapper<DBInterface extends { _id: ProtectedString
 	async findFetchAsync(
 		_computation: TriggerTrackerComputation | null,
 		selector: MongoQuery<DBInterface>,
-		options?: FindOptions<DBInterface>
+		options?: Pick<FindOptions<DBInterface>, 'projection' | 'sort' | 'limit' | 'skip'>
 	): Promise<Array<DBInterface>> {
 		// Note: the _computation is not used, since we are not using Tracker server-side
-		return this.#collection.findFetchAsync(selector, options)
+		return this.#collection.findFetchAsync(selector, {
+			projection: options?.projection,
+			sort: options?.sort as any,
+			limit: options?.limit,
+			skip: options?.skip,
+		})
 	}
 
 	async findOneAsync(
 		_computation: TriggerTrackerComputation | null,
 		selector: MongoQuery<DBInterface> | DBInterface['_id'],
-		options?: FindOneOptions<DBInterface>
+		options?: Pick<FindOneOptions<DBInterface>, 'projection'>
 	): Promise<DBInterface | undefined> {
 		// Note: the _computation is not used, since we are not using Tracker server-side
 		return this.#collection.findOneAsync(selector, options)
