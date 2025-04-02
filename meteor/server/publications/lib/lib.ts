@@ -1,7 +1,7 @@
 import { Meteor, Subscription } from 'meteor/meteor'
 import { AllPubSubCollections, AllPubSubTypes } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { extractFunctionSignature } from '../../lib'
-import { protectStringObject } from '../../lib/tempLib'
+import { protectStringObject, unprotectString } from '../../lib/tempLib'
 import { MetricsGauge } from '@sofie-automation/corelib/dist/prometheus'
 import { MinimalMongoCursor } from '../../collections/implementations/asyncCollection'
 
@@ -60,7 +60,37 @@ export function meteorPublish<K extends keyof AllPubSubTypes>(
 		...args: Parameters<AllPubSubTypes[K]>
 	) => Promise<MinimalMongoCursor<PublishDocType<K>> | null>
 ): void {
-	meteorPublishUnsafe(name, callback)
+	meteorPublishUnsafe(name, async function (this: SubscriptionContext, ...args: any[]) {
+		const cursor = await callback.call(this, ...(args as any))
+		if (!cursor) {
+			// No data, report it as ready now
+			this.ready()
+			return
+		}
+
+		const observeHandle = await cursor.observeChangesAsync(
+			{
+				added: (id, fields) => {
+					this.added(name, unprotectString(id), fields as Record<string, any>)
+				},
+				changed: (id, fields) => {
+					this.changed(name, unprotectString(id), fields as Record<string, any>)
+				},
+				removed: (id) => {
+					this.removed(name, unprotectString(id))
+				},
+			},
+			// Publications don't mutate the documents
+			// This is tested by the `livedata - publish callbacks clone` test
+			{ nonMutatingCallbacks: true }
+		)
+
+		// register stop callback (expects lambda w/ no args).
+		this.onStop(async () => observeHandle.stop())
+
+		this.ready()
+		return
+	})
 }
 
 /**
