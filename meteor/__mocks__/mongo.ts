@@ -48,7 +48,7 @@ export namespace MongoMock {
 		private _isTemporaryCollection: boolean
 		private _options: any = {}
 		// @ts-expect-error used in test to check that it's a mock
-		private _isMock = true as const
+		private static _isMock = true as const
 		public observers: ObserverEntry<T>[] = []
 
 		public asyncBulkWriteDelay = 100
@@ -442,9 +442,9 @@ export namespace MongoMock {
 		return oldDelay
 	}
 
-	export function getInnerMockCollection<T extends { _id: ProtectedString<any> }>(
+	export async function getInnerMockCollection<T extends { _id: ProtectedString<any> }>(
 		collection: MongoReadOnlyCollection<T> | AsyncOnlyReadOnlyMongoCollection<T>
-	): MinimalMeteorMongoCollection<T> {
+	): Promise<MinimalMeteorMongoCollection<T>> {
 		return (collection as any).mockCollection
 	}
 }

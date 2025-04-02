@@ -6,7 +6,7 @@ import { runAllTimers, runTimersUntilNow, waitUntil } from '../../../../__mocks_
 import { MongoMock } from '../../../../__mocks__/mongo'
 import { RundownsObserver } from '../rundownsObserver'
 
-const RundownsMock = (Rundowns as any).mockCollection as MongoMock.Collection<Rundown>
+const RundownsMock0 = (Rundowns as any).mockCollection as Promise<MongoMock.Collection<Rundown>>
 
 const MAX_WAIT_TIME = 4000
 
@@ -21,6 +21,8 @@ describe('RundownsObserver', () => {
 
 		const onChangedCleanup = jest.fn()
 		const onChanged = jest.fn(async () => onChangedCleanup)
+
+		const RundownsMock = await RundownsMock0
 
 		// should not be any observers yet
 		expect(RundownsMock.observers).toHaveLength(0)
@@ -74,6 +76,8 @@ describe('RundownsObserver', () => {
 
 		const onChangedCleanup = jest.fn()
 		const onChanged = jest.fn<Promise<() => void>, [RundownId[]]>(async () => onChangedCleanup)
+
+		const RundownsMock = await RundownsMock0
 
 		// should not be any observers yet
 		expect(RundownsMock.observers).toHaveLength(0)
@@ -129,6 +133,8 @@ describe('RundownsObserver', () => {
 		const onChangedCleanup = jest.fn()
 		const onChanged = jest.fn<Promise<() => void>, [RundownId[]]>(async () => onChangedCleanup)
 
+		const RundownsMock = await RundownsMock0
+
 		// should not be any observers yet
 		expect(RundownsMock.observers).toHaveLength(0)
 
@@ -182,6 +188,8 @@ describe('RundownsObserver', () => {
 
 		const onChangedCleanup = jest.fn()
 		const onChanged = jest.fn<Promise<() => void>, [RundownId[]]>(async () => onChangedCleanup)
+
+		const RundownsMock = await RundownsMock0
 
 		// should not be any observers yet
 		expect(RundownsMock.observers).toHaveLength(0)

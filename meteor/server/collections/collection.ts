@@ -4,7 +4,7 @@ import { Meteor } from 'meteor/meteor'
 import { Mongo } from 'meteor/mongo'
 import { NpmModuleMongodb } from 'meteor/npm-mongo'
 import { PromisifyCallbacks } from '@sofie-automation/shared-lib/dist/lib/types'
-import type { AnyBulkWriteOperation, Collection as RawCollection } from 'mongodb'
+import { type AnyBulkWriteOperation, type Collection as RawCollection } from 'mongodb'
 import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import { registerCollection } from './lib'
 import { WrappedMockCollection } from './implementations/mock'
@@ -20,6 +20,15 @@ import {
 } from '@sofie-automation/meteor-lib/dist/collections/lib'
 import { MinimalMongoCursor } from './implementations/asyncCollection'
 import { UserPermissions } from '@sofie-automation/meteor-lib/dist/userPermissions'
+
+// export async function createMongoConnection(mongoUri: string): Promise<MongoClient> {
+// 	const client = new MongoClient(mongoUri, {
+// 		ignoreUndefined: true,
+// 	})
+// 	await client.connect()
+// 	return client
+// }
+// export const DefaultMongoClient = await createMongoConnection(process.env.MONGO_URL)
 
 export interface CustomMongoAllowRules<DBInterface> {
 	// insert?: (userId: UserId | null, doc: DBInterface) => Promise<boolean> | boolean
@@ -40,7 +49,7 @@ export const collectionsAllowDenyCache = new Map<string, CustomMongoAllowRules<a
  * Future: Could this weakly hold the collections?
  */
 export const collectionsCache = new Map<string, Mongo.Collection<any>>()
-export function getOrCreateMongoCollection(name: string): Mongo.Collection<any> {
+export async function getOrCreateMongoCollection(name: string): Promise<Mongo.Collection<any>> {
 	const collection = collectionsCache.get(name)
 	if (collection) {
 		return collection
@@ -60,8 +69,6 @@ export function createAsyncOnlyMongoCollection<DBInterface extends { _id: Protec
 	name: CollectionName,
 	allowRules: CustomMongoAllowRules<DBInterface> | false
 ): AsyncOnlyMongoCollection<DBInterface> {
-	const collection = getOrCreateMongoCollection(name)
-
 	if (allowRules) {
 		if (allowRules.requiredPermissions.length === 0)
 			throw new Meteor.Error(403, `No permissions specified for collection "${name}"`)
@@ -69,6 +76,7 @@ export function createAsyncOnlyMongoCollection<DBInterface extends { _id: Protec
 		collectionsAllowDenyCache.set(name, allowRules as CustomMongoAllowRules<any>)
 	}
 
+	const collection = getOrCreateMongoCollection(name)
 	const wrappedCollection = wrapMeteorCollectionIntoAsyncCollection<DBInterface>(collection, name)
 
 	registerCollection(name, wrappedCollection)
@@ -95,10 +103,10 @@ export function createAsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id
 }
 
 function wrapMeteorCollectionIntoAsyncCollection<DBInterface extends { _id: ProtectedString<any> }>(
-	collection: Mongo.Collection<DBInterface>,
+	collection: Promise<Mongo.Collection<DBInterface>>,
 	name: CollectionName
 ) {
-	if ((collection as any)._isMock) {
+	if ((Mongo.Collection as any)._isMock) {
 		// We use a special one in tests, to add some async which naturally doesn't happen in the collection
 		return new WrappedMockCollection<DBInterface>(collection, name)
 	} else {
@@ -196,7 +204,7 @@ export interface AsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id: Pro
 	 * Returns the [`Collection`](http://mongodb.github.io/node-mongodb-native/3.0/api/Collection.html) object corresponding to this collection from the
 	 * [npm `mongodb` driver module](https://www.npmjs.com/package/mongodb) which is wrapped by `Mongo.Collection`.
 	 */
-	rawCollection(): RawCollection<DBInterface>
+	rawCollection(): Promise<RawCollection<DBInterface>>
 
 	/**
 	 * Find and return multiple documents
@@ -250,5 +258,5 @@ export interface AsyncOnlyReadOnlyMongoCollection<DBInterface extends { _id: Pro
 	 */
 	countDocuments(selector?: MongoQuery<DBInterface>, options?: FindOptions<DBInterface>): Promise<number>
 
-	createIndex(indexSpec: IndexSpecifier<DBInterface>, options?: NpmModuleMongodb.CreateIndexesOptions): void
+	createIndex(indexSpec: IndexSpecifier<DBInterface>, options?: NpmModuleMongodb.CreateIndexesOptions): Promise<void>
 }

@@ -12,17 +12,18 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 	extends WrappedAsyncMongoCollection<DBInterface>
 	implements AsyncOnlyMongoCollection<DBInterface>
 {
-	constructor(collection: Mongo.Collection<DBInterface>, name: string | null) {
+	constructor(collection: Promise<Mongo.Collection<DBInterface>>, name: string | null) {
 		super(collection, name)
 
-		if (!this._isMock) throw new Meteor.Error(500, 'WrappedMockCollection is only valid for a mock collection')
+		if (!(Mongo.Collection as any)._isMock)
+			throw new Meteor.Error(500, 'WrappedMockCollection is only valid for a mock collection')
 	}
 
 	get mutableCollection(): AsyncOnlyMongoCollection<DBInterface> {
 		return this
 	}
 
-	protected override rawDatabase(): RawDb {
+	protected override async rawDatabase(): Promise<RawDb> {
 		throw new Error('rawDatabase not supported in tests')
 	}
 
@@ -39,7 +40,7 @@ export class WrappedMockCollection<DBInterface extends { _id: ProtectedString<an
 
 	override async bulkWriteAsync(ops: Array<AnyBulkWriteOperation<DBInterface>>): Promise<void> {
 		if (ops.length > 0) {
-			const rawCollection = this.rawCollection()
+			const rawCollection = await this.rawCollection()
 			const bulkWriteResult = await rawCollection.bulkWrite(ops, {
 				ordered: false,
 			})

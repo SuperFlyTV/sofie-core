@@ -19,13 +19,14 @@ export function ensureCollectionProperty<T = any>(
 	defaultValue: any,
 	dependOnResultFrom?: string
 ): Omit<MigrationStepCore, 'version'> {
-	const collection = Collections.get(collectionName)
-	if (!collection) throw new Meteor.Error(404, `Collection ${collectionName} not found`)
+	const collection0 = Collections.get(collectionName)
+	if (!collection0) throw new Meteor.Error(404, `Collection ${collectionName} not found`)
 
 	return {
 		id: `${collectionName}.${property}`,
 		canBeRunAutomatically: true,
 		validate: async () => {
+			const collection = await collection0
 			const objects = await collection.findFetchAsync(selector)
 
 			for (const obj of objects) {
@@ -38,6 +39,7 @@ export function ensureCollectionProperty<T = any>(
 			return false
 		},
 		migrate: async () => {
+			const collection = await collection0
 			const objects = await collection.findFetchAsync(selector)
 			for (const obj of objects) {
 				if (obj && objectPathGet(obj, property) !== defaultValue) {
@@ -60,13 +62,14 @@ export function removeCollectionProperty<T = any>(
 	property: string,
 	dependOnResultFrom?: string
 ): Omit<MigrationStepCore, 'version'> {
-	const collection = Collections.get(collectionName)
-	if (!collection) throw new Meteor.Error(404, `Collection ${collectionName} not found`)
+	const collection0 = Collections.get(collectionName)
+	if (!collection0) throw new Meteor.Error(404, `Collection ${collectionName} not found`)
 
 	return {
 		id: `${collectionName}.${property}`,
 		canBeRunAutomatically: true,
 		validate: async () => {
+			const collection = await collection0
 			const objects = await collection.findFetchAsync(selector)
 
 			for (const obj of objects) {
@@ -79,6 +82,7 @@ export function removeCollectionProperty<T = any>(
 			return false
 		},
 		migrate: async () => {
+			const collection = await collection0
 			const objects = await collection.findFetchAsync(selector)
 			for (const obj of objects) {
 				if (obj && objectPathGet(obj, property) !== undefined) {

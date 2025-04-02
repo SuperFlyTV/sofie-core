@@ -18,7 +18,7 @@ export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: Protected
 		return this.#mutableCollection._isMock
 	}
 
-	public get mockCollection(): any {
+	public get mockCollection(): Promise<any> {
 		// @ts-expect-error re-export private property
 		return this.#mutableCollection.mockCollection
 	}
@@ -31,7 +31,7 @@ export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: Protected
 		return this.#mutableCollection.name
 	}
 
-	rawCollection(): Collection<DBInterface> {
+	async rawCollection(): Promise<Collection<DBInterface>> {
 		return this.#mutableCollection.rawCollection()
 	}
 
@@ -71,7 +71,9 @@ export class WrappedReadOnlyMongoCollection<DBInterface extends { _id: Protected
 		return this.#mutableCollection.countDocuments(...args)
 	}
 
-	createIndex(...args: Parameters<AsyncOnlyReadOnlyMongoCollection<DBInterface>['createIndex']>): void {
+	async createIndex(
+		...args: Parameters<AsyncOnlyReadOnlyMongoCollection<DBInterface>['createIndex']>
+	): Promise<void> {
 		return this.#mutableCollection.createIndex(...args)
 	}
 }

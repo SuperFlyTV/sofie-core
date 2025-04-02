@@ -39,7 +39,7 @@ async function setupIndexes(removeOldIndexes = false): Promise<Array<IndexSpecif
 	const removeIndexes: IndexSpecification[] = []
 	await Promise.all(
 		Object.entries<CollectionIndexes<any>>(registeredIndexes).map(async ([collectionName, targetInfo]) => {
-			const rawCollection = targetInfo.collection.rawCollection()
+			const rawCollection = await targetInfo.collection.rawCollection()
 			const existingIndexes = (await rawCollection.indexes()) as any[]
 
 			const targetIndexes: IndexSpecifier<any>[] = [...targetInfo.indexes, { _id: 1 }]
@@ -69,7 +69,9 @@ async function setupIndexes(removeOldIndexes = false): Promise<Array<IndexSpecif
 
 			// Ensure new indexes (add if not existing):
 			for (const index of targetInfo.indexes) {
-				targetInfo.collection.createIndex(index)
+				targetInfo.collection.createIndex(index).catch((e) => {
+					logger.warn(`Failed to create index: ${JSON.stringify(index)}: ${stringifyError(e)}`)
+				})
 			}
 		})
 	)
@@ -82,7 +84,9 @@ function createIndexes(): void {
 	// Ensure new indexes:
 	_.each(indexes, (i) => {
 		_.each(i.indexes, (index) => {
-			i.collection.createIndex(index)
+			i.collection.createIndex(index).catch((e) => {
+				logger.error(`Failed to create index: ${JSON.stringify(index)}: ${stringifyError(e)}`)
+			})
 		})
 	})
 }
@@ -122,7 +126,7 @@ let mongoTest: AsyncOnlyMongoCollection<any> | undefined = undefined
 async function doSystemBenchmarkInner() {
 	if (!mongoTest) {
 		mongoTest = createAsyncOnlyMongoCollection<any>('benchmark-test' as any, false)
-		mongoTest.createIndex({
+		await mongoTest.createIndex({
 			indexedProp: 1,
 		})
 	}

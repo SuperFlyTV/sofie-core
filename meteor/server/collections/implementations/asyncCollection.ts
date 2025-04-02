@@ -39,21 +39,21 @@ export type MinimalMeteorMongoCollection<T extends { _id: ProtectedString<any> }
 export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedString<any> }>
 	implements AsyncOnlyMongoCollection<DBInterface>
 {
-	protected readonly _collection: MinimalMeteorMongoCollection<DBInterface>
+	protected readonly _collection: Promise<MinimalMeteorMongoCollection<DBInterface>>
 
 	public readonly name: string | null
 
-	constructor(collection: Mongo.Collection<DBInterface>, name: string | null) {
+	constructor(collection: Promise<Mongo.Collection<DBInterface>>, name: string | null) {
 		this._collection = collection as any
 		this.name = name
 	}
 
 	protected get _isMock(): boolean {
 		// @ts-expect-error re-export private property
-		return this._collection._isMock
+		return Mongo.Collection._isMock
 	}
 
-	public get mockCollection(): MinimalMeteorMongoCollection<DBInterface> {
+	public get mockCollection(): Promise<MinimalMeteorMongoCollection<DBInterface>> {
 		return this._collection
 	}
 
@@ -66,11 +66,13 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		throw new Meteor.Error(e instanceof Meteor.Error ? e.error : 500, `Collection "${this.name}": ${str}`)
 	}
 
-	rawCollection(): RawCollection<DBInterface> {
-		return this._collection.rawCollection() as any
+	async rawCollection(): Promise<RawCollection<DBInterface>> {
+		const collection = await this._collection
+		return collection.rawCollection() as any
 	}
-	protected rawDatabase(): RawDb {
-		return this._collection.rawDatabase() as any
+	protected async rawDatabase(): Promise<RawDb> {
+		const collection = await this._collection
+		return collection.rawDatabase() as any
 	}
 
 	async findFetchAsync(
@@ -85,7 +87,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection.find((selector ?? {}) as any, options as any).fetchAsync()
+			const collection = await this._collection
+			const res = await collection.find((selector ?? {}) as any, options as any).fetchAsync()
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -106,9 +109,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const arr = await this._collection
-				.find((selector ?? {}) as any, { ...(options as any), limit: 1 })
-				.fetchAsync()
+			const collection = await this._collection
+			const arr = await collection.find((selector ?? {}) as any, { ...(options as any), limit: 1 }).fetchAsync()
 			if (span) span.end()
 			return arr[0]
 		} catch (e) {
@@ -129,7 +131,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = this._collection.find((selector ?? {}) as any, options as any)
+			const collection = await this._collection
+			const res = collection.find((selector ?? {}) as any, options as any)
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -151,9 +154,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection
-				.find((selector ?? {}) as any, options as any)
-				.observeChangesAsync(callbacks)
+			const collection = await this._collection
+			const res = await collection.find((selector ?? {}) as any, options as any).observeChangesAsync(callbacks)
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -175,7 +177,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection.find((selector ?? {}) as any, options as any).observeAsync(callbacks)
+			const collection = await this._collection
+			const res = await collection.find((selector ?? {}) as any, options as any).observeAsync(callbacks)
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -196,7 +199,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection.find((selector ?? {}) as any, options as any).countAsync()
+			const collection = await this._collection
+			const res = await collection.find((selector ?? {}) as any, options as any).countAsync()
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -214,7 +218,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const resultId = await this._collection.insertAsync(doc as unknown as Mongo.OptionalId<DBInterface>)
+			const collection = await this._collection
+			const resultId = await collection.insertAsync(doc as unknown as Mongo.OptionalId<DBInterface>)
 			if (span) span.end()
 			return protectString(resultId)
 		} catch (e) {
@@ -236,7 +241,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection.removeAsync(selector as any)
+			const collection = await this._collection
+			const res = await collection.removeAsync(selector as any)
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -257,7 +263,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = await this._collection.updateAsync(selector as any, modifier as any, options)
+			const collection = await this._collection
+			const res = await collection.updateAsync(selector as any, modifier as any, options)
 			if (span) span.end()
 			return res
 		} catch (e) {
@@ -281,7 +288,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const result = await this._collection.upsertAsync(selector as any, modifier as any, options)
+			const collection = await this._collection
+			const result = await collection.upsertAsync(selector as any, modifier as any, options)
 			if (span) span.end()
 			return {
 				numberAffected: result.numberAffected,
@@ -322,7 +330,7 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		}
 
 		if (ops.length > 0) {
-			const rawCollection = this.rawCollection()
+			const rawCollection = await this.rawCollection()
 			const bulkWriteResult = await rawCollection.bulkWrite(ops, {
 				ordered: false,
 			})
@@ -336,7 +344,10 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 		if (span) span.end()
 	}
 
-	createIndex(keys: IndexSpecifier<DBInterface> | string, options?: NpmModuleMongodb.CreateIndexesOptions): void {
+	async createIndex(
+		keys: IndexSpecifier<DBInterface> | string,
+		options?: NpmModuleMongodb.CreateIndexesOptions
+	): Promise<void> {
 		const span = profiler.startSpan(`MongoCollection.${this.name}.createIndex`)
 		if (span) {
 			span.addLabels({
@@ -345,7 +356,8 @@ export class WrappedAsyncMongoCollection<DBInterface extends { _id: ProtectedStr
 			})
 		}
 		try {
-			const res = this._collection.createIndex(keys as any, options)
+			const collection = await this._collection
+			const res = collection.createIndex(keys as any, options)
 			if (span) span.end()
 			return res
 		} catch (e) {

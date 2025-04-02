@@ -38,7 +38,7 @@ import { PieceDependencies } from '../common'
 import { DEFAULT_MINIMUM_TAKE_SPAN } from '@sofie-automation/shared-lib/dist/core/constants'
 import { PieceContentStatusMessageFactory } from '../messageFactory'
 
-const mockMediaObjectsCollection = MongoMock.getInnerMockCollection<MediaObject>(MediaObjects)
+const pMockMediaObjectsCollection = MongoMock.getInnerMockCollection<MediaObject>(MediaObjects)
 
 describe('lib/mediaObjects', () => {
 	describe('buildFormatString', () => {
@@ -244,6 +244,8 @@ describe('lib/mediaObjects', () => {
 	})
 
 	test('checkPieceContentStatus', async () => {
+		const mockMediaObjectsCollection = await pMockMediaObjectsCollection
+
 		const mockStudioSettings: IStudioSettings = {
 			supportedMediaFormats: '1920x1080i5000, 1280x720, i5000, i5000tff',
 			mediaPreviewsUrl: '',

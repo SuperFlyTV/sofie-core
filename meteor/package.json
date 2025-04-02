@@ -60,6 +60,7 @@
 		"koa-static": "^5.0.0",
 		"meteor-node-stubs": "^1.2.12",
 		"moment": "^2.30.1",
+		"mongodb": "^6.12.0",
 		"nanoid": "^3.3.8",
 		"node-gyp": "^9.4.1",
 		"ntp-client": "^0.5.3",
