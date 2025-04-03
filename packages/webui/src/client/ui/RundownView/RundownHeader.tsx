@@ -1,19 +1,19 @@
 import { Meteor } from 'meteor/meteor'
 import React from 'react'
 import { Translated } from '../../lib/ReactMeteorData/react-meteor-data'
-import { useTranslation, withTranslation } from 'react-i18next'
+import { withTranslation } from 'react-i18next'
 import * as CoreIcon from '@nrk/core-icons/jsx'
 import ClassNames from 'classnames'
 import Escape from '../../lib/Escape'
 import Tooltip from 'rc-tooltip'
 import { NavLink } from 'react-router-dom'
-import { DBRundownPlaylist, RundownHoldState } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
+import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { Rundown, getRundownNrcsName } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { ContextMenu, MenuItem, ContextMenuTrigger } from '@jstarpl/react-contextmenu'
 import { PieceUi } from '../SegmentTimeline/SegmentTimelineContainer'
 import { RundownSystemStatus } from '../RundownView/RundownSystemStatus'
 import { getCurrentTime } from '../../lib/systemTime'
-import { ModalDialog, doModalDialog } from '../../lib/ModalDialog'
+import { doModalDialog } from '../../lib/ModalDialog'
 import { getHelpMode } from '../../lib/localStorage'
 import { ClientAPI } from '@sofie-automation/meteor-lib/dist/api/client'
 import { scrollToPartInstance } from '../../lib/viewPort'
@@ -46,103 +46,8 @@ import { UserPermissions } from '../UserPermissions'
 import * as RundownResolver from '../../lib/RundownResolver'
 import Navbar from 'react-bootstrap/Navbar'
 import { REHEARSAL_MARGIN, WarningDisplay } from './WarningDisplay'
-import { WithTiming, withTiming } from './RundownTiming/withTiming'
-import { AutoNextStatus } from './RundownTiming/AutoNextStatus'
-import { CurrentPartOrSegmentRemaining } from './RundownTiming/CurrentPartOrSegmentRemaining'
-import { NextBreakTiming } from './RundownTiming/NextBreakTiming'
-import { PlaylistEndTiming } from './RundownTiming/PlaylistEndTiming'
-import { PlaylistStartTiming } from './RundownTiming/PlaylistStartTiming'
-import { RundownName } from './RundownTiming/RundownName'
-import { TimeOfDay } from './RundownTiming/TimeOfDay'
-import { RundownPlaylists, Rundowns } from '../../collections'
-import {
-	ReloadRundownPlaylistResponse,
-	TriggerReloadDataResponse,
-} from '@sofie-automation/meteor-lib/dist/api/userActions'
-import _ from 'underscore'
-import { RundownPlaylistCollectionUtil } from '../../collections/rundownPlaylistUtil'
-import * as i18next from 'i18next'
-
-interface ITimingDisplayProps {
-	rundownPlaylist: DBRundownPlaylist
-	currentRundown: Rundown | undefined
-	rundownCount: number
-	layout: RundownLayoutRundownHeader | undefined
-}
-
-const TimingDisplay = withTiming<ITimingDisplayProps, {}>()(function TimingDisplay({
-	rundownPlaylist,
-	currentRundown,
-	rundownCount,
-	layout,
-	timingDurations,
-}: WithTiming<ITimingDisplayProps>): JSX.Element | null {
-	const { t } = useTranslation()
-
-	if (!rundownPlaylist) return null
-
-	const expectedStart = PlaylistTiming.getExpectedStart(rundownPlaylist.timing)
-	const expectedEnd = PlaylistTiming.getExpectedEnd(rundownPlaylist.timing)
-	const expectedDuration = PlaylistTiming.getExpectedDuration(rundownPlaylist.timing)
-	const showEndTiming =
-		!timingDurations.rundownsBeforeNextBreak ||
-		!layout?.showNextBreakTiming ||
-		(timingDurations.rundownsBeforeNextBreak.length > 0 &&
-			(!layout?.hideExpectedEndBeforeBreak || (timingDurations.breakIsLastRundown && layout?.lastRundownIsNotBreak)))
-	const showNextBreakTiming =
-		rundownPlaylist.startedPlayback &&
-		timingDurations.rundownsBeforeNextBreak?.length &&
-		layout?.showNextBreakTiming &&
-		!(timingDurations.breakIsLastRundown && layout.lastRundownIsNotBreak)
-
-	return (
-		<div className="timing">
-			<div className="timing__header__left">
-				<PlaylistStartTiming rundownPlaylist={rundownPlaylist} hideDiff={true} />
-				<RundownName rundownPlaylist={rundownPlaylist} currentRundown={currentRundown} rundownCount={rundownCount} />
-			</div>
-			<div className="timing__header__center">
-				<TimeOfDay />
-			</div>
-			<div className="timing__header__right">
-				<div className="timing__header__right__left">
-					{rundownPlaylist.currentPartInfo && (
-						<span className="timing-clock current-remaining">
-							<CurrentPartOrSegmentRemaining
-								currentPartInstanceId={rundownPlaylist.currentPartInfo.partInstanceId}
-								heavyClassName="overtime"
-								preferSegmentTime={true}
-							/>
-							<AutoNextStatus />
-							{rundownPlaylist.holdState && rundownPlaylist.holdState !== RundownHoldState.COMPLETE ? (
-								<div className="rundown__header-status rundown__header-status--hold">{t('Hold')}</div>
-							) : null}
-						</span>
-					)}
-				</div>
-				<div className="timing__header__right__right">
-					{showNextBreakTiming ? (
-						<NextBreakTiming
-							rundownsBeforeBreak={timingDurations.rundownsBeforeNextBreak!}
-							breakText={layout?.nextBreakText}
-							lastChild={!showEndTiming}
-						/>
-					) : null}
-					{showEndTiming ? (
-						<PlaylistEndTiming
-							rundownPlaylist={rundownPlaylist}
-							loop={RundownResolver.isLoopRunning(rundownPlaylist)}
-							expectedStart={expectedStart}
-							expectedEnd={expectedEnd}
-							expectedDuration={expectedDuration}
-							endLabel={layout?.plannedEndText}
-						/>
-					) : null}
-				</div>
-			</div>
-		</div>
-	)
-})
+import { TimingDisplay } from './RundownHeader/TimingDisplay'
+import { handleRundownPlaylistReloadResponse } from './RundownHeader/RundownReloadResponse'
 
 interface IRundownHeaderProps {
 	playlist: DBRundownPlaylist
@@ -159,8 +64,6 @@ interface IRundownHeaderProps {
 }
 
 interface IRundownHeaderState {
-	isError: boolean
-	errorMessage?: string
 	shouldQueue: boolean
 	selectedPiece: BucketAdLibItem | IAdLibListItem | PieceUi | undefined
 }
@@ -179,7 +82,6 @@ export const RundownHeader = withTranslation()(
 			super(props)
 
 			this.state = {
-				isError: false,
 				shouldQueue: false,
 				selectedPiece: undefined,
 			}
@@ -203,76 +105,30 @@ export const RundownHeader = withTranslation()(
 			RundownViewEventBus.off(RundownViewEvents.RESET_RUNDOWN_PLAYLIST, this.eventResetRundownPlaylist)
 			RundownViewEventBus.off(RundownViewEvents.CREATE_SNAPSHOT_FOR_DEBUG, this.eventCreateSnapshot)
 		}
-		eventActivate = (e: ActivateRundownPlaylistEvent) => {
+		private eventActivate = (e: ActivateRundownPlaylistEvent) => {
 			if (e.rehearsal) {
 				this.activateRehearsal(e.context)
 			} else {
 				this.activate(e.context)
 			}
 		}
-		eventDeactivate = (e: DeactivateRundownPlaylistEvent) => {
+		private eventDeactivate = (e: DeactivateRundownPlaylistEvent) => {
 			this.deactivate(e.context)
 		}
-		eventResync = (e: IEventContext) => {
+		private eventResync = (e: IEventContext) => {
 			this.reloadRundownPlaylist(e.context)
 		}
-		eventTake = (e: IEventContext) => {
+		private eventTake = (e: IEventContext) => {
 			this.take(e.context)
 		}
-		eventResetRundownPlaylist = (e: IEventContext) => {
+		private eventResetRundownPlaylist = (e: IEventContext) => {
 			this.resetRundown(e.context)
 		}
-		eventCreateSnapshot = (e: IEventContext) => {
+		private eventCreateSnapshot = (e: IEventContext) => {
 			this.takeRundownSnapshot(e.context)
 		}
 
-		handleDisableNextPiece = (err: ClientAPI.ClientResponse<undefined>) => {
-			if (ClientAPI.isClientResponseError(err)) {
-				const { t } = this.props
-
-				if (err.error.key === UserErrorMessage.DisableNoPieceFound) {
-					NotificationCenter.push(
-						new Notification(
-							undefined,
-							NoticeLevel.WARNING,
-							t('Could not find a Piece that can be disabled.'),
-							'userAction'
-						)
-					)
-					return false
-				}
-			}
-		}
-
-		disableNextPiece = (e: any) => {
-			const { t } = this.props
-
-			if (this.props.userPermissions.studio) {
-				doUserAction(
-					t,
-					e,
-					UserAction.DISABLE_NEXT_PIECE,
-					(e, ts) => MeteorCall.userAction.disableNextPiece(e, ts, this.props.playlist._id, false),
-					this.handleDisableNextPiece
-				)
-			}
-		}
-
-		disableNextPieceUndo = (e: any) => {
-			const { t } = this.props
-
-			if (this.props.userPermissions.studio) {
-				doUserAction(
-					t,
-					e,
-					UserAction.DISABLE_NEXT_PIECE,
-					(e, ts) => MeteorCall.userAction.disableNextPiece(e, ts, this.props.playlist._id, true),
-					this.handleDisableNextPiece
-				)
-			}
-		}
-
-		take = (e: any) => {
+		private take = (e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio) {
 				if (!this.props.playlist.activationId) {
@@ -342,13 +198,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		discardError = () => {
-			this.setState({
-				isError: false,
-			})
-		}
-
-		hold = (e: any) => {
+		private hold = (e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && this.props.playlist.activationId) {
 				doUserAction(t, e, UserAction.ACTIVATE_HOLD, (e, ts) =>
@@ -357,7 +207,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		clearQuickLoop = (e: any) => {
+		private clearQuickLoop = (e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && this.props.playlist.activationId) {
 				doUserAction(t, e, UserAction.CLEAR_QUICK_LOOP, (e, ts) =>
@@ -366,29 +216,16 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		holdUndo = (e: any) => {
-			const { t } = this.props
-			if (
-				this.props.userPermissions.studio &&
-				this.props.playlist.activationId &&
-				this.props.playlist.holdState === RundownHoldState.PENDING
-			) {
-				doUserAction(t, e, UserAction.ACTIVATE_HOLD, (e, ts) =>
-					MeteorCall.userAction.activateHold(e, ts, this.props.playlist._id, true)
-				)
-			}
-		}
-
-		rundownShouldHaveStarted() {
+		private rundownShouldHaveStarted() {
 			return getCurrentTime() > (PlaylistTiming.getExpectedStart(this.props.playlist.timing) || 0)
 		}
-		rundownWillShortlyStart() {
+		private rundownWillShortlyStart() {
 			return (
 				!this.rundownShouldHaveEnded() &&
 				getCurrentTime() > (PlaylistTiming.getExpectedStart(this.props.playlist.timing) || 0) - REHEARSAL_MARGIN
 			)
 		}
-		rundownShouldHaveEnded() {
+		private rundownShouldHaveEnded() {
 			return (
 				getCurrentTime() >
 				(PlaylistTiming.getExpectedStart(this.props.playlist.timing) || 0) +
@@ -396,7 +233,7 @@ export const RundownHeader = withTranslation()(
 			)
 		}
 
-		handleAnotherPlaylistActive = (
+		private handleAnotherPlaylistActive = (
 			playlistId: RundownPlaylistId,
 			rehersal: boolean,
 			err: UserError,
@@ -462,7 +299,7 @@ export const RundownHeader = withTranslation()(
 			})
 		}
 
-		activate = (e: any) => {
+		private activate = (e: any) => {
 			const { t } = this.props
 			if (e.persist) e.persist()
 
@@ -578,7 +415,7 @@ export const RundownHeader = withTranslation()(
 				}
 			}
 		}
-		activateRehearsal = (e: any) => {
+		private activateRehearsal = (e: any) => {
 			const { t } = this.props
 			if (e.persist) e.persist()
 
@@ -661,7 +498,7 @@ export const RundownHeader = withTranslation()(
 				}
 			}
 		}
-		deactivate = (e: any) => {
+		private deactivate = (e: any) => {
 			const { t } = this.props
 			if (e.persist) e.persist()
 
@@ -711,7 +548,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		resetRundown = (e: any) => {
+		private resetRundown = (e: any) => {
 			const { t } = this.props
 			if (e.persist) e.persist()
 
@@ -747,7 +584,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		reloadRundownPlaylist = (e: any) => {
+		private reloadRundownPlaylist = (e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio) {
 				doUserAction(
@@ -770,7 +607,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		takeRundownSnapshot = (e: any) => {
+		private takeRundownSnapshot = (e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio) {
 				const doneMessage = t('A snapshot of the current Running\xa0Order has been created for troubleshooting.')
@@ -813,7 +650,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		activateRundown = (e: any) => {
+		private activateRundown = (e: any) => {
 			// Called from the ModalDialog, 1 minute before broadcast starts
 			if (this.props.userPermissions.studio) {
 				const { t } = this.props
@@ -840,7 +677,7 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		resetAndActivateRundown = (e: any) => {
+		private resetAndActivateRundown = (e: any) => {
 			// Called from the ModalDialog, 1 minute before broadcast starts
 			if (this.props.userPermissions.studio) {
 				const { t } = this.props
@@ -861,10 +698,10 @@ export const RundownHeader = withTranslation()(
 			}
 		}
 
-		rewindSegments() {
+		private rewindSegments() {
 			RundownViewEventBus.emit(RundownViewEvents.REWIND_SEGMENTS)
 		}
-		deferFlushAndRewindSegments() {
+		private deferFlushAndRewindSegments() {
 			// Do a rewind later, when the UI has updated
 			Meteor.defer(() => {
 				Tracker.flush()
@@ -875,13 +712,13 @@ export const RundownHeader = withTranslation()(
 			})
 		}
 
-		changeQueueAdLib = (shouldQueue: boolean) => {
+		private changeQueueAdLib = (shouldQueue: boolean) => {
 			this.setState({
 				shouldQueue,
 			})
 		}
 
-		selectPiece = (piece: BucketAdLibItem | IAdLibListItem | PieceUi | undefined) => {
+		private selectPiece = (piece: BucketAdLibItem | IAdLibListItem | PieceUi | undefined) => {
 			this.setState({
 				selectedPiece: piece,
 			})
@@ -1027,178 +864,8 @@ export const RundownHeader = withTranslation()(
 							</div>
 						</ContextMenuTrigger>
 					</Navbar>
-
-					<ModalDialog
-						title={t('Error')}
-						acceptText={t('OK')}
-						show={!!this.state.isError}
-						onAccept={this.discardError}
-						onDiscard={this.discardError}
-					>
-						<p>{this.state.errorMessage}</p>
-					</ModalDialog>
 				</>
 			)
 		}
 	}
 )
-
-function handleRundownPlaylistReloadResponse(
-	t: i18next.TFunction,
-	userPermissions: Readonly<UserPermissions>,
-	result: ReloadRundownPlaylistResponse
-): boolean {
-	const rundownsInNeedOfHandling = result.rundownsResponses.filter(
-		(r) => r.response === TriggerReloadDataResponse.MISSING
-	)
-	const firstRundownId = _.first(rundownsInNeedOfHandling)?.rundownId
-	let allRundownsAffected = false
-
-	if (firstRundownId) {
-		const firstRundown = Rundowns.findOne(firstRundownId)
-		const playlist = RundownPlaylists.findOne(firstRundown?.playlistId)
-		const allRundownIds = playlist ? RundownPlaylistCollectionUtil.getRundownUnorderedIDs(playlist) : []
-		if (
-			allRundownIds.length > 0 &&
-			_.difference(
-				allRundownIds,
-				rundownsInNeedOfHandling.map((r) => r.rundownId)
-			).length === 0
-		) {
-			allRundownsAffected = true
-		}
-	}
-
-	const actionsTaken: RundownReloadResponseUserAction[] = []
-	function onActionTaken(action: RundownReloadResponseUserAction): void {
-		actionsTaken.push(action)
-		if (actionsTaken.length === rundownsInNeedOfHandling.length) {
-			// the user has taken action on all of the missing rundowns
-			if (allRundownsAffected && actionsTaken.filter((actionTaken) => actionTaken !== 'removed').length === 0) {
-				// all rundowns in the playlist were affected and all of them were removed
-				// we redirect to the Lobby
-				window.location.assign('/')
-			}
-		}
-	}
-
-	const handled = rundownsInNeedOfHandling.map((r) =>
-		handleRundownReloadResponse(t, userPermissions, r.rundownId, r.response, onActionTaken)
-	)
-	return handled.reduce((previousValue, value) => previousValue || value, false)
-}
-
-type RundownReloadResponseUserAction = 'removed' | 'unsynced' | 'error'
-
-export function handleRundownReloadResponse(
-	t: i18next.TFunction,
-	userPermissions: Readonly<UserPermissions>,
-	rundownId: RundownId,
-	result: TriggerReloadDataResponse,
-	clb?: (action: RundownReloadResponseUserAction) => void
-): boolean {
-	let hasDoneSomething = false
-
-	if (result === TriggerReloadDataResponse.MISSING) {
-		const rundown = Rundowns.findOne(rundownId)
-		const playlist = RundownPlaylists.findOne(rundown?.playlistId)
-
-		hasDoneSomething = true
-		const notification = new Notification(
-			undefined,
-			NoticeLevel.CRITICAL,
-			t(
-				'Rundown {{rundownName}} in Playlist {{playlistName}} is missing in the data from {{nrcsName}}. You can either leave it in Sofie and mark it as Unsynced or remove the rundown from Sofie. What do you want to do?',
-				{
-					nrcsName: getRundownNrcsName(rundown),
-					rundownName: rundown?.name || t('(Unknown rundown)'),
-					playlistName: playlist?.name || t('(Unknown playlist)'),
-				}
-			),
-			'userAction',
-			undefined,
-			true,
-			[
-				// actions:
-				{
-					label: t('Leave Unsynced'),
-					type: 'default',
-					disabled: !userPermissions.studio,
-					action: () => {
-						doUserAction(
-							t,
-							'Missing rundown action',
-							UserAction.UNSYNC_RUNDOWN,
-							(e, ts) => MeteorCall.userAction.unsyncRundown(e, ts, rundownId),
-							(err) => {
-								if (!err) {
-									notificationHandle.stop()
-									clb && clb('unsynced')
-								} else {
-									clb && clb('error')
-								}
-							}
-						)
-					},
-				},
-				{
-					label: t('Remove'),
-					type: 'default',
-					action: () => {
-						doModalDialog({
-							title: t('Remove rundown'),
-							message: t(
-								'Do you really want to remove just the rundown "{{rundownName}}" in the playlist {{playlistName}} from Sofie? \n\nThis cannot be undone!',
-								{
-									rundownName: rundown?.name || 'N/A',
-									playlistName: playlist?.name || 'N/A',
-								}
-							),
-							onAccept: () => {
-								// nothing
-								doUserAction(
-									t,
-									'Missing rundown action',
-									UserAction.REMOVE_RUNDOWN,
-									(e, ts) => MeteorCall.userAction.removeRundown(e, ts, rundownId),
-									(err) => {
-										if (!err) {
-											notificationHandle.stop()
-											clb && clb('removed')
-										} else {
-											clb && clb('error')
-										}
-									}
-								)
-							},
-						})
-					},
-				},
-			]
-		)
-		const notificationHandle = NotificationCenter.push(notification)
-
-		if (rundown) {
-			// This allows the semi-modal dialog above to be closed automatically, once the rundown stops existing
-			// for whatever reason
-			const comp = Tracker.autorun(() => {
-				const rundown = Rundowns.findOne(rundownId, {
-					fields: {
-						_id: 1,
-						orphaned: 1,
-					},
-				})
-				// we should hide the message
-				if (!rundown || !rundown.orphaned) {
-					notificationHandle.stop()
-				}
-			})
-			notification.on('dropped', () => {
-				// clean up the reactive computation above when the notification is closed. Will be also executed by
-				// the notificationHandle.stop() above, so the Tracker.autorun will clean up after itself as well.
-				comp.stop()
-			})
-		}
-	}
-	return hasDoneSomething
-}
