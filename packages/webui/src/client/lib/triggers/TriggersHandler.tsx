@@ -17,10 +17,7 @@ import { IWrappedAdLib } from '@sofie-automation/meteor-lib/dist/triggers/action
 import { ReactiveVar } from 'meteor/reactive-var'
 import { preventDefault } from '../SorensenContext'
 import { getFinalKey } from './codesToKeyLabels'
-import RundownViewEventBus, {
-	RundownViewEvents,
-	TriggerActionEvent,
-} from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
+import { RundownViewEvents, TriggerActionEvent } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
 import { Tracker } from 'meteor/tracker'
 import { Settings } from '../../lib/Settings'
 import { createInMemorySyncMongoCollection } from '../../collections/lib'
@@ -42,7 +39,7 @@ import {
 } from '@sofie-automation/meteor-lib/dist/api/MountedTriggers'
 import { isHotkeyTrigger } from '@sofie-automation/meteor-lib/dist/triggers/triggerTypeSelectors'
 import { RundownPlaylistCollectionUtil } from '../../collections/rundownPlaylistUtil'
-import { catchError } from '../lib'
+import { catchError, useRundownViewEventBusListener } from '../lib'
 import { logger } from '../logging'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { toTriggersComputation, toTriggersReactiveVar, UiTriggersContext } from './triggersContext'
@@ -314,12 +311,7 @@ export const TriggersHandler: React.FC<IProps> = function TriggersHandler(
 		}
 	}, [initialized]) // run once once Sorensen is initialized
 
-	useEffect(() => {
-		RundownViewEventBus.on(RundownViewEvents.TRIGGER_ACTION, triggerAction)
-		return () => {
-			RundownViewEventBus.removeListener(RundownViewEvents.TRIGGER_ACTION, triggerAction)
-		}
-	}, [])
+	useRundownViewEventBusListener(RundownViewEvents.TRIGGER_ACTION, triggerAction)
 
 	useEffect(() => {
 		Tracker.nonreactive(() => {

@@ -7,7 +7,7 @@ import { ContextMenuTrigger } from '@jstarpl/react-contextmenu'
 import { CriticalIconSmall, WarningIconSmall } from '../../lib/ui/icons/notifications'
 import { SegmentDuration } from '../RundownView/RundownTiming/SegmentDuration'
 import { PartCountdown } from '../RundownView/RundownTiming/PartCountdown'
-import { contextMenuHoldToDisplayTime, useCombinedRefs } from '../../lib/lib'
+import { contextMenuHoldToDisplayTime, useCombinedRefs, useRundownViewEventBusListener } from '../../lib/lib'
 import { isPartPlayable } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { useTranslation } from 'react-i18next'
 import { UIStateStorage } from '../../lib/UIStateStorage'
@@ -15,7 +15,7 @@ import { literal, unprotectString } from '../../lib/tempLib'
 import { lockPointer, scrollToPart, unlockPointer } from '../../lib/viewPort'
 import { StoryboardPart } from './StoryboardPart'
 import classNames from 'classnames'
-import RundownViewEventBus, {
+import {
 	GoToPartEvent,
 	GoToPartInstanceEvent,
 	HighlightEvent,
@@ -320,19 +320,10 @@ export const SegmentStoryboard = React.memo(
 				if (highlightTimeout.current) Meteor.clearTimeout(highlightTimeout.current)
 			}
 		}, [])
-		useEffect(() => {
-			RundownViewEventBus.on(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
-			RundownViewEventBus.on(RundownViewEvents.GO_TO_PART, onGoToPart)
-			RundownViewEventBus.on(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
-			RundownViewEventBus.on(RundownViewEvents.HIGHLIGHT, onHighlight)
-
-			return () => {
-				RundownViewEventBus.off(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
-				RundownViewEventBus.off(RundownViewEvents.GO_TO_PART, onGoToPart)
-				RundownViewEventBus.off(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
-				RundownViewEventBus.off(RundownViewEvents.HIGHLIGHT, onHighlight)
-			}
-		}, [onRewindSegment, onGoToPart, onGoToPartInstance, onHighlight])
+		useRundownViewEventBusListener(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
+		useRundownViewEventBusListener(RundownViewEvents.GO_TO_PART, onGoToPart)
+		useRundownViewEventBusListener(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
+		useRundownViewEventBusListener(RundownViewEvents.HIGHLIGHT, onHighlight)
 
 		useLayoutEffect(() => {
 			if (!listRef.current) return

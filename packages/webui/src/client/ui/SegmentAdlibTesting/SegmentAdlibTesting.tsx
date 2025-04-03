@@ -4,13 +4,13 @@ import { IContextMenuContext } from '../RundownView'
 import { IOutputLayerUi, PartUi, PieceUi, SegmentNoteCounts, SegmentUi } from '../SegmentContainer/withResolvedSegment'
 import { ContextMenuTrigger } from '@jstarpl/react-contextmenu'
 import { CriticalIconSmall, WarningIconSmall } from '../../lib/ui/icons/notifications'
-import { contextMenuHoldToDisplayTime, useCombinedRefs } from '../../lib/lib'
+import { contextMenuHoldToDisplayTime, useCombinedRefs, useRundownViewEventBusListener } from '../../lib/lib'
 import { useTranslation } from 'react-i18next'
 import { literal, unprotectString } from '../../lib/tempLib'
 import { lockPointer, unlockPointer } from '../../lib/viewPort'
 import { StoryboardPart } from '../SegmentStoryboard/StoryboardPart'
 import classNames from 'classnames'
-import RundownViewEventBus, {
+import {
 	GoToPartEvent,
 	GoToPartInstanceEvent,
 	RundownViewEvents,
@@ -230,17 +230,9 @@ export const SegmentAdlibTesting = React.memo(
 			[renderedParts, props.followLiveLine]
 		)
 
-		useEffect(() => {
-			RundownViewEventBus.on(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
-			RundownViewEventBus.on(RundownViewEvents.GO_TO_PART, onGoToPart)
-			RundownViewEventBus.on(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
-
-			return () => {
-				RundownViewEventBus.off(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
-				RundownViewEventBus.off(RundownViewEvents.GO_TO_PART, onGoToPart)
-				RundownViewEventBus.off(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
-			}
-		}, [onRewindSegment, onGoToPart, onGoToPartInstance])
+		useRundownViewEventBusListener(RundownViewEvents.REWIND_SEGMENTS, onRewindSegment)
+		useRundownViewEventBusListener(RundownViewEvents.GO_TO_PART, onGoToPart)
+		useRundownViewEventBusListener(RundownViewEvents.GO_TO_PART_INSTANCE, onGoToPartInstance)
 
 		useLayoutEffect(() => {
 			if (!listRef.current) return
