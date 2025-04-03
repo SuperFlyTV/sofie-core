@@ -973,7 +973,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			return this.props.playlist!.nextPartInfo?.partInstanceId !== this.keyboardQueuedPartInstanceId
 		}
 
-		onSelectPiece = (piece: PieceUi) => {
+		private onSelectPiece = (piece: PieceUi) => {
 			if (piece) {
 				const vtContent = piece.instance.piece.content as VTContent | undefined
 				if (
@@ -1015,7 +1015,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			RundownViewEventBus.off(RundownViewEvents.MINI_SHELF_QUEUE_ADLIB, this.eventQueueMiniShelfAdLib)
 		}
 
-		onBeforeUnload = (e: any) => {
+		private onBeforeUnload = (e: any) => {
 			const { t } = this.props
 
 			e.preventDefault()
@@ -1024,19 +1024,11 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			return t('This rundown is now active. Are you sure you want to exit this screen?')
 		}
 
-		onRewindSegments = () => {
+		private onRewindSegments = () => {
 			RundownViewEventBus.emit(RundownViewEvents.REWIND_SEGMENTS)
 		}
 
-		onTimeScaleChange = (timeScaleVal: number) => {
-			if (Number.isFinite(timeScaleVal) && timeScaleVal > 0) {
-				this.setState({
-					timeScale: timeScaleVal,
-				})
-			}
-		}
-
-		onSegmentScroll = () => {
+		private onSegmentScroll = () => {
 			if (this.state.followLiveSegments && this.props.playlist && this.props.playlist.activationId) {
 				this.setState({
 					followLiveSegments: false,
@@ -1044,7 +1036,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onWheelScrollInner = _.debounce(() => {
+		private onWheelScrollInner = _.debounce(() => {
 			if (this.state.followLiveSegments && this.props.playlist && this.props.playlist.activationId) {
 				const liveSegmentComponent = document.querySelector('.segment-timeline.live')
 				if (liveSegmentComponent) {
@@ -1063,13 +1055,13 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}, 250)
 
-		onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+		private onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
 			if (e.deltaX === 0 && e.deltaY !== 0 && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
 				this.onWheelScrollInner()
 			}
 		}
 
-		onGoToTop = () => {
+		private onGoToTop = () => {
 			scrollToPosition(0).catch((error) => {
 				if (!error.toString().match(/another scroll/)) console.warn(error)
 			})
@@ -1084,7 +1076,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		onGoToLiveSegment = () => {
+		private onGoToLiveSegment = () => {
 			if (
 				this.props.playlist &&
 				this.props.playlist.activationId &&
@@ -1123,21 +1115,21 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		eventQueueMiniShelfAdLib = (e: MiniShelfQueueAdLibEvent) => {
+		private eventQueueMiniShelfAdLib = (e: MiniShelfQueueAdLibEvent) => {
 			this.queueMiniShelfAdLib(e.context, e.forward)
 		}
 
-		onActivate = () => {
+		private onActivate = () => {
 			this.onGoToLiveSegment()
 		}
 
-		onContextMenu = (contextMenuContext: IContextMenuContext) => {
+		private onContextMenu = (contextMenuContext: IContextMenuContext) => {
 			this.setState({
 				contextMenuContext,
 			})
 		}
 
-		onSetNext = (part: DBPart | undefined, e: any, offset?: number, take?: boolean) => {
+		private onSetNext = (part: DBPart | undefined, e: any, offset?: number, take?: boolean) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && part && part._id && this.props.playlist) {
 				const playlistId = this.props.playlist._id
@@ -1162,7 +1154,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onSetNextSegment = (segmentId: SegmentId, e: any) => {
+		private onSetNextSegment = (segmentId: SegmentId, e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && segmentId && this.props.playlist) {
 				const playlistId = this.props.playlist._id
@@ -1181,7 +1173,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onQueueNextSegment = (segmentId: SegmentId | null, e: any) => {
+		private onQueueNextSegment = (segmentId: SegmentId | null, e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && (segmentId || segmentId === null) && this.props.playlist) {
 				const playlistId = this.props.playlist._id
@@ -1200,7 +1192,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onSetQuickLoopStart = (marker: QuickLoopMarker | null, e: any) => {
+		private onSetQuickLoopStart = (marker: QuickLoopMarker | null, e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && this.props.playlist) {
 				const playlistId = this.props.playlist._id
@@ -1216,7 +1208,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onSetQuickLoopEnd = (marker: QuickLoopMarker | null, e: any) => {
+		private onSetQuickLoopEnd = (marker: QuickLoopMarker | null, e: any) => {
 			const { t } = this.props
 			if (this.props.userPermissions.studio && this.props.playlist) {
 				const playlistId = this.props.playlist._id
@@ -1232,7 +1224,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onPieceDoubleClick = (item: PieceUi, e: React.MouseEvent<HTMLDivElement>) => {
+		private onPieceDoubleClick = (item: PieceUi, e: React.MouseEvent<HTMLDivElement>) => {
 			const { t } = this.props
 			if (
 				this.props.userPermissions.studio &&
@@ -1251,7 +1243,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onRONotificationClick = (e: RONotificationEvent) => {
+		private onRONotificationClick = (e: RONotificationEvent) => {
 			if (e.sourceLocator) {
 				let segmentId = e.sourceLocator.segmentId
 
@@ -1274,7 +1266,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 				}
 			}
 		}
-		onHeaderNoteClick = (segmentId: SegmentId, level: NoteSeverity) => {
+		private onHeaderNoteClick = (segmentId: SegmentId, level: NoteSeverity) => {
 			NotificationCenter.snoozeAll()
 			const isOpen = this.state.isNotificationsCenterOpen
 			this.setState({
@@ -1291,13 +1283,13 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		onToggleSupportPanel = () => {
+		private onToggleSupportPanel = () => {
 			this.setState({
 				isSupportPanelOpen: !this.state.isSupportPanelOpen,
 			})
 		}
 
-		onSegmentViewModeChange = () => {
+		private onSegmentViewModeChange = () => {
 			const nextMode = getNextSegmentViewMode(this.state.rundownDefaultSegmentViewMode)
 			this.setState(
 				{
@@ -1312,7 +1304,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		onStudioRouteSetSwitch = (
+		private onStudioRouteSetSwitch = (
 			e: React.MouseEvent<HTMLElement, MouseEvent>,
 			routeSetId: string,
 			_routeSet: StudioRouteSet,
@@ -1326,7 +1318,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		onSwitchViewMode = (segmentId: SegmentId, viewMode: SegmentViewMode) => {
+		private onSwitchViewMode = (segmentId: SegmentId, viewMode: SegmentViewMode) => {
 			if (!this.props.playlist?._id) return
 			this.setState(
 				(state) => ({
@@ -1346,7 +1338,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		onPieceQueued = (err: any, res: ExecuteActionResult | void) => {
+		private onPieceQueued = (err: any, res: ExecuteActionResult | void) => {
 			if (!err && res) {
 				if (res.taken) {
 					this.keyboardQueuedPartInstanceId = undefined
@@ -1357,7 +1349,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			this.isKeyboardQueuePending = false
 		}
 
-		queueAdLibPiece = (adlibPiece: AdLibPieceUi, e: any) => {
+		private queueAdLibPiece = (adlibPiece: AdLibPieceUi, e: any) => {
 			const { t } = this.props
 			// TODO: Refactor this code to reduce code duplication
 
@@ -1459,11 +1451,11 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		isAdLibQueueable = (piece: AdLibPieceUi) => {
+		private isAdLibQueueable = (piece: AdLibPieceUi) => {
 			return !piece.invalid && !piece.floated && (piece.isAction || piece.sourceLayer?.isQueueable)
 		}
 
-		findShelfOnlySegment = (begin: number, end: number) => {
+		private findShelfOnlySegment = (begin: number, end: number) => {
 			const { uiSegments } = this.state
 			for (let i = begin; begin > end ? i > end : i < end; begin > end ? i-- : i++) {
 				const queueablePieces = uiSegments[i].pieces.filter(this.isAdLibQueueable)
@@ -1474,7 +1466,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			return undefined
 		}
 
-		queueMiniShelfAdLib = (e: any, forward: boolean) => {
+		private queueMiniShelfAdLib = (e: any, forward: boolean) => {
 			const { uiSegments, uiSegmentMap } = this.state
 			let pieceToQueue: AdLibPieceUi | undefined
 			let currentSegmentId: SegmentId | undefined
@@ -1539,7 +1531,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			return pieceToQueue
 		}
 
-		renderSegments() {
+		private renderSegments() {
 			if (!this.props.matchedSegments) {
 				return null
 			}
@@ -1628,7 +1620,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		renderSegmentComponent(
+		private renderSegmentComponent(
 			segment: DBSegment,
 			_index: number,
 			rundownAndSegments: MatchedSegment,
@@ -1700,7 +1692,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		renderSegmentsList() {
+		private renderSegmentsList() {
 			if (!this.props.playlist || !this.props.rundowns.length) {
 				return (
 					<div className="m-2">
@@ -1727,13 +1719,13 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		onChangeBottomMargin = (newBottomMargin: string) => {
+		private onChangeBottomMargin = (newBottomMargin: string) => {
 			this.setState({
 				bottomMargin: newBottomMargin,
 			})
 		}
 
-		onContextMenuTop = (e: React.MouseEvent<HTMLDivElement>): boolean => {
+		private onContextMenuTop = (e: React.MouseEvent<HTMLDivElement>): boolean => {
 			if (!this.props.userPermissions.developer) {
 				e.preventDefault()
 				e.stopPropagation()
@@ -1741,7 +1733,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			return false
 		}
 
-		onToggleNotifications = (_e: React.MouseEvent<HTMLElement>, filter: NoticeLevel) => {
+		private onToggleNotifications = (_e: React.MouseEvent<HTMLElement>, filter: NoticeLevel) => {
 			if (!this.state.isNotificationsCenterOpen === true) {
 				NotificationCenter.highlightSource(undefined, NoticeLevel.CRITICAL)
 			}
@@ -1753,7 +1745,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		onToggleHotkeys = () => {
+		private onToggleHotkeys = () => {
 			if (!this.state.isInspectorShelfExpanded) {
 				this.setState({
 					isInspectorShelfExpanded: true,
@@ -1772,7 +1764,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		onRestartPlayout = (e: React.MouseEvent<HTMLButtonElement>) => {
+		private onRestartPlayout = (e: React.MouseEvent<HTMLButtonElement>) => {
 			const { t, studio } = this.props
 
 			if (!studio) {
@@ -1837,7 +1829,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		onRestartCasparCG = (e: React.MouseEvent<HTMLButtonElement>, device: PeripheralDevice) => {
+		private onRestartCasparCG = (e: React.MouseEvent<HTMLButtonElement>, device: PeripheralDevice) => {
 			const { t } = this.props
 
 			e.persist()
@@ -1882,7 +1874,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		onTakeRundownSnapshot = async (e: React.MouseEvent<HTMLButtonElement>): Promise<boolean> => {
+		private onTakeRundownSnapshot = async (e: React.MouseEvent<HTMLButtonElement>): Promise<boolean> => {
 			const { t } = this.props
 			if (!this.props.playlist) {
 				return Promise.resolve(false)
@@ -1928,37 +1920,33 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		isAdLibQueueableAndNonFloated = (piece: AdLibPieceUi) => {
-			return (piece.isAction || piece.sourceLayer?.isQueueable) && !piece.invalid && !piece.floated
-		}
-
-		onShelfChangeExpanded = (value: boolean) => {
+		private onShelfChangeExpanded = (value: boolean) => {
 			this.setState({
 				isInspectorShelfExpanded: value,
 				wasShelfResizedByUser: true,
 			})
 		}
 
-		onTake = (e: any) => {
+		private onTake = (e: any) => {
 			RundownViewEventBus.emit(RundownViewEvents.TAKE, {
 				context: e,
 			})
 		}
 
-		getStyle() {
+		private getStyle() {
 			return {
 				marginBottom: this.state.bottomMargin,
 			}
 		}
 
-		isHotkeyAllowed(e: KeyboardEvent): boolean {
+		private isHotkeyAllowed(e: KeyboardEvent): boolean {
 			if (isModalShowing() || isEventInInputField(e)) {
 				return false
 			}
 			return true
 		}
 
-		defaultHotkeys(t: i18next.TFunction) {
+		private defaultHotkeys(t: i18next.TFunction) {
 			const poisonKey = Settings.poisonKey
 			return [
 				// Register additional hotkeys or legend entries
@@ -1977,7 +1965,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			]
 		}
 
-		renderRundownView(
+		private renderRundownView(
 			studio: UIStudio,
 			playlist: DBRundownPlaylist,
 			showStyleBase: UIShowStyleBase,
@@ -2246,7 +2234,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		renderDetachedShelf() {
+		private renderDetachedShelf() {
 			return (
 				<RundownTimingProvider playlist={this.props.playlist} defaultDuration={Settings.defaultDisplayDuration}>
 					<PreviewPopUpContextProvider>
@@ -2274,7 +2262,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		renderSorensenContext() {
+		private renderSorensenContext() {
 			return (
 				<SorensenContext.Consumer>
 					{(sorensen) =>
@@ -2300,7 +2288,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		renderDataMissing() {
+		private renderDataMissing() {
 			const { t } = this.props
 
 			return (
