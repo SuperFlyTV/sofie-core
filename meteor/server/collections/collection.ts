@@ -73,6 +73,7 @@ async function getOrCreateMongoCollection(name: string): Promise<WrappedCollecti
 		const col = db.collection<any>(name)
 		await db.command({
 			collMod: name,
+			// Enable some needed features for change streams. This requires mongodb 6.0+
 			changeStreamPreAndPostImages: { enabled: true },
 		})
 		return new WrappedCollection<any>(col, (name) => RawAgent?.startSpan(name))
