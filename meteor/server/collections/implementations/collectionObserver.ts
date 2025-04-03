@@ -55,6 +55,8 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 	readonly #observers = new Map<string, ObserverInstance<DBInterface>>()
 	#stream: ChangeStream<DBInterface, ChangeStreamDocument<DBInterface>> | undefined
 
+	readonly #documentCache = new Map<DBInterface['_id'], DBInterface>()
+
 	constructor(collection: Collection<DBInterface>) {
 		this.#collection = collection
 	}
@@ -196,14 +198,16 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 			this.#observers.set(instance.id, instance)
 
 			// Load the initial version of the matched documents, and apply any concurrent changes
-			const initialDocuments = await this.#collection.find(selector, options).toArray()
-			const processedDocuments = applyChangesToDocuments(
-				initialDocuments,
-				instance.queuedDocuments,
-				instance.projection
-			)
+			// Note: we have to load the full document here, as it gets cached
+			const initialDocuments = await this.#collection.find(selector).toArray()
+			const processedDocuments = applyChangesToDocuments(initialDocuments, instance.queuedDocuments)
 			instance.queuedDocuments = []
 			// TODO: is this safe? could there be some non-idempotent changes?
+
+			// Store in the root cache
+			for (const doc of processedDocuments) {
+				this.#documentCache.set(doc._id, doc as DBInterface)
+			}
 
 			// Perform the initial callbacks, terminating the observer if any of them throw
 			for (const doc of processedDocuments) {
@@ -270,15 +274,48 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 		)
 
 		this.#stream.on('change', (change) => {
-			console.log('change', change)
+			console.log('change', JSON.stringify(change, undefined, 4))
 
-			if (
-				change.operationType !== 'insert' &&
-				change.operationType !== 'update' &&
-				change.operationType !== 'replace' &&
-				change.operationType !== 'delete'
-			)
-				return
+			switch (change.operationType) {
+				case 'insert':
+					this.#documentCache.set(change.fullDocument._id, change.fullDocument as DBInterface)
+					break
+				case 'delete':
+					this.#documentCache.delete(change.documentKey._id as DBInterface['_id'])
+					break
+				case 'update':
+					if (change.fullDocument) {
+						this.#documentCache.set(change.fullDocument._id, change.fullDocument as DBInterface)
+					} else {
+						const cachedDoc = this.#documentCache.get(change.documentKey._id as DBInterface['_id'])
+						if (!cachedDoc) {
+							logger.warn(
+								`Change stream update without fullDocument or cached document: ${stringifyError(
+									change
+								)}`
+							)
+							return
+						}
+
+						const clonedDoc = EJSON.clone(cachedDoc)
+						// TODO - apply changes
+
+						this.#documentCache.set(clonedDoc._id, clonedDoc as DBInterface)
+						change.fullDocument = clonedDoc
+					}
+					break
+				case 'replace':
+					if (!change.fullDocument) {
+						logger.warn(`Change stream replace without fullDocument: ${stringifyError(change)}`)
+						return
+					}
+
+					this.#documentCache.set(change.fullDocument._id, change.fullDocument as DBInterface)
+					break
+				default:
+					// Unsupported operation
+					return
+			}
 
 			for (const observer of this.#observers.values()) {
 				observer.queuedDocuments.push(change)
@@ -315,24 +352,21 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 
 function applyChangesToDocuments<DBInterface extends { _id: ProtectedString<any> }>(
 	initialDocuments: WithId<DBInterface>[],
-	queuedDocuments: SupportedChangeStreamDocument<DBInterface>[],
-	projection0: ((doc: any) => any) | undefined
+	queuedDocuments: SupportedChangeStreamDocument<DBInterface>[]
 ): WithId<DBInterface>[] {
 	if (queuedDocuments.length === 0) return initialDocuments
-
-	const projection = projection0 || ((doc) => doc)
 
 	const initialDocumentsMap = normalizeArrayToMap(initialDocuments, '_id')
 	for (const change of queuedDocuments) {
 		switch (change.operationType) {
 			case 'insert':
-				initialDocumentsMap.set(change.fullDocument._id as any, projection(change.fullDocument as any))
+				initialDocumentsMap.set(change.fullDocument._id as any, change.fullDocument as any)
 				break
 			case 'replace':
-				initialDocumentsMap.set(change.documentKey._id as any, projection(change.fullDocument as any))
+				initialDocumentsMap.set(change.documentKey._id as any, change.fullDocument as any)
 				break
 			case 'update':
-				initialDocumentsMap.set(change.documentKey._id as any, projection(change.fullDocument! as any))
+				initialDocumentsMap.set(change.documentKey._id as any, change.fullDocument! as any)
 				break
 			case 'delete':
 				initialDocumentsMap.delete(change.documentKey._id as any)
