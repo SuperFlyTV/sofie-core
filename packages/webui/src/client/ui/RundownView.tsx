@@ -136,7 +136,7 @@ import { MAGIC_TIME_SCALE_FACTOR } from './SegmentTimeline/Constants'
 import { SelectedElementProvider, SelectedElementsContext } from './RundownView/SelectedElementsContext'
 import { PropertiesPanel } from './UserEditOperations/PropertiesPanel'
 import { PreviewPopUpContextProvider } from './PreviewPopUp/PreviewPopUpContext'
-import { RundownHeader } from './RundownView/RundownHeader'
+import { RundownHeader } from './RundownView/RundownHeader/RundownHeader'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
