@@ -11,7 +11,7 @@ import {
 	useSubscriptions,
 	useTracker,
 } from '../lib/ReactMeteorData/react-meteor-data'
-import { VTContent, TSR, NoteSeverity, ISourceLayer } from '@sofie-automation/blueprints-integration'
+import { VTContent, NoteSeverity, ISourceLayer } from '@sofie-automation/blueprints-integration'
 import { Spinner } from '../lib/Spinner'
 import ClassNames from 'classnames'
 import * as _ from 'underscore'
@@ -42,7 +42,7 @@ import {
 import { AfterBroadcastForm } from './AfterBroadcastForm'
 import { RundownRightHandControls } from './RundownView/RundownRightHandControls'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
-import { PeripheralDevicesAPI, callPeripheralDeviceAction } from '../lib/clientAPI'
+import { PeripheralDevicesAPI } from '../lib/clientAPI'
 import {
 	RONotificationEvent,
 	onRONotificationClick as rundownNotificationHandler,
@@ -52,7 +52,7 @@ import { NotificationCenterPanel } from '../lib/notifications/NotificationCenter
 import { NotificationCenter, NoticeLevel, Notification } from '../lib/notifications/notifications'
 import { SupportPopUp } from './SupportPopUp'
 import { KeyboardFocusIndicator } from '../lib/KeyboardFocusIndicator'
-import { PeripheralDevice, PeripheralDeviceType } from '@sofie-automation/corelib/dist/dataModel/PeripheralDevice'
+import { PeripheralDeviceType } from '@sofie-automation/corelib/dist/dataModel/PeripheralDevice'
 import { doUserAction, UserAction } from '../lib/clientUserAction'
 import { hashSingleUseToken } from '../lib/lib'
 import { ClipTrimDialog } from './ClipTrimPanel/ClipTrimDialog'
@@ -88,7 +88,6 @@ import { RundownLayoutsAPI } from '../lib/rundownLayouts'
 import { TriggersHandler } from '../lib/triggers/TriggersHandler'
 import { SorensenContext } from '../lib/SorensenContext'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { DEFAULT_TSR_ACTION_TIMEOUT_TIME } from '@sofie-automation/shared-lib/dist/core/constants'
 import { BreakSegment } from './SegmentTimeline/BreakSegment'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { SegmentStoryboardContainer } from './SegmentStoryboard/SegmentStoryboardContainer'
@@ -125,8 +124,6 @@ import { RundownPlaylistCollectionUtil } from '../collections/rundownPlaylistUti
 import { SegmentAdlibTestingContainer } from './SegmentAdlibTesting/SegmentAdlibTestingContainer'
 import { PromiseButton } from '../lib/Components/PromiseButton'
 import { logger } from '../lib/logging'
-import { isTranslatableMessage, translateMessage } from '@sofie-automation/corelib/dist/TranslatableMessage'
-import { i18nTranslator } from './i18n'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { isEntirePlaylistLooping, PieceExtended } from '../lib/RundownResolver'
 import { useRundownAndShowStyleIdsForPlaylist } from './util/useRundownAndShowStyleIdsForPlaylist'
@@ -137,6 +134,7 @@ import { SelectedElementProvider, SelectedElementsContext } from './RundownView/
 import { PropertiesPanel } from './UserEditOperations/PropertiesPanel'
 import { PreviewPopUpContextProvider } from './PreviewPopUp/PreviewPopUpContext'
 import { RundownHeader } from './RundownView/RundownHeader/RundownHeader'
+import { CasparCGRestartButtons } from './RundownView/RestartCasparCGButtons'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -206,7 +204,6 @@ interface ITrackedProps {
 	showStyleVariant?: DBShowStyleVariant
 	rundownLayouts?: Array<RundownLayoutBase>
 	buckets: Bucket[]
-	casparCGPlayoutDevices?: PeripheralDevice[]
 	shelfLayoutId?: RundownLayoutId
 	rundownViewLayoutId?: RundownLayoutId
 	rundownHeaderLayoutId?: RundownLayoutId
@@ -440,20 +437,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 					}
 				).fetch()) ||
 			[],
-		casparCGPlayoutDevices:
-			(studio &&
-				PeripheralDevices.find({
-					parentDeviceId: {
-						$in: PeripheralDevices.find({
-							'studioAndConfigId.studioId': studio._id,
-						})
-							.fetch()
-							.map((i) => i._id),
-					},
-					type: PeripheralDeviceType.PLAYOUT,
-					subType: TSR.DeviceType.CASPARCG,
-				}).fetch()) ||
-			undefined,
 		shelfLayoutId: protectString((params['layout'] as string) || (params['shelfLayout'] as string) || ''), // 'layout' kept for backwards compatibility
 		rundownViewLayoutId: protectString((params['rundownViewLayout'] as string) || ''),
 		rundownHeaderLayoutId: protectString((params['rundownHeaderLayout'] as string) || ''),
@@ -1829,51 +1812,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			})
 		}
 
-		private onRestartCasparCG = (e: React.MouseEvent<HTMLButtonElement>, device: PeripheralDevice) => {
-			const { t } = this.props
-
-			e.persist()
-
-			doModalDialog({
-				title: t('Restart CasparCG Server'),
-				message: t('Do you want to restart CasparCG Server "{{device}}"?', { device: device.name }),
-				onAccept: () => {
-					callPeripheralDeviceAction(e, device._id, DEFAULT_TSR_ACTION_TIMEOUT_TIME, TSR.CasparCGActions.RestartServer)
-						.then((r) => {
-							if (r?.result === TSR.ActionExecutionResultCode.Error) {
-								throw new Error(
-									r.response && isTranslatableMessage(r.response)
-										? translateMessage(r.response, i18nTranslator)
-										: t('Unknown error')
-								)
-							}
-
-							NotificationCenter.push(
-								new Notification(
-									undefined,
-									NoticeLevel.NOTIFICATION,
-									t('CasparCG on device "{{deviceName}}" restarting...', { deviceName: device.name }),
-									'SystemStatus'
-								)
-							)
-						})
-						.catch((err) => {
-							NotificationCenter.push(
-								new Notification(
-									undefined,
-									NoticeLevel.WARNING,
-									t('Failed to restart CasparCG on device: "{{deviceName}}": {{errorMessage}}', {
-										deviceName: device.name,
-										errorMessage: err + '',
-									}),
-									'SystemStatus'
-								)
-							)
-						})
-				},
-			})
-		}
-
 		private onTakeRundownSnapshot = async (e: React.MouseEvent<HTMLButtonElement>): Promise<boolean> => {
 			const { t } = this.props
 			if (!this.props.playlist) {
@@ -2117,19 +2055,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 																		<hr />
 																	</>
 																)}
-																{this.props.userPermissions.studio &&
-																	this.props.casparCGPlayoutDevices &&
-																	this.props.casparCGPlayoutDevices.map((i) => (
-																		<React.Fragment key={unprotectString(i._id)}>
-																			<button
-																				className="btn btn-secondary"
-																				onClick={(e) => this.onRestartCasparCG(e, i)}
-																			>
-																				{t('Restart {{device}}', { device: i.name })}
-																			</button>
-																			<hr />
-																		</React.Fragment>
-																	))}
+																{this.props.userPermissions.studio && <CasparCGRestartButtons studioId={studio._id} />}
 															</SupportPopUp>
 														)}
 													</VelocityReact.VelocityTransitionGroup>
