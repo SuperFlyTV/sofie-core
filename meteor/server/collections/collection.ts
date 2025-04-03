@@ -68,9 +68,13 @@ async function getOrCreateMongoCollection(name: string): Promise<WrappedCollecti
 		return collection
 	}
 
-	const rawCollection = DefaultMongoClient.then((client) => {
+	const rawCollection = DefaultMongoClient.then(async (client) => {
 		const db = client.db()
 		const col = db.collection<any>(name)
+		await db.command({
+			collMod: name,
+			changeStreamPreAndPostImages: { enabled: true },
+		})
 		return new WrappedCollection<any>(col, (name) => RawAgent?.startSpan(name))
 	})
 

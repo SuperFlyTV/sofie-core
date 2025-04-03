@@ -268,7 +268,7 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 				},
 			],
 			{
-				fullDocument: 'whenAvailable', // nocommit this isnt working, which is causing everything to fail due to not having documents...
+				fullDocument: 'whenAvailable',
 				batchSize: 1,
 			}
 		)
@@ -287,21 +287,26 @@ export class CollectionObserver<DBInterface extends { _id: ProtectedString<any> 
 					if (change.fullDocument) {
 						this.#documentCache.set(change.fullDocument._id, change.fullDocument as DBInterface)
 					} else {
-						const cachedDoc = this.#documentCache.get(change.documentKey._id as DBInterface['_id'])
-						if (!cachedDoc) {
-							logger.warn(
-								`Change stream update without fullDocument or cached document: ${stringifyError(
-									change
-								)}`
-							)
-							return
-						}
+						// Future: this could be a problem as the fullDocument may disappear when removed from the oplog.
+						// So we might need to handle the case ou
+						logger.warn(`Change stream update without fullDocument: ${stringifyError(change)}`)
+						return
 
-						const clonedDoc = EJSON.clone(cachedDoc)
-						// TODO - apply changes
+						// const cachedDoc = this.#documentCache.get(change.documentKey._id as DBInterface['_id'])
+						// if (!cachedDoc) {
+						// 	logger.warn(
+						// 		`Change stream update without fullDocument or cached document: ${stringifyError(
+						// 			change
+						// 		)}`
+						// 	)
+						// 	return
+						// }
 
-						this.#documentCache.set(clonedDoc._id, clonedDoc as DBInterface)
-						change.fullDocument = clonedDoc
+						// const clonedDoc = EJSON.clone(cachedDoc)
+						// // TODO - apply changes
+
+						// this.#documentCache.set(clonedDoc._id, clonedDoc as DBInterface)
+						// change.fullDocument = clonedDoc
 					}
 					break
 				case 'replace':
