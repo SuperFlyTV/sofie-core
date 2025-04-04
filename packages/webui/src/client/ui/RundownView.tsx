@@ -3,14 +3,7 @@ import React, { useContext } from 'react'
 import { parse as queryStringParse } from 'query-string'
 // @ts-expect-error No types available
 import * as VelocityReact from 'velocity-react'
-import {
-	Translated,
-	translateWithTracker,
-	useSubscriptionIfEnabled,
-	useSubscriptionIfEnabledReadyOnce,
-	useSubscriptions,
-	useTracker,
-} from '../lib/ReactMeteorData/react-meteor-data'
+import { Translated, translateWithTracker, useTracker } from '../lib/ReactMeteorData/react-meteor-data'
 import { VTContent, NoteSeverity, ISourceLayer } from '@sofie-automation/blueprints-integration'
 import { Spinner } from '../lib/Spinner'
 import ClassNames from 'classnames'
@@ -55,8 +48,6 @@ import { PeripheralDeviceType } from '@sofie-automation/corelib/dist/dataModel/P
 import { doUserAction, UserAction } from '../lib/clientUserAction'
 import { hashSingleUseToken } from '../lib/lib'
 import { ClipTrimDialog } from './ClipTrimPanel/ClipTrimDialog'
-import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
-import { meteorSubscribe } from '../lib/meteorApi'
 import {
 	RundownLayoutType,
 	RundownLayoutBase,
@@ -75,7 +66,6 @@ import { documentTitle } from '../lib/DocumentTitleProvider'
 import { PartInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 import { RundownDividerHeader } from './RundownView/RundownDividerHeader'
 import { PlaylistLoopingHeader } from './RundownView/PlaylistLoopingHeader'
-import { memoizedIsolatedAutorun } from '../lib/memoizedIsolatedAutorun'
 import RundownViewEventBus, {
 	MiniShelfQueueAdLibEvent,
 	RundownViewEvents,
@@ -111,9 +101,7 @@ import { RundownPlaylistCollectionUtil } from '../collections/rundownPlaylistUti
 import { SegmentAdlibTestingContainer } from './SegmentAdlibTesting/SegmentAdlibTestingContainer'
 import { PromiseButton } from '../lib/Components/PromiseButton'
 import { logger } from '../lib/logging'
-import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { isEntirePlaylistLooping, PieceExtended } from '../lib/RundownResolver'
-import { useRundownAndShowStyleIdsForPlaylist } from './util/useRundownAndShowStyleIdsForPlaylist'
 import { RundownPlaylistClientUtil } from '../lib/rundownPlaylistUtil'
 import { UserPermissionsContext, UserPermissions } from './UserPermissions'
 import { MAGIC_TIME_SCALE_FACTOR } from './SegmentTimeline/Constants'
@@ -125,6 +113,7 @@ import { RundownDataMissing } from './RundownView/DataMissing'
 import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons'
 import { RundownSorensenContext } from './RundownView/RundownSorensenContext'
 import { RundownDetachedShelf } from './RundownView/RundownDetachedShelf'
+import { useRundownViewSubscriptions } from './RundownView/RundownViewSubscriptions'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -182,13 +171,15 @@ type MatchedSegment = {
 	segmentIdsBeforeEachSegment: Set<SegmentId>[]
 }
 
+const EmptyRundownsToShowStylesMap: ReadonlyMap<RundownId, ShowStyleBaseId> = new Map()
+
 interface ITrackedProps {
 	rundownPlaylistId: RundownPlaylistId
 	rundowns: Rundown[]
 	playlist?: DBRundownPlaylist
 	currentRundown?: Rundown
 	matchedSegments: MatchedSegment[]
-	rundownsToShowstyles: Map<RundownId, ShowStyleBaseId>
+	rundownsToShowstyles: ReadonlyMap<RundownId, ShowStyleBaseId>
 	studio?: UIStudio
 	showStyleBase?: UIShowStyleBase
 	showStyleVariant?: DBShowStyleVariant
@@ -203,133 +194,116 @@ interface ITrackedProps {
 export function RundownView(props: Readonly<IProps>): JSX.Element {
 	const userPermissions = useContext(UserPermissionsContext)
 
-	const playlistId = props.playlistId
+	const subsReady = useRundownViewSubscriptions(props.playlistId)
 
-	const requiredSubsReady: boolean[] = []
-	const auxSubsReady: boolean[] = []
-	requiredSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.rundownPlaylists, true, [playlistId], null))
-	requiredSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.rundownsInPlaylists, true, [playlistId]))
-
-	const playlistStudioId = useTracker(() => {
-		const playlist = RundownPlaylists.findOne(playlistId, {
-			fields: {
-				_id: 1,
-				studioId: 1,
-			},
-		}) as Pick<DBRundownPlaylist, '_id' | 'studioId'> | undefined
-
-		return playlist?.studioId
-	}, [playlistId])
-	// Load only when the studio is known
-	requiredSubsReady.push(
-		useSubscriptionIfEnabled(MeteorPubSub.uiStudio, !!playlistStudioId, playlistStudioId ?? protectString(''))
-	)
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(CorelibPubSub.buckets, !!playlistStudioId, playlistStudioId ?? protectString(''), null)
+	const playlist = useTracker(() => RundownPlaylists.findOne(props.playlistId), [props.playlistId])
+	const studio = useTracker(() => playlist && UIStudios.findOne({ _id: playlist.studioId }), [playlist?.studioId])
+	const rundowns = useTracker(
+		() => (playlist && RundownPlaylistCollectionUtil.getRundownsOrdered(playlist)) || [],
+		[playlist?._id, playlist?.rundownIdsInOrder],
+		[]
 	)
 
-	const playlistActivationId = useTracker(() => {
-		const playlist = RundownPlaylists.findOne(playlistId, {
-			fields: {
-				_id: 1,
-				activationId: 1,
-			},
-		}) as Pick<DBRundownPlaylist, '_id' | 'activationId'> | undefined
-
-		return playlist?.activationId
-	}, [playlistId])
-
-	const { rundownIds, showStyleBaseIds, showStyleVariantIds } = useRundownAndShowStyleIdsForPlaylist(playlistId)
-
-	requiredSubsReady.push(
-		useSubscriptions(
-			MeteorPubSub.uiShowStyleBase,
-			showStyleBaseIds.map((id) => [id])
-		)
-	)
-	requiredSubsReady.push(
-		useSubscriptionIfEnabledReadyOnce(
-			CorelibPubSub.showStyleVariants,
-			showStyleVariantIds.length > 0,
-			null,
-			showStyleVariantIds
-		)
-	)
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(MeteorPubSub.rundownLayouts, showStyleBaseIds.length > 0, showStyleBaseIds)
+	const partInstances = useTracker(
+		() => playlist && RundownPlaylistClientUtil.getSelectedPartInstances(playlist),
+		[playlist?._id, playlist?.nextPartInfo, playlist?.currentPartInfo, playlist?.previousPartInfo]
 	)
 
-	auxSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.segments, rundownIds.length > 0, rundownIds, {}))
-	auxSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.adLibPieces, rundownIds.length > 0, rundownIds))
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(CorelibPubSub.rundownBaselineAdLibPieces, rundownIds.length > 0, rundownIds)
-	)
-	auxSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.adLibActions, rundownIds.length > 0, rundownIds))
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(CorelibPubSub.rundownBaselineAdLibActions, rundownIds.length > 0, rundownIds)
-	)
-	auxSubsReady.push(useSubscriptionIfEnabled(MeteorPubSub.uiParts, rundownIds.length > 0, playlistId))
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(MeteorPubSub.uiPartInstances, !!playlistActivationId, playlistActivationId ?? null)
-	)
+	const somePartInstance = partInstances?.currentPartInstance || partInstances?.nextPartInstance
+	const currentRundown = somePartInstance && rundowns.find((rundown) => rundown._id === somePartInstance?.rundownId)
 
-	// Load once the playlist is confirmed to exist
-	auxSubsReady.push(useSubscriptionIfEnabled(MeteorPubSub.uiSegmentPartNotes, !!playlistStudioId, playlistId))
-	auxSubsReady.push(useSubscriptionIfEnabled(CorelibPubSub.uiPieceContentStatuses, !!playlistStudioId, playlistId))
+	const params = queryStringParse(location.search)
 
-	useTracker(() => {
-		const playlist = RundownPlaylists.findOne(playlistId, {
-			fields: {
-				currentPartInfo: 1,
-				nextPartInfo: 1,
-				previousPartInfo: 1,
-			},
-		}) as Pick<DBRundownPlaylist, '_id' | 'currentPartInfo' | 'nextPartInfo' | 'previousPartInfo'> | undefined
-		if (playlist) {
-			const rundownIds = RundownPlaylistCollectionUtil.getRundownUnorderedIDs(playlist)
-			// Use meteorSubscribe so that this subscription doesn't mess with this.subscriptionsReady()
-			// it's run in useTracker, so the subscription will be stopped along with the autorun,
-			// so we don't have to manually clean up after ourselves.
-			meteorSubscribe(
-				CorelibPubSub.pieceInstances,
-				rundownIds,
-				[
-					playlist.currentPartInfo?.partInstanceId,
-					playlist.nextPartInfo?.partInstanceId,
-					playlist.previousPartInfo?.partInstanceId,
-				].filter((p): p is PartInstanceId => p !== null),
-				{}
-			)
-		}
-	}, [playlistId])
-
-	auxSubsReady.push(
-		useSubscriptionIfEnabled(
-			MeteorPubSub.notificationsForRundownPlaylist,
-			!!playlistId && !!playlistStudioId,
-			playlistStudioId || protectString(''),
-			playlistId
-		)
+	const showStyleBaseId = currentRundown?.showStyleBaseId ?? rundowns[0]?.showStyleBaseId
+	const showStyleBase = useTracker(
+		() => showStyleBaseId && UIShowStyleBases.findOne(showStyleBaseId),
+		[showStyleBaseId]
+	)
+	const showStyleVariantId = currentRundown?.showStyleVariantId ?? rundowns[0]?.showStyleVariantId
+	const showStyleVariant = useTracker(
+		() => showStyleVariantId && ShowStyleVariants.findOne(showStyleVariantId),
+		[showStyleVariantId]
 	)
 
-	useTracker(() => {
-		const rundowns = Rundowns.find(
-			{ playlistId },
-			{
-				fields: {
-					_id: 1,
-					studioId: 1,
+	const rundownsToShowStyles = useTracker<ReadonlyMap<RundownId, ShowStyleBaseId>>(
+		() => {
+			// Perform the search again, so that we can reduce the dependencies of this computation
+			if (!playlist?._id) return new Map()
+
+			const allRundowns = Rundowns.find(
+				{
+					playlistId: playlist._id,
 				},
+				{
+					projection: {
+						_id: 1,
+						showStyleBaseId: 1,
+					},
+				}
+			).fetch() as Pick<DBRundown, '_id' | 'showStyleBaseId'>[]
+
+			const rundownsToShowStyles: Map<RundownId, ShowStyleBaseId> = new Map()
+			for (const rundown of allRundowns) {
+				rundownsToShowStyles.set(rundown._id, rundown.showStyleBaseId)
 			}
-		).fetch() as Pick<DBRundown, '_id' | 'studioId'>[]
 
-		for (const rundown of rundowns) {
-			meteorSubscribe(MeteorPubSub.notificationsForRundown, rundown.studioId, rundown._id)
-		}
-	}, [playlistId])
+			return rundownsToShowStyles
+		},
+		[playlist?._id],
+		EmptyRundownsToShowStylesMap
+	)
 
-	const subsReady = requiredSubsReady.findIndex((ready) => !ready) === -1
-	return <RundownViewContent {...props} subsReady={subsReady} userPermissions={userPermissions} />
+	const rundownLayouts = useTracker(
+		() => showStyleBaseId && RundownLayouts.find({ showStyleBaseId }).fetch(),
+		[showStyleBaseId]
+	)
+
+	const matchedSegments = useTracker(
+		() => {
+			if (!playlist) return []
+
+			return RundownPlaylistClientUtil.getRundownsAndSegments(playlist, {}).map(
+				(input, rundownIndex, rundownArray) => ({
+					...input,
+					segmentIdsBeforeEachSegment: input.segments.map(
+						(_segment, segmentIndex, segmentArray) =>
+							new Set<SegmentId>([
+								..._.flatten(
+									rundownArray.slice(0, rundownIndex).map((match) => match.segments.map((segment) => segment._id))
+								),
+								...segmentArray.slice(0, segmentIndex).map((segment) => segment._id),
+							])
+					),
+				})
+			)
+		},
+		[playlist?._id, playlist?.rundownIdsInOrder],
+		[]
+	)
+
+	return (
+		<RundownViewContent
+			{...props}
+			subsReady={subsReady}
+			userPermissions={userPermissions}
+			rundownPlaylistId={props.playlistId}
+			rundowns={rundowns}
+			currentRundown={currentRundown}
+			matchedSegments={matchedSegments}
+			rundownsToShowstyles={rundownsToShowStyles}
+			playlist={playlist}
+			studio={studio}
+			showStyleBase={showStyleBase}
+			showStyleVariant={showStyleVariant}
+			rundownLayouts={rundownLayouts}
+			shelfLayoutId={protectString((params['layout'] as string) || (params['shelfLayout'] as string) || '')} // 'layout' kept for backwards compatibility
+			rundownViewLayoutId={protectString((params['rundownViewLayout'] as string) || '')}
+			rundownHeaderLayoutId={protectString((params['rundownHeaderLayout'] as string) || '')}
+			miniShelfLayoutId={protectString((params['miniShelfLayout'] as string) || '')}
+			currentPartInstance={partInstances?.currentPartInstance}
+			nextPartInstance={partInstances?.nextPartInstance}
+		/>
+	)
 }
 
 interface IPropsWithReady extends IProps {
@@ -342,75 +316,9 @@ interface IRundownViewContentSnapshot {
 	top: number
 }
 
-const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITrackedProps>((props: Translated<IProps>) => {
-	const playlistId = props.playlistId
-
-	const playlist = RundownPlaylists.findOne(playlistId)
-	let rundowns: Rundown[] = []
-	let studio: UIStudio | undefined
-	let currentPartInstance: PartInstance | undefined
-	let nextPartInstance: PartInstance | undefined
-	let currentRundown: Rundown | undefined = undefined
-	if (playlist) {
-		studio = UIStudios.findOne({ _id: playlist.studioId })
-		rundowns = memoizedIsolatedAutorun(
-			(_playlistId: RundownPlaylistId) => RundownPlaylistCollectionUtil.getRundownsOrdered(playlist),
-			'playlist.getRundowns',
-			playlistId
-		)
-		;({ currentPartInstance, nextPartInstance } = RundownPlaylistClientUtil.getSelectedPartInstances(playlist))
-		const somePartInstance = currentPartInstance || nextPartInstance
-		if (somePartInstance) {
-			currentRundown = rundowns.find((rundown) => rundown._id === somePartInstance?.rundownId)
-		}
-	}
-
-	const params = queryStringParse(location.search)
-
-	const showStyleBaseId = currentRundown?.showStyleBaseId ?? rundowns[0]?.showStyleBaseId
-	const showStyleBase = showStyleBaseId ? UIShowStyleBases.findOne(showStyleBaseId) : undefined
-	const showStyleVariantId = currentRundown?.showStyleVariantId ?? rundowns[0]?.showStyleVariantId
-	const showStyleVariant = showStyleVariantId ? ShowStyleVariants.findOne(showStyleVariantId) : undefined
-
-	const rundownsToShowStyles: Map<RundownId, ShowStyleBaseId> = new Map()
-	for (const rundown of rundowns) {
-		rundownsToShowStyles.set(rundown._id, rundown.showStyleBaseId)
-	}
-
-	const rundownLayouts = RundownLayouts.find({ showStyleBaseId }).fetch()
-
-	// let rundownDurations = calculateDurations(rundown, parts)
-	return {
-		rundownPlaylistId: playlistId,
-		rundowns,
-		currentRundown,
-		matchedSegments: playlist
-			? RundownPlaylistClientUtil.getRundownsAndSegments(playlist, {}).map((input, rundownIndex, rundownArray) => ({
-					...input,
-					segmentIdsBeforeEachSegment: input.segments.map(
-						(_segment, segmentIndex, segmentArray) =>
-							new Set<SegmentId>([
-								..._.flatten(
-									rundownArray.slice(0, rundownIndex).map((match) => match.segments.map((segment) => segment._id))
-								),
-								...segmentArray.slice(0, segmentIndex).map((segment) => segment._id),
-							])
-					),
-			  }))
-			: [],
-		rundownsToShowstyles: rundownsToShowStyles,
-		playlist,
-		studio: studio,
-		showStyleBase,
-		showStyleVariant,
-		rundownLayouts,
-		shelfLayoutId: protectString((params['layout'] as string) || (params['shelfLayout'] as string) || ''), // 'layout' kept for backwards compatibility
-		rundownViewLayoutId: protectString((params['rundownViewLayout'] as string) || ''),
-		rundownHeaderLayoutId: protectString((params['rundownHeaderLayout'] as string) || ''),
-		miniShelfLayoutId: protectString((params['miniShelfLayout'] as string) || ''),
-		currentPartInstance,
-		nextPartInstance,
-	}
+const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps, IState, {}>(() => {
+	// TODO - remove this without breaking the component types..
+	return {}
 })(
 	class RundownViewContent extends React.Component<Translated<IPropsWithReady & ITrackedProps>, IState> {
 		private _hideNotificationsAfterMount: number | undefined
