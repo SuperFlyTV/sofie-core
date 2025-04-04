@@ -1,5 +1,5 @@
 import { Meteor } from 'meteor/meteor'
-import React, { useContext } from 'react'
+import React, { useCallback, useContext } from 'react'
 import { parse as queryStringParse } from 'query-string'
 // @ts-expect-error No types available
 import * as VelocityReact from 'velocity-react'
@@ -46,7 +46,7 @@ import { SupportPopUp } from './SupportPopUp'
 import { KeyboardFocusIndicator } from '../lib/KeyboardFocusIndicator'
 import { PeripheralDeviceType } from '@sofie-automation/corelib/dist/dataModel/PeripheralDevice'
 import { doUserAction, UserAction } from '../lib/clientUserAction'
-import { hashSingleUseToken } from '../lib/lib'
+import { hashSingleUseToken, useRundownViewEventBusListener } from '../lib/lib'
 import { ClipTrimDialog } from './ClipTrimPanel/ClipTrimDialog'
 import {
 	RundownLayoutType,
@@ -81,14 +81,12 @@ import { UIStateStorage } from '../lib/UIStateStorage'
 import { AdLibPieceUi, AdlibSegmentUi } from '../lib/shelf'
 import { fetchAndFilter } from './Shelf/AdLibPanel'
 import { matchFilter } from './Shelf/AdLibListView'
-import { ExecuteActionResult } from '@sofie-automation/corelib/dist/worker/studio'
 import { SegmentListContainer } from './SegmentList/SegmentListContainer'
 import { getNextMode as getNextSegmentViewMode } from './SegmentContainer/SwitchViewModeButton'
 import { IResolvedSegmentProps } from './SegmentContainer/withResolvedSegment'
 import { UIParts, UIShowStyleBases, UIStudios } from './Collections'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import {
-	PartInstanceId,
 	RundownId,
 	RundownLayoutId,
 	RundownPlaylistId,
@@ -114,6 +112,7 @@ import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons'
 import { RundownSorensenContext } from './RundownView/RundownSorensenContext'
 import { RundownDetachedShelf } from './RundownView/RundownDetachedShelf'
 import { useRundownViewSubscriptions } from './RundownView/RundownViewSubscriptions'
+import { useQueueMiniShelfAdlib } from './RundownView/useQueueMiniShelfAdlib'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -281,6 +280,21 @@ export function RundownView(props: Readonly<IProps>): JSX.Element {
 		[]
 	)
 
+	// Handle queueMiniShelfAdlib
+	const queueMiniShelfAdLib = useQueueMiniShelfAdlib({
+		// 	uiSegmentMap: Map<SegmentId, AdlibSegmentUi>
+		// uiSegments: AdlibSegmentUi[]
+		// sourceLayerLookup: SourceLayers
+
+		playlist: playlist,
+		currentPartInstance: partInstances?.currentPartInstance,
+	})
+	const queueMiniShelfAdLibEvent = useCallback(
+		(e: MiniShelfQueueAdLibEvent) => queueMiniShelfAdLib(e.context, e.forward),
+		[queueMiniShelfAdLib]
+	)
+	useRundownViewEventBusListener(RundownViewEvents.MINI_SHELF_QUEUE_ADLIB, queueMiniShelfAdLibEvent)
+
 	return (
 		<RundownViewContent
 			{...props}
@@ -323,10 +337,10 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 	class RundownViewContent extends React.Component<Translated<IPropsWithReady & ITrackedProps>, IState> {
 		private _hideNotificationsAfterMount: number | undefined
 		/** MiniShelf data */
-		private keyboardQueuedPiece: AdLibPieceUi | undefined = undefined
-		private keyboardQueuedPartInstanceId: PartInstanceId | undefined = undefined
-		private shouldKeyboardRequeue = false
-		private isKeyboardQueuePending = false
+		// private keyboardQueuedPiece: AdLibPieceUi | undefined = undefined
+		// private keyboardQueuedPartInstanceId: PartInstanceId | undefined = undefined
+		// private shouldKeyboardRequeue = false
+		// private isKeyboardQueuePending = false
 
 		constructor(props: Translated<IPropsWithReady & ITrackedProps>) {
 			super(props)
@@ -562,7 +576,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 
 			RundownViewEventBus.on(RundownViewEvents.GO_TO_LIVE_SEGMENT, this.onGoToLiveSegment)
 			RundownViewEventBus.on(RundownViewEvents.GO_TO_TOP, this.onGoToTop)
-			RundownViewEventBus.on(RundownViewEvents.MINI_SHELF_QUEUE_ADLIB, this.eventQueueMiniShelfAdLib)
 
 			if (this.props.playlist) {
 				documentTitle.set(this.props.playlist.name)
@@ -620,8 +633,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 					documentTitle.set(null)
 				}
 			}
-
-			this.handleMiniShelfRequeue(prevProps)
 		}
 
 		public getSnapshotBeforeUpdate(): IRundownViewContentSnapshot | null {
@@ -764,42 +775,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 			}
 		}
 
-		private handleMiniShelfRequeue(prevProps: IProps & ITrackedProps) {
-			if (this.props.currentPartInstance?.segmentId !== prevProps.currentPartInstance?.segmentId) {
-				this.keyboardQueuedPiece = undefined
-			} else if (this.props.playlist && prevProps.playlist && this.keyboardQueuedPartInstanceId) {
-				if (this.hasCurrentPartChanged(prevProps) && this.isCurrentPartKeyboardQueuedPart()) {
-					this.keyboardQueuedPartInstanceId = undefined
-				} else if (
-					!this.isKeyboardQueuePending &&
-					!this.hasCurrentPartChanged(prevProps) &&
-					this.hasNextPartChanged(prevProps) &&
-					this.isNextPartDifferentFromKeyboardQueuedPart()
-				) {
-					this.shouldKeyboardRequeue = true
-					this.keyboardQueuedPartInstanceId = undefined
-				}
-			}
-		}
-
-		private hasCurrentPartChanged(prevProps: IProps & ITrackedProps) {
-			return (
-				prevProps.playlist!.currentPartInfo?.partInstanceId !== this.props.playlist!.currentPartInfo?.partInstanceId
-			)
-		}
-
-		private isCurrentPartKeyboardQueuedPart() {
-			return this.props.playlist!.currentPartInfo?.partInstanceId === this.keyboardQueuedPartInstanceId
-		}
-
-		private hasNextPartChanged(prevProps: IProps & ITrackedProps) {
-			return prevProps.playlist!.nextPartInfo?.partInstanceId !== this.props.playlist!.nextPartInfo?.partInstanceId
-		}
-
-		private isNextPartDifferentFromKeyboardQueuedPart() {
-			return this.props.playlist!.nextPartInfo?.partInstanceId !== this.keyboardQueuedPartInstanceId
-		}
-
 		private onSelectPiece = (piece: PieceUi) => {
 			if (piece) {
 				const vtContent = piece.instance.piece.content as VTContent | undefined
@@ -839,7 +814,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 
 			RundownViewEventBus.off(RundownViewEvents.GO_TO_LIVE_SEGMENT, this.onGoToLiveSegment)
 			RundownViewEventBus.off(RundownViewEvents.GO_TO_TOP, this.onGoToTop)
-			RundownViewEventBus.off(RundownViewEvents.MINI_SHELF_QUEUE_ADLIB, this.eventQueueMiniShelfAdLib)
 		}
 
 		private onBeforeUnload = (e: any) => {
@@ -940,10 +914,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 					followLiveSegments: true,
 				})
 			}
-		}
-
-		private eventQueueMiniShelfAdLib = (e: MiniShelfQueueAdLibEvent) => {
-			this.queueMiniShelfAdLib(e.context, e.forward)
 		}
 
 		private onActivate = () => {
@@ -1163,199 +1133,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 					)
 				}
 			)
-		}
-
-		private onPieceQueued = (err: any, res: ExecuteActionResult | void) => {
-			if (!err && res) {
-				if (res.taken) {
-					this.keyboardQueuedPartInstanceId = undefined
-				} else {
-					this.keyboardQueuedPartInstanceId = res.queuedPartInstanceId
-				}
-			}
-			this.isKeyboardQueuePending = false
-		}
-
-		private queueAdLibPiece = (adlibPiece: AdLibPieceUi, e: any) => {
-			const { t } = this.props
-			// TODO: Refactor this code to reduce code duplication
-
-			if (adlibPiece.invalid) {
-				NotificationCenter.push(
-					new Notification(
-						t('Invalid AdLib'),
-						NoticeLevel.WARNING,
-						t('Cannot play this AdLib because it is marked as Invalid'),
-						'toggleAdLib'
-					)
-				)
-				return
-			}
-
-			if (adlibPiece.floated) {
-				NotificationCenter.push(
-					new Notification(
-						t('Floated Adlib'),
-						NoticeLevel.WARNING,
-						t('Cannot play this AdLib because it is marked as Floated'),
-						'toggleAdLib'
-					)
-				)
-				return
-			}
-
-			const sourceLayer = this.state.sourceLayerLookup[adlibPiece.sourceLayerId]
-
-			if (!adlibPiece.isAction && sourceLayer && !sourceLayer.isQueueable) {
-				NotificationCenter.push(
-					new Notification(
-						t('Not queueable'),
-						NoticeLevel.WARNING,
-						t('Cannot play this adlib because source layer is not queueable'),
-						'toggleAdLib'
-					)
-				)
-				return
-			}
-
-			if (this.props.playlist && this.props.playlist.currentPartInfo) {
-				const currentPartInstanceId = this.props.playlist.currentPartInfo.partInstanceId
-				if (!(sourceLayer && sourceLayer.isClearable)) {
-					if (adlibPiece.isAction && adlibPiece.adlibAction) {
-						const action = adlibPiece.adlibAction
-						doUserAction(
-							t,
-							e,
-							adlibPiece.isGlobal ? UserAction.START_GLOBAL_ADLIB : UserAction.START_ADLIB,
-							(e, ts) =>
-								MeteorCall.userAction.executeAction(
-									e,
-									ts,
-									this.props.playlist!._id,
-									action._id,
-									action.actionId,
-									action.userData
-								),
-							this.onPieceQueued
-						)
-					} else if (!adlibPiece.isGlobal && !adlibPiece.isAction) {
-						doUserAction(
-							t,
-							e,
-							UserAction.START_ADLIB,
-							(e, ts) =>
-								MeteorCall.userAction.segmentAdLibPieceStart(
-									e,
-									ts,
-									this.props.playlist!._id,
-									currentPartInstanceId,
-									adlibPiece._id,
-									true
-								),
-							this.onPieceQueued
-						)
-					} else if (adlibPiece.isGlobal && !adlibPiece.isSticky) {
-						doUserAction(
-							t,
-							e,
-							UserAction.START_GLOBAL_ADLIB,
-							(e, ts) =>
-								MeteorCall.userAction.baselineAdLibPieceStart(
-									e,
-									ts,
-									this.props.playlist!._id,
-									currentPartInstanceId,
-									adlibPiece._id,
-									true
-								),
-							this.onPieceQueued
-						)
-					} else {
-						return
-					}
-					this.isKeyboardQueuePending = true
-				}
-			}
-		}
-
-		private isAdLibQueueable = (piece: AdLibPieceUi) => {
-			return !piece.invalid && !piece.floated && (piece.isAction || piece.sourceLayer?.isQueueable)
-		}
-
-		private findShelfOnlySegment = (begin: number, end: number) => {
-			const { uiSegments } = this.state
-			for (let i = begin; begin > end ? i > end : i < end; begin > end ? i-- : i++) {
-				const queueablePieces = uiSegments[i].pieces.filter(this.isAdLibQueueable)
-				if (uiSegments[i].isHidden && uiSegments[i].showShelf && queueablePieces.length) {
-					return { segment: uiSegments[i], queueablePieces }
-				}
-			}
-			return undefined
-		}
-
-		private queueMiniShelfAdLib = (e: any, forward: boolean) => {
-			const { uiSegments, uiSegmentMap } = this.state
-			let pieceToQueue: AdLibPieceUi | undefined
-			let currentSegmentId: SegmentId | undefined
-			if (this.keyboardQueuedPiece) {
-				currentSegmentId = this.keyboardQueuedPiece.segmentId
-				pieceToQueue = this.findPieceToQueueInCurrentSegment(uiSegmentMap, pieceToQueue, forward)
-			}
-			if (!currentSegmentId) {
-				currentSegmentId = this.props.currentPartInstance?.segmentId
-			}
-			if (!pieceToQueue && currentSegmentId) {
-				pieceToQueue = this.findPieceToQueueInOtherSegments(uiSegments, currentSegmentId, forward, pieceToQueue)
-			}
-			if (pieceToQueue) {
-				this.queueAdLibPiece(pieceToQueue, e)
-				this.keyboardQueuedPiece = pieceToQueue
-				this.shouldKeyboardRequeue = false
-			}
-		}
-
-		private findPieceToQueueInCurrentSegment(
-			uiSegmentMap: Map<SegmentId, AdlibSegmentUi>,
-			pieceToQueue: AdLibPieceUi | undefined,
-			forward: boolean
-		) {
-			const uiSegment = this.keyboardQueuedPiece!.segmentId
-				? uiSegmentMap.get(this.keyboardQueuedPiece!.segmentId)
-				: undefined
-			if (uiSegment) {
-				const pieces = uiSegment.pieces.filter(this.isAdLibQueueable)
-				if (this.shouldKeyboardRequeue) {
-					pieceToQueue = pieces.find((piece) => piece._id === this.keyboardQueuedPiece!._id)
-				} else {
-					const nextPieceInd =
-						pieces.findIndex((piece) => piece._id === this.keyboardQueuedPiece!._id) + (forward ? 1 : -1)
-					if (nextPieceInd >= 0 && nextPieceInd < pieces.length) {
-						pieceToQueue = pieces[nextPieceInd]
-					}
-				}
-			}
-			return pieceToQueue
-		}
-
-		private findPieceToQueueInOtherSegments(
-			uiSegments: AdlibSegmentUi[],
-			currentSegmentId: SegmentId | undefined,
-			forward: boolean,
-			pieceToQueue: AdLibPieceUi | undefined
-		) {
-			const currentSegmentInd = uiSegments.findIndex((segment) => segment._id === currentSegmentId)
-			if (currentSegmentInd >= 0) {
-				const nextShelfOnlySegment = forward
-					? this.findShelfOnlySegment(currentSegmentInd + 1, uiSegments.length) ||
-					  this.findShelfOnlySegment(0, currentSegmentInd)
-					: this.findShelfOnlySegment(currentSegmentInd - 1, -1) ||
-					  this.findShelfOnlySegment(uiSegments.length - 1, currentSegmentInd)
-				if (nextShelfOnlySegment && nextShelfOnlySegment.queueablePieces.length) {
-					pieceToQueue =
-						nextShelfOnlySegment.queueablePieces[forward ? 0 : nextShelfOnlySegment.queueablePieces.length - 1]
-				}
-			}
-			return pieceToQueue
 		}
 
 		private renderSegments() {
