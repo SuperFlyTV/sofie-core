@@ -1,12 +1,12 @@
-import * as React from 'react'
-import { withTranslation } from 'react-i18next'
+import React, { useContext, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import ClassNames from 'classnames'
 
 import { faBars } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { Translated } from '../../lib/ReactMeteorData/ReactMeteorData'
+import { Translated, useTracker } from '../../lib/ReactMeteorData/ReactMeteorData'
 import { PieceUi } from '../SegmentTimeline/SegmentTimelineContainer'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { getElementDocumentOffset } from '../../utils/positions'
@@ -44,10 +44,16 @@ import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyle
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 
 import { ShelfTabs } from '@sofie-automation/meteor-lib/dist/uiTypes/ShelfTabs'
+import { Buckets } from '../../collections'
+import { UserPermissionsContext } from '../UserPermissions'
+import { useLocation } from 'react-router'
+import { IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio'
+import { Settings } from '../../lib/Settings'
+import { ParsedQuery, parse as queryStringParse } from 'query-string'
 
 export { ShelfTabs } from '@sofie-automation/meteor-lib/dist/uiTypes/ShelfTabs'
 
-export interface IShelfProps extends React.ComponentPropsWithRef<any> {
+export interface IShelfProps {
 	isExpanded: boolean
 	buckets: Array<Bucket>
 	playlist: DBRundownPlaylist
@@ -513,6 +519,65 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 	}
 }
 
-export const Shelf = withTranslation(undefined, {
-	withRef: true,
-})(ShelfBase)
+export function Shelf(
+	props: Omit<IShelfProps, 'buckets' | 'studioMode' | 'shelfDisplayOptions' | 'bucketDisplayFilter'>
+): JSX.Element {
+	const i18n = useTranslation()
+
+	const userPermissions = useContext(UserPermissionsContext)
+
+	const { search } = useLocation()
+	const { shelfDisplayOptions, bucketDisplayFilter } = useMemo(() => {
+		const params = queryStringParse(search)
+		return {
+			shelfDisplayOptions: getShelfDisplayOptions(props.studio?.settings, params),
+			bucketDisplayFilter: getBucketDisplayFilter(params),
+		}
+	}, [search, props.studio?.settings])
+
+	const studioId = props.playlist?.studioId
+	const buckets = useTracker(
+		() =>
+			(studioId &&
+				Buckets.find(
+					{
+						studioId: studioId,
+					},
+					{
+						sort: {
+							_rank: 1,
+						},
+					}
+				).fetch()) ||
+			[],
+		[studioId],
+		[]
+	)
+
+	return (
+		<ShelfBase
+			{...props}
+			{...i18n}
+			tReady={i18n.ready}
+			buckets={buckets}
+			studioMode={userPermissions.studio}
+			shelfDisplayOptions={shelfDisplayOptions}
+			bucketDisplayFilter={bucketDisplayFilter}
+		/>
+	)
+}
+
+function getShelfDisplayOptions(studioSettings: IStudioSettings | undefined, params: ParsedQuery): ShelfDisplayOptions {
+	const displayOptions = ((params['display'] as string) || Settings.defaultShelfDisplayOptions).split(',')
+
+	return {
+		// If buckets are enabled in Studiosettings, it can also be filtered in the URLs display options.
+		enableBuckets: !!studioSettings?.enableBuckets && displayOptions.includes('buckets'),
+		enableLayout: displayOptions.includes('layout') || displayOptions.includes('shelfLayout'),
+		enableInspector: displayOptions.includes('inspector'),
+	}
+}
+
+function getBucketDisplayFilter(params: ParsedQuery): number[] | undefined {
+	return !(params['buckets'] as string) ? undefined : (params['buckets'] as string).split(',').map((v) => parseInt(v))
+}

@@ -16,7 +16,7 @@ import { Spinner } from '../lib/Spinner'
 import ClassNames from 'classnames'
 import * as _ from 'underscore'
 import * as i18next from 'i18next'
-import { Route, Prompt } from 'react-router-dom'
+import { Prompt } from 'react-router-dom'
 import { DBRundownPlaylist, QuickLoopMarker } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { DBRundown, Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { DBSegment, SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
@@ -30,7 +30,7 @@ import { unprotectString, protectString } from '@sofie-automation/shared-lib/dis
 import { getCurrentTime } from '../lib/systemTime'
 import { RundownUtils } from '../lib/rundown'
 import { ErrorBoundary } from '../lib/ErrorBoundary'
-import { ModalDialog, doModalDialog, isModalShowing } from '../lib/ModalDialog'
+import { ModalDialog, doModalDialog } from '../lib/ModalDialog'
 import { ClientAPI } from '@sofie-automation/meteor-lib/dist/api/client'
 import {
 	scrollToPosition,
@@ -68,8 +68,6 @@ import {
 } from '@sofie-automation/meteor-lib/dist/collections/RundownLayouts'
 import { VirtualElement } from '../lib/VirtualElement'
 import { SEGMENT_TIMELINE_ELEMENT_ID } from './SegmentTimeline/SegmentTimeline'
-import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
-import { isEventInInputField } from '../lib/lib'
 import { OffsetPosition } from '../utils/positions'
 import { MeteorCall } from '../lib/meteorApi'
 import { Settings } from '../lib/Settings'
@@ -85,15 +83,13 @@ import RundownViewEventBus, {
 } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
 import StudioContext from './RundownView/StudioContext'
 import { RundownLayoutsAPI } from '../lib/rundownLayouts'
-import { TriggersHandler } from '../lib/triggers/TriggersHandler'
-import { SorensenContext } from '../lib/SorensenContext'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import { BreakSegment } from './SegmentTimeline/BreakSegment'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { SegmentStoryboardContainer } from './SegmentStoryboard/SegmentStoryboardContainer'
 import { SegmentViewMode } from './SegmentContainer/SegmentViewModes'
 import { UIStateStorage } from '../lib/UIStateStorage'
-import { AdLibPieceUi, AdlibSegmentUi, ShelfDisplayOptions } from '../lib/shelf'
+import { AdLibPieceUi, AdlibSegmentUi } from '../lib/shelf'
 import { fetchAndFilter } from './Shelf/AdLibPanel'
 import { matchFilter } from './Shelf/AdLibListView'
 import { ExecuteActionResult } from '@sofie-automation/corelib/dist/worker/studio'
@@ -103,7 +99,6 @@ import { IResolvedSegmentProps } from './SegmentContainer/withResolvedSegment'
 import { UIParts, UIShowStyleBases, UIStudios } from './Collections'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import {
-	PartId,
 	PartInstanceId,
 	RundownId,
 	RundownLayoutId,
@@ -111,14 +106,7 @@ import {
 	SegmentId,
 	ShowStyleBaseId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import {
-	Buckets,
-	PeripheralDevices,
-	RundownLayouts,
-	RundownPlaylists,
-	Rundowns,
-	ShowStyleVariants,
-} from '../collections'
+import { PeripheralDevices, RundownLayouts, RundownPlaylists, Rundowns, ShowStyleVariants } from '../collections'
 import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
 import { RundownPlaylistCollectionUtil } from '../collections/rundownPlaylistUtil'
 import { SegmentAdlibTestingContainer } from './SegmentAdlibTesting/SegmentAdlibTestingContainer'
@@ -134,7 +122,9 @@ import { SelectedElementProvider, SelectedElementsContext } from './RundownView/
 import { PropertiesPanel } from './UserEditOperations/PropertiesPanel'
 import { PreviewPopUpContextProvider } from './PreviewPopUp/PreviewPopUpContext'
 import { RundownHeader } from './RundownView/RundownHeader/RundownHeader'
-import { CasparCGRestartButtons } from './RundownView/RestartCasparCGButtons'
+import { RundownDataMissing } from './RundownView/DataMissing'
+import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons'
+import { RundownSorensenContext } from './RundownView/RundownSorensenContext'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -203,17 +193,12 @@ interface ITrackedProps {
 	showStyleBase?: UIShowStyleBase
 	showStyleVariant?: DBShowStyleVariant
 	rundownLayouts?: Array<RundownLayoutBase>
-	buckets: Bucket[]
 	shelfLayoutId?: RundownLayoutId
 	rundownViewLayoutId?: RundownLayoutId
 	rundownHeaderLayoutId?: RundownLayoutId
 	miniShelfLayoutId?: RundownLayoutId
-	shelfDisplayOptions: ShelfDisplayOptions
-	bucketDisplayFilter: number[] | undefined
 	currentPartInstance: PartInstance | undefined
 	nextPartInstance: PartInstance | undefined
-	currentSegmentPartIds: PartId[]
-	nextSegmentPartIds: PartId[]
 }
 export function RundownView(props: Readonly<IProps>): JSX.Element {
 	const userPermissions = useContext(UserPermissionsContext)
@@ -382,11 +367,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 
 	const params = queryStringParse(location.search)
 
-	const displayOptions = ((params['display'] as string) || Settings.defaultShelfDisplayOptions).split(',')
-	const bucketDisplayFilter = !(params['buckets'] as string)
-		? undefined
-		: (params['buckets'] as string).split(',').map((v) => parseInt(v))
-
 	const showStyleBaseId = currentRundown?.showStyleBaseId ?? rundowns[0]?.showStyleBaseId
 	const showStyleBase = showStyleBaseId ? UIShowStyleBases.findOne(showStyleBaseId) : undefined
 	const showStyleVariantId = currentRundown?.showStyleVariantId ?? rundowns[0]?.showStyleVariantId
@@ -424,56 +404,12 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 		showStyleBase,
 		showStyleVariant,
 		rundownLayouts,
-		buckets:
-			(playlist &&
-				Buckets.find(
-					{
-						studioId: playlist.studioId,
-					},
-					{
-						sort: {
-							_rank: 1,
-						},
-					}
-				).fetch()) ||
-			[],
 		shelfLayoutId: protectString((params['layout'] as string) || (params['shelfLayout'] as string) || ''), // 'layout' kept for backwards compatibility
 		rundownViewLayoutId: protectString((params['rundownViewLayout'] as string) || ''),
 		rundownHeaderLayoutId: protectString((params['rundownHeaderLayout'] as string) || ''),
 		miniShelfLayoutId: protectString((params['miniShelfLayout'] as string) || ''),
-		shelfDisplayOptions: {
-			// If buckets are enabled in Studiosettings, it can also be filtered in the URLs display options.
-			enableBuckets: !!studio?.settings.enableBuckets && displayOptions.includes('buckets'),
-			enableLayout: displayOptions.includes('layout') || displayOptions.includes('shelfLayout'),
-			enableInspector: displayOptions.includes('inspector'),
-		},
-		bucketDisplayFilter,
 		currentPartInstance,
 		nextPartInstance,
-		currentSegmentPartIds: currentPartInstance
-			? UIParts.find(
-					{
-						segmentId: currentPartInstance?.part.segmentId,
-					},
-					{
-						fields: {
-							_id: 1,
-						},
-					}
-			  ).map((part) => part._id)
-			: [],
-		nextSegmentPartIds: nextPartInstance
-			? UIParts.find(
-					{
-						segmentId: nextPartInstance?.part.segmentId,
-					},
-					{
-						fields: {
-							_id: 1,
-						},
-					}
-			  ).map((part) => part._id)
-			: [],
 	}
 })(
 	class RundownViewContent extends React.Component<Translated<IPropsWithReady & ITrackedProps>, IState> {
@@ -1877,13 +1813,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		private isHotkeyAllowed(e: KeyboardEvent): boolean {
-			if (isModalShowing() || isEventInInputField(e)) {
-				return false
-			}
-			return true
-		}
-
 		private defaultHotkeys(t: i18next.TFunction) {
 			const poisonKey = Settings.poisonKey
 			return [
@@ -1917,6 +1846,8 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 					RundownUtils.isPieceInstance(selectedPiece) &&
 					this.props.rundowns.find((r) => r._id === selectedPiece?.instance.rundownId)) ||
 				undefined
+
+			const currentRundown = this.state.currentRundown || this.props.rundowns[0]
 
 			return (
 				<RundownTimingProvider playlist={playlist} defaultDuration={Settings.defaultDisplayDuration}>
@@ -1952,7 +1883,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 														onActivate={this.onActivate}
 														userPermissions={this.props.userPermissions}
 														inActiveRundownView={this.props.inActiveRundownView}
-														currentRundown={this.state.currentRundown || this.props.rundowns[0]}
+														currentRundown={currentRundown}
 														layout={this.state.rundownHeaderLayout}
 														showStyleBase={showStyleBase}
 														showStyleVariant={showStyleVariant}
@@ -1988,7 +1919,16 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 														onSegmentViewMode={this.onSegmentViewModeChange}
 													/>
 												</ErrorBoundary>
-												<ErrorBoundary>{this.renderSorensenContext()}</ErrorBoundary>
+												<ErrorBoundary>
+													{this.props.userPermissions.studio && currentRundown && (
+														<RundownSorensenContext
+															studio={studio}
+															playlist={playlist}
+															currentRundown={currentRundown}
+															showStyleBase={showStyleBase}
+														/>
+													)}
+												</ErrorBoundary>
 												<ErrorBoundary>
 													<VelocityReact.VelocityTransitionGroup
 														enter={{
@@ -2113,7 +2053,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 												</ErrorBoundary>
 												<ErrorBoundary>
 													<Shelf
-														buckets={this.props.buckets}
 														isExpanded={
 															this.state.isInspectorShelfExpanded ||
 															(!this.state.wasShelfResizedByUser && this.state.shelfLayout?.openByDefault)
@@ -2123,11 +2062,8 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 														playlist={this.props.playlist}
 														showStyleBase={this.props.showStyleBase}
 														showStyleVariant={this.props.showStyleVariant}
-														studioMode={this.props.userPermissions.studio}
 														onChangeBottomMargin={this.onChangeBottomMargin}
 														rundownLayout={this.state.shelfLayout}
-														shelfDisplayOptions={this.props.shelfDisplayOptions}
-														bucketDisplayFilter={this.props.bucketDisplayFilter}
 														studio={this.props.studio}
 													/>
 												</ErrorBoundary>
@@ -2160,96 +2096,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			)
 		}
 
-		private renderDetachedShelf() {
-			return (
-				<RundownTimingProvider playlist={this.props.playlist} defaultDuration={Settings.defaultDisplayDuration}>
-					<PreviewPopUpContextProvider>
-						<ErrorBoundary>
-							<Shelf
-								buckets={this.props.buckets}
-								isExpanded={this.state.isInspectorShelfExpanded}
-								onChangeExpanded={this.onShelfChangeExpanded}
-								hotkeys={this.defaultHotkeys(this.props.t)}
-								playlist={this.props.playlist}
-								showStyleBase={this.props.showStyleBase}
-								showStyleVariant={this.props.showStyleVariant}
-								studioMode={this.props.userPermissions.studio}
-								onChangeBottomMargin={this.onChangeBottomMargin}
-								rundownLayout={this.state.shelfLayout}
-								studio={this.props.studio}
-								fullViewport={true}
-								shelfDisplayOptions={this.props.shelfDisplayOptions}
-								bucketDisplayFilter={this.props.bucketDisplayFilter}
-							/>
-						</ErrorBoundary>
-					</PreviewPopUpContextProvider>
-					<ErrorBoundary>{this.renderSorensenContext()}</ErrorBoundary>
-				</RundownTimingProvider>
-			)
-		}
-
-		private renderSorensenContext() {
-			return (
-				<SorensenContext.Consumer>
-					{(sorensen) =>
-						sorensen &&
-						this.props.userPermissions.studio &&
-						this.props.studio &&
-						this.props.showStyleBase && (
-							<TriggersHandler
-								studioId={this.props.studio._id}
-								rundownPlaylistId={this.props.rundownPlaylistId}
-								showStyleBaseId={this.props.showStyleBase._id}
-								currentRundownId={this.props.currentRundown?._id || null}
-								currentPartId={this.props.currentPartInstance?.part._id || null}
-								nextPartId={this.props.nextPartInstance?.part._id || null}
-								currentSegmentPartIds={this.props.currentSegmentPartIds}
-								nextSegmentPartIds={this.props.nextSegmentPartIds}
-								sorensen={sorensen}
-								global={this.isHotkeyAllowed}
-							/>
-						)
-					}
-				</SorensenContext.Consumer>
-			)
-		}
-
-		private renderDataMissing() {
-			const { t } = this.props
-
-			return (
-				<div className="rundown-view rundown-view--unpublished">
-					<div className="rundown-view__label">
-						<p className="summary">
-							{!this.props.playlist
-								? t('This rundown has been unpublished from Sofie.')
-								: !this.props.studio
-								? t('Error: The studio of this Rundown was not found.')
-								: !this.props.rundowns.length
-								? t('This playlist is empty')
-								: !this.props.showStyleBase || !this.props.showStyleVariant
-								? t('Error: The ShowStyle of this Rundown was not found.')
-								: t('Unknown error')}
-						</p>
-						<p>
-							<Route
-								render={({ history }) => (
-									<button
-										className="btn btn-primary"
-										onClick={() => {
-											history.push('/rundowns')
-										}}
-									>
-										{t('Return to list')}
-									</button>
-								)}
-							/>
-						</p>
-					</div>
-				</div>
-			)
-		}
-
 		render(): JSX.Element {
 			if (!this.props.subsReady) {
 				return (
@@ -2279,10 +2125,75 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 				this.props.showStyleVariant &&
 				this.props.onlyShelf
 			) {
-				return this.renderDetachedShelf()
+				return (
+					<RundownDetachedShelf
+						playlist={this.props.playlist}
+						currentRundown={this.props.currentRundown}
+						studio={this.props.studio}
+						showStyleBase={this.props.showStyleBase}
+						showStyleVariant={this.props.showStyleVariant}
+					/>
+				)
 			} else {
-				return this.renderDataMissing()
+				return (
+					<RundownDataMissing
+						playlist={this.props.playlist}
+						studio={this.props.studio}
+						rundowns={this.props.rundowns}
+						showStyleBase={this.props.showStyleBase}
+						showStyleVariant={this.props.showStyleVariant}
+					/>
+				)
 			}
 		}
 	}
 )
+
+interface RundownDetachedShelfProps {
+	playlist: DBRundownPlaylist
+	currentRundown: Rundown | undefined
+	studio: UIStudio
+	showStyleBase: UIShowStyleBase
+	showStyleVariant: DBShowStyleVariant
+}
+
+function RundownDetachedShelf({
+	playlist,
+	currentRundown,
+	studio,
+	showStyleBase,
+	showStyleVariant,
+}: RundownDetachedShelfProps) {
+	const userPermissions = useContext(UserPermissionsContext)
+
+	return (
+		<RundownTimingProvider playlist={playlist} defaultDuration={Settings.defaultDisplayDuration}>
+			<PreviewPopUpContextProvider>
+				<ErrorBoundary>
+					<Shelf
+						isExpanded={this.state.isInspectorShelfExpanded}
+						onChangeExpanded={this.onShelfChangeExpanded}
+						hotkeys={this.defaultHotkeys(t)}
+						playlist={playlist}
+						showStyleBase={showStyleBase}
+						showStyleVariant={showStyleVariant}
+						onChangeBottomMargin={this.onChangeBottomMargin}
+						rundownLayout={this.state.shelfLayout}
+						studio={studio}
+						fullViewport={true}
+					/>
+				</ErrorBoundary>
+			</PreviewPopUpContextProvider>
+			<ErrorBoundary>
+				{userPermissions.studio && currentRundown && (
+					<RundownSorensenContext
+						studio={studio}
+						playlist={playlist}
+						currentRundown={currentRundown}
+						showStyleBase={showStyleBase}
+					/>
+				)}
+			</ErrorBoundary>
+		</RundownTimingProvider>
+	)
+}
