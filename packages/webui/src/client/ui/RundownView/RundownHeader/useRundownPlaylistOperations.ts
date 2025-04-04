@@ -5,8 +5,8 @@ import { doUserAction } from '../../../lib/clientUserAction'
 import { MeteorCall } from '../../../lib/meteorApi'
 import { doModalDialog } from '../../../lib/ModalDialog'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useMemo, useRef } from 'react'
-import { UserPermissions } from '../../UserPermissions'
+import { useContext, useEffect, useMemo, useRef } from 'react'
+import { UserPermissions, UserPermissionsContext } from '../../UserPermissions'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { logger } from '../../../lib/logging'
@@ -48,11 +48,14 @@ export function checkRundownTimes(playlistTiming: RundownPlaylistTiming): Rundow
 }
 
 export interface RundownPlaylistOperationsInput {
-	userPermissions: UserPermissions
 	studio: UIStudio
 	playlist: DBRundownPlaylist
 	currentRundown: Rundown | undefined
 	onActivate?: (isRehearsal: boolean) => void
+}
+
+interface RundownPlaylistOperationsState extends RundownPlaylistOperationsInput {
+	userPermissions: UserPermissions
 }
 
 export interface RundownPlaylistOperations {
@@ -73,10 +76,12 @@ export interface RundownPlaylistOperations {
 export function useRundownPlaylistOperations(input0: RundownPlaylistOperationsInput): RundownPlaylistOperations {
 	const { t } = useTranslation()
 
-	const state = useRef(input0)
+	const userPermissions = useContext(UserPermissionsContext)
+
+	const state = useRef<RundownPlaylistOperationsState>({ ...input0, userPermissions })
 	useEffect(() => {
-		state.current = input0
-	}, [...Object.values<any>(input0)])
+		state.current = { ...input0, userPermissions }
+	}, [...Object.values<any>(input0), userPermissions])
 
 	return useMemo(
 		() =>
@@ -98,7 +103,7 @@ export function useRundownPlaylistOperations(input0: RundownPlaylistOperationsIn
 	)
 }
 
-function executeTake(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput): void {
+function executeTake(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState): void {
 	if (!state.userPermissions.studio) return
 
 	if (!state.playlist.activationId) {
@@ -233,7 +238,7 @@ export function handleAnotherPlaylistActive(
 	})
 }
 
-function executeHold(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput): void {
+function executeHold(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState): void {
 	if (state.userPermissions.studio && state.playlist.activationId) {
 		doUserAction(t, e, UserAction.ACTIVATE_HOLD, async (e, ts) =>
 			MeteorCall.userAction.activateHold(e, ts, state.playlist._id, false)
@@ -241,7 +246,7 @@ function executeHold(t: i18next.TFunction, e: any, state: RundownPlaylistOperati
 	}
 }
 
-function executeClearQuickLoop(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeClearQuickLoop(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (state.userPermissions.studio && state.playlist.activationId) {
 		doUserAction(t, e, UserAction.CLEAR_QUICK_LOOP, async (e, ts) =>
 			MeteorCall.userAction.clearQuickLoop(e, ts, state.playlist._id)
@@ -249,7 +254,7 @@ function executeClearQuickLoop(t: i18next.TFunction, e: any, state: RundownPlayl
 	}
 }
 
-function executeActivate(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeActivate(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (e.persist) e.persist()
 
 	if (
@@ -365,7 +370,7 @@ function executeActivate(t: i18next.TFunction, e: any, state: RundownPlaylistOpe
 	}
 }
 
-function executeActivateRehearsal(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeActivateRehearsal(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (e.persist) e.persist()
 
 	if (
@@ -448,7 +453,7 @@ function executeActivateRehearsal(t: i18next.TFunction, e: any, state: RundownPl
 	}
 }
 
-function executeDeactivate(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeDeactivate(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (e.persist) e.persist()
 
 	if (state.userPermissions.studio && state.playlist.activationId) {
@@ -480,7 +485,7 @@ function executeDeactivate(t: i18next.TFunction, e: any, state: RundownPlaylistO
 		}
 	}
 }
-function executeActivateAdlibTesting(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeActivateAdlibTesting(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (e.persist) e.persist()
 
 	if (
@@ -496,7 +501,7 @@ function executeActivateAdlibTesting(t: i18next.TFunction, e: any, state: Rundow
 	}
 }
 
-function executeResetRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeResetRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (e.persist) e.persist()
 
 	const doReset = () => {
@@ -527,7 +532,7 @@ function executeResetRundown(t: i18next.TFunction, e: any, state: RundownPlaylis
 	}
 }
 
-function executeReloadRundownPlaylist(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeReloadRundownPlaylist(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (!state.userPermissions.studio) return
 
 	doUserAction(
@@ -549,7 +554,7 @@ function executeReloadRundownPlaylist(t: i18next.TFunction, e: any, state: Rundo
 	)
 }
 
-function executeTakeRundownSnapshot(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeTakeRundownSnapshot(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	if (!state.userPermissions.studio) return
 
 	const doneMessage = t('A snapshot of the current Running\xa0Order has been created for troubleshooting.')
@@ -591,7 +596,7 @@ function executeTakeRundownSnapshot(t: i18next.TFunction, e: any, state: Rundown
 	)
 }
 
-function executeActivateRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeActivateRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	// Called from the ModalDialog, 1 minute before broadcast starts
 	if (!state.userPermissions.studio) return
 
@@ -617,7 +622,7 @@ function executeActivateRundown(t: i18next.TFunction, e: any, state: RundownPlay
 	)
 }
 
-function executeResetAndActivateRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsInput) {
+function executeResetAndActivateRundown(t: i18next.TFunction, e: any, state: RundownPlaylistOperationsState) {
 	// Called from the ModalDialog, 1 minute before broadcast starts
 	if (!state.userPermissions.studio) return
 

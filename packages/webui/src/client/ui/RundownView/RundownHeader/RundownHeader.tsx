@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import * as CoreIcon from '@nrk/core-icons/jsx'
 import ClassNames from 'classnames'
@@ -29,7 +29,7 @@ import { ShelfDashboardLayout } from '../../Shelf/ShelfDashboardLayout'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { RundownId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
-import { UserPermissions } from '../../UserPermissions'
+import { UserPermissionsContext } from '../../UserPermissions'
 import * as RundownResolver from '../../../lib/RundownResolver'
 import Navbar from 'react-bootstrap/Navbar'
 import { WarningDisplay } from '../WarningDisplay'
@@ -47,7 +47,6 @@ interface IRundownHeaderProps {
 	onActivate?: (isRehearsal: boolean) => void
 	inActiveRundownView?: boolean
 	layout: RundownLayoutRundownHeader | undefined
-	userPermissions: Readonly<UserPermissions>
 }
 
 export function RundownHeader({
@@ -61,14 +60,15 @@ export function RundownHeader({
 	onActivate,
 	inActiveRundownView,
 	layout,
-	userPermissions,
 }: IRundownHeaderProps): JSX.Element {
 	const { t } = useTranslation()
+
+	const userPermissions = useContext(UserPermissionsContext)
 
 	const [selectedPiece, setSelectedPiece] = useState<BucketAdLibItem | IAdLibListItem | PieceUi | undefined>(undefined)
 	const [shouldQueueAdlibs, setShouldQueueAdlibs] = useState(false)
 
-	const operations = useRundownPlaylistOperations({ userPermissions, studio, playlist, currentRundown, onActivate })
+	const operations = useRundownPlaylistOperations({ studio, playlist, currentRundown, onActivate })
 
 	const eventActivate = useCallback(
 		(e: ActivateRundownPlaylistEvent) => {
