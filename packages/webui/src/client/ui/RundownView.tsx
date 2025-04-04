@@ -15,7 +15,6 @@ import { VTContent, NoteSeverity, ISourceLayer } from '@sofie-automation/bluepri
 import { Spinner } from '../lib/Spinner'
 import ClassNames from 'classnames'
 import * as _ from 'underscore'
-import * as i18next from 'i18next'
 import { Prompt } from 'react-router-dom'
 import { DBRundownPlaylist, QuickLoopMarker } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { DBRundown, Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
@@ -125,6 +124,7 @@ import { RundownHeader } from './RundownView/RundownHeader/RundownHeader'
 import { RundownDataMissing } from './RundownView/DataMissing'
 import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons'
 import { RundownSorensenContext } from './RundownView/RundownSorensenContext'
+import { RundownDetachedShelf } from './RundownView/RundownDetachedShelf'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -1813,25 +1813,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 			}
 		}
 
-		private defaultHotkeys(t: i18next.TFunction) {
-			const poisonKey = Settings.poisonKey
-			return [
-				// Register additional hotkeys or legend entries
-				...(poisonKey
-					? [
-							{
-								key: poisonKey,
-								label: t('Cancel currently pressed hotkey'),
-							},
-					  ]
-					: []),
-				{
-					key: 'F11',
-					label: t('Change to fullscreen mode'),
-				},
-			]
-		}
-
 		private renderRundownView(
 			studio: UIStudio,
 			playlist: DBRundownPlaylist,
@@ -1881,7 +1862,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 														rundownIds={this.props.rundowns.map((r) => r._id)}
 														firstRundown={this.props.rundowns[0]}
 														onActivate={this.onActivate}
-														userPermissions={this.props.userPermissions}
 														inActiveRundownView={this.props.inActiveRundownView}
 														currentRundown={currentRundown}
 														layout={this.state.rundownHeaderLayout}
@@ -2055,16 +2035,15 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 													<Shelf
 														isExpanded={
 															this.state.isInspectorShelfExpanded ||
-															(!this.state.wasShelfResizedByUser && this.state.shelfLayout?.openByDefault)
+															!!(!this.state.wasShelfResizedByUser && this.state.shelfLayout?.openByDefault)
 														}
 														onChangeExpanded={this.onShelfChangeExpanded}
-														hotkeys={this.defaultHotkeys(t)}
-														playlist={this.props.playlist}
-														showStyleBase={this.props.showStyleBase}
-														showStyleVariant={this.props.showStyleVariant}
+														playlist={playlist}
+														showStyleBase={showStyleBase}
+														showStyleVariant={showStyleVariant}
 														onChangeBottomMargin={this.onChangeBottomMargin}
 														rundownLayout={this.state.shelfLayout}
-														studio={this.props.studio}
+														studio={studio}
 													/>
 												</ErrorBoundary>
 												<ErrorBoundary>
@@ -2132,6 +2111,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 						studio={this.props.studio}
 						showStyleBase={this.props.showStyleBase}
 						showStyleVariant={this.props.showStyleVariant}
+						shelfLayout={this.state.shelfLayout}
 					/>
 				)
 			} else {
@@ -2148,52 +2128,3 @@ const RundownViewContent = translateWithTracker<IPropsWithReady, IState, ITracke
 		}
 	}
 )
-
-interface RundownDetachedShelfProps {
-	playlist: DBRundownPlaylist
-	currentRundown: Rundown | undefined
-	studio: UIStudio
-	showStyleBase: UIShowStyleBase
-	showStyleVariant: DBShowStyleVariant
-}
-
-function RundownDetachedShelf({
-	playlist,
-	currentRundown,
-	studio,
-	showStyleBase,
-	showStyleVariant,
-}: RundownDetachedShelfProps) {
-	const userPermissions = useContext(UserPermissionsContext)
-
-	return (
-		<RundownTimingProvider playlist={playlist} defaultDuration={Settings.defaultDisplayDuration}>
-			<PreviewPopUpContextProvider>
-				<ErrorBoundary>
-					<Shelf
-						isExpanded={this.state.isInspectorShelfExpanded}
-						onChangeExpanded={this.onShelfChangeExpanded}
-						hotkeys={this.defaultHotkeys(t)}
-						playlist={playlist}
-						showStyleBase={showStyleBase}
-						showStyleVariant={showStyleVariant}
-						onChangeBottomMargin={this.onChangeBottomMargin}
-						rundownLayout={this.state.shelfLayout}
-						studio={studio}
-						fullViewport={true}
-					/>
-				</ErrorBoundary>
-			</PreviewPopUpContextProvider>
-			<ErrorBoundary>
-				{userPermissions.studio && currentRundown && (
-					<RundownSorensenContext
-						studio={studio}
-						playlist={playlist}
-						currentRundown={currentRundown}
-						showStyleBase={showStyleBase}
-					/>
-				)}
-			</ErrorBoundary>
-		</RundownTimingProvider>
-	)
-}

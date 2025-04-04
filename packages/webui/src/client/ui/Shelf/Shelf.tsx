@@ -37,7 +37,6 @@ import { IAdLibListItem } from './AdLibListItem'
 import ShelfContextMenu from './ShelfContextMenu'
 import { doUserAction, UserAction } from '../../lib/clientUserAction'
 import { MeteorCall } from '../../lib/meteorApi'
-import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { ShelfDisplayOptions } from '../../lib/shelf'
 import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
@@ -57,7 +56,6 @@ export interface IShelfProps {
 	isExpanded: boolean
 	buckets: Array<Bucket>
 	playlist: DBRundownPlaylist
-	currentRundown: Rundown
 	studio: UIStudio
 	showStyleBase: UIShowStyleBase
 	showStyleVariant: DBShowStyleVariant
@@ -70,9 +68,8 @@ export interface IShelfProps {
 	fullViewport?: boolean
 	shelfDisplayOptions: ShelfDisplayOptions
 	bucketDisplayFilter: number[] | undefined
-	showInspector: boolean
 
-	onChangeExpanded: (value: boolean) => void
+	onChangeExpanded?: (value: boolean) => void
 	onChangeBottomMargin?: (newBottomMargin: string) => void
 }
 
@@ -306,7 +303,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 
 	private toggleHandle = (e: React.KeyboardEvent<HTMLButtonElement>) => {
 		if (e.key !== 'Enter') return
-		this.props.onChangeExpanded(!this.props.isExpanded)
+		this.props.onChangeExpanded?.(!this.props.isExpanded)
 	}
 
 	private endResize = () => {
@@ -332,7 +329,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 
 		document.body.style.cursor = ''
 
-		this.props.onChangeExpanded(shouldBeExpanded)
+		this.props.onChangeExpanded?.(shouldBeExpanded)
 		this.blurActiveElement()
 
 		localStorage.setItem(`${this.state.localStorageName}.shelfHeight`, this.state.shelfHeight)
@@ -359,7 +356,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 
 	private onShelfStateChange = (e: ShelfStateEvent) => {
 		this.blurActiveElement()
-		this.props.onChangeExpanded(e.state === 'toggle' ? !this.props.isExpanded : e.state)
+		this.props.onChangeExpanded?.(e.state === 'toggle' ? !this.props.isExpanded : e.state)
 	}
 
 	private onSwitchShelfTab = (e: SwitchToShelfTabEvent) => {
@@ -520,7 +517,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 }
 
 export function Shelf(
-	props: Omit<IShelfProps, 'buckets' | 'studioMode' | 'shelfDisplayOptions' | 'bucketDisplayFilter'>
+	props: Omit<IShelfProps, 'buckets' | 'studioMode' | 'shelfDisplayOptions' | 'bucketDisplayFilter' | 'hotkeys'>
 ): JSX.Element {
 	const i18n = useTranslation()
 
@@ -554,6 +551,23 @@ export function Shelf(
 		[]
 	)
 
+	const poisonKey = Settings.poisonKey
+	const hotkeys = [
+		// Register additional hotkeys or legend entries
+		...(poisonKey
+			? [
+					{
+						key: poisonKey,
+						label: i18n.t('Cancel currently pressed hotkey'),
+					},
+			  ]
+			: []),
+		{
+			key: 'F11',
+			label: i18n.t('Change to fullscreen mode'),
+		},
+	]
+
 	return (
 		<ShelfBase
 			{...props}
@@ -561,6 +575,7 @@ export function Shelf(
 			tReady={i18n.ready}
 			buckets={buckets}
 			studioMode={userPermissions.studio}
+			hotkeys={hotkeys}
 			shelfDisplayOptions={shelfDisplayOptions}
 			bucketDisplayFilter={bucketDisplayFilter}
 		/>
