@@ -1,6 +1,6 @@
 import { Meteor } from 'meteor/meteor'
-import React, { useCallback, useContext } from 'react'
-import { parse as queryStringParse } from 'query-string'
+import React, { useCallback, useContext, useMemo } from 'react'
+import { ParsedQuery, parse as queryStringParse } from 'query-string'
 // @ts-expect-error No types available
 import * as VelocityReact from 'velocity-react'
 import { Translated, translateWithTracker, useTracker } from '../lib/ReactMeteorData/react-meteor-data'
@@ -146,20 +146,16 @@ interface IState {
 	isInspectorShelfExpanded: boolean
 	isClipTrimmerOpen: boolean
 	selectedPiece: AdLibPieceUi | PieceUi | undefined
-	shelfLayout: RundownLayoutShelfBase | undefined
-	rundownViewLayout: RundownViewLayout | undefined
-	rundownHeaderLayout: RundownLayoutRundownHeader | undefined
-	miniShelfLayout: RundownLayoutShelfBase | undefined
 	currentRundown: Rundown | undefined
 	/** Tracks whether the user has resized the shelf to prevent using default shelf settings */
 	wasShelfResizedByUser: boolean
 	rundownDefaultSegmentViewMode: SegmentViewMode | undefined
 	segmentViewModes: Record<string, SegmentViewMode>
 	/** MiniShelf data */
-	uiSegmentMap: Map<SegmentId, AdlibSegmentUi>
-	uiSegments: AdlibSegmentUi[]
-	sourceLayerLookup: SourceLayers
-	miniShelfFilter: RundownLayoutFilterBase | undefined
+	// uiSegmentMap: Map<SegmentId, AdlibSegmentUi>
+	// uiSegments: AdlibSegmentUi[]
+	// sourceLayerLookup: SourceLayers
+	// miniShelfFilter: RundownLayoutFilterBase | undefined
 }
 
 export type MinimalRundown = Pick<Rundown, '_id' | 'name' | 'timing' | 'showStyleBaseId' | 'endOfRundownIsShowBreak'>
@@ -172,7 +168,7 @@ type MatchedSegment = {
 
 const EmptyRundownsToShowStylesMap: ReadonlyMap<RundownId, ShowStyleBaseId> = new Map()
 
-interface ITrackedProps {
+interface ITrackedProps extends IDerivedProps {
 	rundownPlaylistId: RundownPlaylistId
 	rundowns: Rundown[]
 	playlist?: DBRundownPlaylist
@@ -182,14 +178,23 @@ interface ITrackedProps {
 	studio?: UIStudio
 	showStyleBase?: UIShowStyleBase
 	showStyleVariant?: DBShowStyleVariant
-	rundownLayouts?: Array<RundownLayoutBase>
-	shelfLayoutId?: RundownLayoutId
-	rundownViewLayoutId?: RundownLayoutId
-	rundownHeaderLayoutId?: RundownLayoutId
-	miniShelfLayoutId?: RundownLayoutId
 	currentPartInstance: PartInstance | undefined
 	nextPartInstance: PartInstance | undefined
+
+	selectedShelfLayout: RundownLayoutShelfBase | undefined
+	selectedViewLayout: RundownViewLayout | undefined
+	selectedHeaderLayout: RundownLayoutRundownHeader | undefined
+	selectedMiniShelfLayout: RundownLayoutShelfBase | undefined
 }
+
+interface IDerivedProps {
+	/** MiniShelf data */
+	uiSegmentMap: Map<SegmentId, AdlibSegmentUi>
+	uiSegments: AdlibSegmentUi[]
+	sourceLayerLookup: SourceLayers
+	miniShelfFilter: RundownLayoutFilterBase | undefined
+}
+
 export function RundownView(props: Readonly<IProps>): JSX.Element {
 	const userPermissions = useContext(UserPermissionsContext)
 
@@ -257,6 +262,8 @@ export function RundownView(props: Readonly<IProps>): JSX.Element {
 		[showStyleBaseId]
 	)
 
+	const selectedRundownLayouts = findRundownLayouts(rundownLayouts, params)
+
 	const matchedSegments = useTracker(
 		() => {
 			if (!playlist) return []
@@ -309,13 +316,9 @@ export function RundownView(props: Readonly<IProps>): JSX.Element {
 			studio={studio}
 			showStyleBase={showStyleBase}
 			showStyleVariant={showStyleVariant}
-			rundownLayouts={rundownLayouts}
-			shelfLayoutId={protectString((params['layout'] as string) || (params['shelfLayout'] as string) || '')} // 'layout' kept for backwards compatibility
-			rundownViewLayoutId={protectString((params['rundownViewLayout'] as string) || '')}
-			rundownHeaderLayoutId={protectString((params['rundownHeaderLayout'] as string) || '')}
-			miniShelfLayoutId={protectString((params['miniShelfLayout'] as string) || '')}
 			currentPartInstance={partInstances?.currentPartInstance}
 			nextPartInstance={partInstances?.nextPartInstance}
+			{...selectedRundownLayouts}
 		/>
 	)
 }
@@ -336,21 +339,11 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 })(
 	class RundownViewContent extends React.Component<Translated<IPropsWithReady & ITrackedProps>, IState> {
 		private _hideNotificationsAfterMount: number | undefined
-		/** MiniShelf data */
-		// private keyboardQueuedPiece: AdLibPieceUi | undefined = undefined
-		// private keyboardQueuedPartInstanceId: PartInstanceId | undefined = undefined
-		// private shouldKeyboardRequeue = false
-		// private isKeyboardQueuePending = false
 
 		constructor(props: Translated<IPropsWithReady & ITrackedProps>) {
 			super(props)
 
-			const shelfLayout = this.props.rundownLayouts?.find((layout) => layout._id === this.props.shelfLayoutId)
-			let isInspectorShelfExpanded = false
-
-			if (shelfLayout && RundownLayoutsAPI.isLayoutForShelf(shelfLayout)) {
-				isInspectorShelfExpanded = shelfLayout.openByDefault
-			}
+			const isInspectorShelfExpanded = this.props.selectedShelfLayout?.openByDefault ?? false
 
 			this.state = {
 				timeScale: MAGIC_TIME_SCALE_FACTOR * Settings.defaultTimeScale,
@@ -363,10 +356,6 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 				isInspectorShelfExpanded,
 				isClipTrimmerOpen: false,
 				selectedPiece: undefined,
-				shelfLayout: undefined,
-				rundownViewLayout: undefined,
-				rundownHeaderLayout: undefined,
-				miniShelfLayout: undefined,
 				currentRundown: undefined,
 				wasShelfResizedByUser: false,
 				segmentViewModes: this.props.playlist?._id
@@ -379,129 +368,29 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 							''
 					  ) as SegmentViewMode) || undefined
 					: undefined,
-				uiSegmentMap: new Map(),
-				uiSegments: [],
-				sourceLayerLookup: {},
-				miniShelfFilter: undefined,
+				// uiSegmentMap: new Map(),
+				// uiSegments: [],
+				// sourceLayerLookup: {},
+				// miniShelfFilter: undefined,
 			}
 		}
 
-		static getDerivedStateFromProps(props: Translated<IProps & ITrackedProps>): Partial<IState> {
-			let selectedShelfLayout: RundownLayoutBase | undefined = undefined
-			let selectedViewLayout: RundownViewLayout | undefined = undefined
-			let selectedHeaderLayout: RundownLayoutBase | undefined = undefined
-			let selectedMiniShelfLayout: RundownLayoutBase | undefined = undefined
-
-			if (props.rundownLayouts) {
-				// first try to use the one selected by the user
-				if (props.shelfLayoutId) {
-					selectedShelfLayout = props.rundownLayouts.find((i) => i._id === props.shelfLayoutId)
-				}
-
-				if (props.rundownViewLayoutId) {
-					selectedViewLayout = props.rundownLayouts.find(
-						(i) => i._id === props.rundownViewLayoutId && RundownLayoutsAPI.isRundownViewLayout(i)
-					) as RundownViewLayout
-				}
-
-				if (props.rundownHeaderLayoutId) {
-					selectedHeaderLayout = props.rundownLayouts.find((i) => i._id === props.rundownHeaderLayoutId)
-				}
-
-				if (props.miniShelfLayoutId) {
-					selectedMiniShelfLayout = props.rundownLayouts.find((i) => i._id === props.miniShelfLayoutId)
-				}
-
-				// if couldn't find based on id, try matching part of the name
-				if (props.shelfLayoutId && !selectedShelfLayout) {
-					selectedShelfLayout = props.rundownLayouts.find(
-						(i) => i.name.indexOf(unprotectString(props.shelfLayoutId!)) >= 0
-					)
-				}
-
-				if (props.rundownViewLayoutId && !selectedViewLayout) {
-					selectedViewLayout = props.rundownLayouts.find(
-						(i) =>
-							i.name.indexOf(unprotectString(props.rundownViewLayoutId!)) >= 0 &&
-							RundownLayoutsAPI.isRundownViewLayout(i)
-					) as RundownViewLayout
-				}
-
-				if (props.rundownHeaderLayoutId && !selectedHeaderLayout) {
-					selectedHeaderLayout = props.rundownLayouts.find(
-						(i) => i.name.indexOf(unprotectString(props.rundownHeaderLayoutId!)) >= 0
-					)
-				}
-
-				if (props.miniShelfLayoutId && !selectedMiniShelfLayout) {
-					selectedMiniShelfLayout = props.rundownLayouts.find(
-						(i) => i.name.indexOf(unprotectString(props.miniShelfLayoutId!)) >= 0
-					)
-				}
-
-				// Try to load defaults from rundown view layouts
-				if (selectedViewLayout && RundownLayoutsAPI.isLayoutForRundownView(selectedViewLayout)) {
-					const rundownLayout = selectedViewLayout
-					if (!selectedShelfLayout && rundownLayout.shelfLayout) {
-						selectedShelfLayout = props.rundownLayouts.find((i) => i._id === rundownLayout.shelfLayout)
-					}
-
-					if (!selectedMiniShelfLayout && rundownLayout.miniShelfLayout) {
-						selectedMiniShelfLayout = props.rundownLayouts.find((i) => i._id === rundownLayout.miniShelfLayout)
-					}
-
-					if (!selectedHeaderLayout && rundownLayout.rundownHeaderLayout) {
-						selectedHeaderLayout = props.rundownLayouts.find((i) => i._id === rundownLayout.rundownHeaderLayout)
-					}
-				}
-
-				// if not, try the first RUNDOWN_LAYOUT available
-				if (!selectedShelfLayout) {
-					selectedShelfLayout = props.rundownLayouts.find((i) => i.type === RundownLayoutType.RUNDOWN_LAYOUT)
-				}
-
-				// if still not found, use the first one - this is a fallback functionality reserved for Shelf layouts
-				// To be removed once Rundown View Layouts/Shelf layouts are refactored
-				if (!selectedShelfLayout) {
-					selectedShelfLayout = props.rundownLayouts.find((i) => RundownLayoutsAPI.isLayoutForShelf(i))
-				}
-
-				if (!selectedViewLayout) {
-					selectedViewLayout = props.rundownLayouts.find(
-						(layout) => RundownLayoutsAPI.isLayoutForRundownView(layout) && RundownLayoutsAPI.isDefaultLayout(layout)
-					) as RundownViewLayout
-				}
-
-				if (!selectedHeaderLayout) {
-					selectedHeaderLayout = props.rundownLayouts.find(
-						(layout) => RundownLayoutsAPI.isLayoutForRundownHeader(layout) && RundownLayoutsAPI.isDefaultLayout(layout)
-					)
-				}
-
-				if (!selectedMiniShelfLayout) {
-					selectedMiniShelfLayout = props.rundownLayouts.find(
-						(layout) => RundownLayoutsAPI.isLayoutForMiniShelf(layout) && RundownLayoutsAPI.isDefaultLayout(layout)
-					)
-				}
-			}
-
-			let currentRundown: Rundown | undefined = undefined
-			if (props.playlist && props.rundowns.length > 0 && (props.currentPartInstance || props.nextPartInstance)) {
-				currentRundown = props.rundowns.find((rundown) => rundown._id === props.currentPartInstance?.rundownId)
-				if (!currentRundown) {
-					currentRundown = props.rundowns.find((rundown) => rundown._id === props.nextPartInstance?.rundownId)
-				}
-			}
+		static getDerivedStateFromProps(props: Translated<IProps & ITrackedProps>): IDerivedProps {
+			// let currentRundown: Rundown | undefined = undefined
+			// if (props.playlist && props.rundowns.length > 0 && (props.currentPartInstance || props.nextPartInstance)) {
+			// 	currentRundown = props.rundowns.find((rundown) => rundown._id === props.currentPartInstance?.rundownId)
+			// 	if (!currentRundown) {
+			// 		currentRundown = props.rundowns.find((rundown) => rundown._id === props.nextPartInstance?.rundownId)
+			// 	}
+			// }
 
 			const filteredUiSegmentMap: Map<SegmentId, AdlibSegmentUi> = new Map()
 			const filteredUiSegments: AdlibSegmentUi[] = []
 			let resultSourceLayerLookup: SourceLayers = {}
 			let miniShelfFilter: RundownLayoutFilterBase | undefined
 			if (props.playlist && props.showStyleBase && props.studio) {
-				const possibleMiniShelfFilter =
-					selectedMiniShelfLayout && RundownLayoutsAPI.isLayoutForMiniShelf(selectedMiniShelfLayout)
-						? selectedMiniShelfLayout.filters[0]
-						: undefined // Only allow 1 filter for now
+				const possibleMiniShelfFilter = props.selectedMiniShelfLayout?.filters?.[0]
+				// Only allow 1 filter for now
 
 				// Check type of filter
 				if (possibleMiniShelfFilter && RundownLayoutsAPI.isFilter(possibleMiniShelfFilter)) {
@@ -544,23 +433,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 			}
 
 			return {
-				shelfLayout:
-					selectedShelfLayout && RundownLayoutsAPI.isLayoutForShelf(selectedShelfLayout)
-						? selectedShelfLayout
-						: undefined,
-				rundownViewLayout:
-					selectedViewLayout && RundownLayoutsAPI.isLayoutForRundownView(selectedViewLayout)
-						? selectedViewLayout
-						: undefined,
-				rundownHeaderLayout:
-					selectedHeaderLayout && RundownLayoutsAPI.isLayoutForRundownHeader(selectedHeaderLayout)
-						? selectedHeaderLayout
-						: undefined,
-				miniShelfLayout:
-					selectedMiniShelfLayout && RundownLayoutsAPI.isLayoutForMiniShelf(selectedMiniShelfLayout)
-						? selectedMiniShelfLayout
-						: undefined,
-				currentRundown,
+				// currentRundown,
 				uiSegmentMap: filteredUiSegmentMap,
 				uiSegments: filteredUiSegments,
 				sourceLayerLookup: resultSourceLayerLookup,
@@ -1148,7 +1021,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 				const rundownIdsBefore = rundowns.slice(0, rundownIndex)
 				return (
 					<React.Fragment key={unprotectString(rundownAndSegments.rundown._id)}>
-						{this.props.matchedSegments.length > 1 && !this.state.rundownViewLayout?.hideRundownDivider && (
+						{this.props.matchedSegments.length > 1 && !this.props.selectedViewLayout?.hideRundownDivider && (
 							<RundownDividerHeader
 								key={`rundown_${rundownAndSegments.rundown._id}`}
 								rundown={rundownAndSegments.rundown}
@@ -1215,7 +1088,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 								)
 							}
 						})}
-						{this.state.rundownViewLayout?.showBreaksAsSegments &&
+						{this.props.selectedViewLayout?.showBreaksAsSegments &&
 							rundownAndSegments.rundown.endOfRundownIsShowBreak && (
 								<BreakSegment breakTime={PlaylistTiming.getExpectedEnd(rundownAndSegments.rundown.timing)} />
 							)}
@@ -1245,8 +1118,8 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 			const displayMode =
 				userSegmentViewMode ?? userRundownSegmentViewMode ?? segment.displayAs ?? DEFAULT_SEGMENT_VIEW_MODE
 
-			const showDurationSourceLayers = this.state.rundownViewLayout?.showDurationSourceLayers
-				? new Set<ISourceLayer['_id']>(this.state.rundownViewLayout?.showDurationSourceLayers)
+			const showDurationSourceLayers = this.props.selectedViewLayout?.showDurationSourceLayers
+				? new Set<ISourceLayer['_id']>(this.props.selectedViewLayout?.showDurationSourceLayers)
 				: undefined
 
 			const resolvedSegmentProps: IResolvedSegmentProps & { id: string } = {
@@ -1254,7 +1127,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 				studio: studio,
 				showStyleBase: showStyleBase,
 				followLiveSegments: this.state.followLiveSegments,
-				rundownViewLayout: this.state.rundownViewLayout,
+				rundownViewLayout: this.props.selectedViewLayout,
 				rundownId: rundownAndSegments.rundown._id,
 				segmentId: segment._id,
 				playlist: rundownPlaylist,
@@ -1273,11 +1146,11 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 				ownCurrentPartInstance: ownCurrentPartInstance,
 				ownNextPartInstance: ownNextPartInstance,
 				isFollowingOnAirSegment: isFollowingOnAirSegment,
-				miniShelfFilter: this.state.miniShelfFilter,
-				countdownToSegmentRequireLayers: this.state.rundownViewLayout?.countdownToSegmentRequireLayers,
-				fixedSegmentDuration: this.state.rundownViewLayout?.fixedSegmentDuration,
+				miniShelfFilter: this.props.miniShelfFilter,
+				countdownToSegmentRequireLayers: this.props.selectedViewLayout?.countdownToSegmentRequireLayers,
+				fixedSegmentDuration: this.props.selectedViewLayout?.fixedSegmentDuration,
 				studioMode: this.props.userPermissions.studio,
-				adLibSegmentUi: this.state.uiSegmentMap.get(segment._id),
+				adLibSegmentUi: this.props.uiSegmentMap.get(segment._id),
 				showDurationSourceLayers: showDurationSourceLayers,
 			}
 
@@ -1549,7 +1422,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 														onActivate={this.onActivate}
 														inActiveRundownView={this.props.inActiveRundownView}
 														currentRundown={currentRundown}
-														layout={this.state.rundownHeaderLayout}
+														layout={this.props.selectedHeaderLayout}
 														showStyleBase={showStyleBase}
 														showStyleVariant={showStyleVariant}
 													/>
@@ -1720,14 +1593,14 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 													<Shelf
 														isExpanded={
 															this.state.isInspectorShelfExpanded ||
-															!!(!this.state.wasShelfResizedByUser && this.state.shelfLayout?.openByDefault)
+															!!(!this.state.wasShelfResizedByUser && this.props.selectedShelfLayout?.openByDefault)
 														}
 														onChangeExpanded={this.onShelfChangeExpanded}
 														playlist={playlist}
 														showStyleBase={showStyleBase}
 														showStyleVariant={showStyleVariant}
 														onChangeBottomMargin={this.onChangeBottomMargin}
-														rundownLayout={this.state.shelfLayout}
+														rundownLayout={this.props.selectedShelfLayout}
 														studio={studio}
 													/>
 												</ErrorBoundary>
@@ -1796,7 +1669,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 						studio={this.props.studio}
 						showStyleBase={this.props.showStyleBase}
 						showStyleVariant={this.props.showStyleVariant}
-						shelfLayout={this.state.shelfLayout}
+						shelfLayout={this.props.selectedShelfLayout}
 					/>
 				)
 			} else {
@@ -1813,3 +1686,135 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 		}
 	}
 )
+
+function findRundownLayouts(rundownLayouts: RundownLayoutBase[] | undefined, params: ParsedQuery) {
+	const rundownViewLayoutId = protectString<RundownLayoutId>((params['rundownViewLayout'] as string) || '')
+	const miniShelfLayoutId = protectString<RundownLayoutId>((params['miniShelfLayout'] as string) || '')
+	const shelfLayoutId = protectString<RundownLayoutId>(
+		(params['layout'] as string) || (params['shelfLayout'] as string) || ''
+	)
+	const rundownHeaderLayoutId = protectString<RundownLayoutId>((params['rundownHeaderLayout'] as string) || '')
+
+	const selectedViewLayout = useMemo(() => {
+		if (!rundownLayouts) return undefined
+
+		const possibleRundownViewLayouts = rundownLayouts.filter((layout) => RundownLayoutsAPI.isRundownViewLayout(layout))
+
+		let selectedViewLayout: RundownViewLayout | undefined = undefined
+
+		if (rundownViewLayoutId) {
+			selectedViewLayout = possibleRundownViewLayouts.find((i) => i._id === rundownViewLayoutId)
+		}
+
+		if (rundownViewLayoutId && !selectedViewLayout) {
+			selectedViewLayout = possibleRundownViewLayouts.find((i) => i.name.includes(unprotectString(rundownViewLayoutId)))
+		}
+
+		if (!selectedViewLayout) {
+			selectedViewLayout = possibleRundownViewLayouts.find((layout) => RundownLayoutsAPI.isDefaultLayout(layout))
+		}
+
+		return selectedViewLayout
+	}, [rundownLayouts, rundownViewLayoutId])
+
+	const selectedMiniShelfLayout = useMemo(() => {
+		if (!rundownLayouts) return undefined
+
+		const possibleMiniShelfLayouts = rundownLayouts.filter((layout) => RundownLayoutsAPI.isLayoutForMiniShelf(layout))
+
+		// first try to use the one selected by the user
+		let selectedMiniShelfLayout = possibleMiniShelfLayouts.find((i) => i._id === miniShelfLayoutId)
+
+		// if couldn't find based on id, try matching part of the name
+		if (miniShelfLayoutId && !selectedMiniShelfLayout) {
+			selectedMiniShelfLayout = possibleMiniShelfLayouts.find((i) =>
+				i.name.includes(unprotectString(miniShelfLayoutId))
+			)
+		}
+
+		// Try to load defaults from rundown view layouts
+		if (selectedViewLayout && RundownLayoutsAPI.isLayoutForRundownView(selectedViewLayout)) {
+			if (!selectedMiniShelfLayout && selectedViewLayout.miniShelfLayout) {
+				selectedMiniShelfLayout = possibleMiniShelfLayouts.find((i) => i._id === selectedViewLayout.miniShelfLayout)
+			}
+		}
+
+		// if still not found, use the first one - this is a fallback functionality reserved for Shelf layouts
+		// To be removed once Rundown View Layouts/Shelf layouts are refactored
+		if (!selectedMiniShelfLayout) {
+			selectedMiniShelfLayout = possibleMiniShelfLayouts.find((layout) => RundownLayoutsAPI.isDefaultLayout(layout))
+		}
+
+		return selectedMiniShelfLayout
+	}, [rundownLayouts, miniShelfLayoutId, selectedViewLayout])
+
+	const selectedShelfLayout = useMemo(() => {
+		if (!rundownLayouts) return undefined
+
+		const possibleShelfLayouts = rundownLayouts.filter((layout) => RundownLayoutsAPI.isLayoutForShelf(layout))
+
+		// first try to use the one selected by the user
+		let selectedShelfLayout = possibleShelfLayouts.find((i) => i._id === shelfLayoutId)
+
+		// if couldn't find based on id, try matching part of the name
+		if (shelfLayoutId && !selectedShelfLayout) {
+			selectedShelfLayout = possibleShelfLayouts.find((i) => i.name.includes(unprotectString(shelfLayoutId)))
+		}
+
+		// Try to load defaults from rundown view layouts
+		if (selectedViewLayout && RundownLayoutsAPI.isLayoutForRundownView(selectedViewLayout)) {
+			if (!selectedShelfLayout && selectedViewLayout.shelfLayout) {
+				selectedShelfLayout = possibleShelfLayouts.find((i) => i._id === selectedViewLayout.shelfLayout)
+			}
+		}
+
+		// if not, try the first RUNDOWN_LAYOUT available
+		if (!selectedShelfLayout) {
+			selectedShelfLayout = possibleShelfLayouts.find((i) => i.type === RundownLayoutType.RUNDOWN_LAYOUT)
+		}
+
+		// if still not found, use the first one - this is a fallback functionality reserved for Shelf layouts
+		// To be removed once Rundown View Layouts/Shelf layouts are refactored
+		if (!selectedShelfLayout) {
+			selectedShelfLayout = possibleShelfLayouts[0]
+		}
+
+		return selectedShelfLayout
+	}, [rundownLayouts, shelfLayoutId, selectedViewLayout])
+
+	const selectedHeaderLayout = useMemo(() => {
+		if (!rundownLayouts) return undefined
+
+		const possibleHeaderLayouts = rundownLayouts.filter((layout) => RundownLayoutsAPI.isLayoutForRundownHeader(layout))
+
+		// first try to use the one selected by the user
+		let selectedHeaderLayout = possibleHeaderLayouts.find((i) => i._id === rundownHeaderLayoutId)
+
+		// if couldn't find based on id, try matching part of the name
+		if (rundownHeaderLayoutId && !selectedHeaderLayout) {
+			selectedHeaderLayout = possibleHeaderLayouts.find((i) => i.name.includes(unprotectString(rundownHeaderLayoutId)))
+		}
+
+		// Try to load defaults from rundown view layouts
+		if (selectedViewLayout && RundownLayoutsAPI.isLayoutForRundownView(selectedViewLayout)) {
+			if (!selectedHeaderLayout && selectedViewLayout.rundownHeaderLayout) {
+				selectedHeaderLayout = possibleHeaderLayouts.find((i) => i._id === selectedViewLayout.rundownHeaderLayout)
+			}
+		}
+
+		// if still not found, use the first one - this is a fallback functionality reserved for Shelf layouts
+		// To be removed once Rundown View Layouts/Shelf layouts are refactored
+		if (!selectedHeaderLayout) {
+			selectedHeaderLayout = possibleHeaderLayouts.find((layout) => RundownLayoutsAPI.isDefaultLayout(layout))
+		}
+
+		return selectedHeaderLayout
+	}, [rundownLayouts, rundownHeaderLayoutId, selectedViewLayout])
+
+	return {
+		selectedViewLayout,
+		selectedHeaderLayout,
+		selectedMiniShelfLayout,
+		selectedShelfLayout,
+	}
+}
