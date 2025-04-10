@@ -57,7 +57,6 @@ export function RundownHeader({
 	studio,
 	rundownIds,
 	firstRundown,
-	onActivate,
 	inActiveRundownView,
 	layout,
 }: IRundownHeaderProps): JSX.Element {
@@ -68,7 +67,7 @@ export function RundownHeader({
 	const [selectedPiece, setSelectedPiece] = useState<BucketAdLibItem | IAdLibListItem | PieceUi | undefined>(undefined)
 	const [shouldQueueAdlibs, setShouldQueueAdlibs] = useState(false)
 
-	const operations = useRundownPlaylistOperations({ studio, playlist, currentRundown, onActivate })
+	const operations = useRundownPlaylistOperations()
 
 	const eventActivate = useCallback(
 		(e: ActivateRundownPlaylistEvent) => {
