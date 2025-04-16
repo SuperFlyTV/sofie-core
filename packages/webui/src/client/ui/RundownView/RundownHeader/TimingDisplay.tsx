@@ -11,7 +11,7 @@ import { PlaylistEndTiming } from '../RundownTiming/PlaylistEndTiming'
 import { PlaylistStartTiming } from '../RundownTiming/PlaylistStartTiming'
 import { RundownName } from '../RundownTiming/RundownName'
 import { TimeOfDay } from '../RundownTiming/TimeOfDay'
-import { withTiming, WithTiming } from '../RundownTiming/withTiming'
+import { useTiming } from '../RundownTiming/withTiming'
 
 interface ITimingDisplayProps {
 	rundownPlaylist: DBRundownPlaylist
@@ -19,14 +19,15 @@ interface ITimingDisplayProps {
 	rundownCount: number
 	layout: RundownLayoutRundownHeader | undefined
 }
-export const TimingDisplay = withTiming<ITimingDisplayProps, {}>()(function TimingDisplay({
+export function TimingDisplay({
 	rundownPlaylist,
 	currentRundown,
 	rundownCount,
 	layout,
-	timingDurations,
-}: WithTiming<ITimingDisplayProps>): JSX.Element | null {
+}: ITimingDisplayProps): JSX.Element | null {
 	const { t } = useTranslation()
+
+	const timingDurations = useTiming()
 
 	if (!rundownPlaylist) return null
 
@@ -91,4 +92,4 @@ export const TimingDisplay = withTiming<ITimingDisplayProps, {}>()(function Timi
 			</div>
 		</div>
 	)
-})
+}
