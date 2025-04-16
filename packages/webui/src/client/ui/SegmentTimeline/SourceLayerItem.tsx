@@ -1,31 +1,31 @@
 import * as React from 'react'
-import { ISourceLayerUi, IOutputLayerUi, PartUi, PieceUi } from './SegmentTimelineContainer'
+import { ISourceLayerUi, IOutputLayerUi, PartUi, PieceUi } from './SegmentTimelineContainer.js'
 import { SourceLayerType, PieceLifespan, IBlueprintPieceType } from '@sofie-automation/blueprints-integration'
-import { RundownUtils } from '../../lib/rundown'
-import { DefaultLayerItemRenderer } from './Renderers/DefaultLayerItemRenderer'
-import { MicSourceRenderer } from './Renderers/MicSourceRenderer'
-import { VTSourceRenderer } from './Renderers/VTSourceRenderer'
-import { L3rdSourceRenderer } from './Renderers/L3rdSourceRenderer'
-import { SplitsSourceRenderer } from './Renderers/SplitsSourceRenderer'
-import { LocalLayerItemRenderer } from './Renderers/LocalLayerItemRenderer'
+import { RundownUtils } from '../../lib/rundown.js'
+import { DefaultLayerItemRenderer } from './Renderers/DefaultLayerItemRenderer.js'
+import { MicSourceRenderer } from './Renderers/MicSourceRenderer.js'
+import { VTSourceRenderer } from './Renderers/VTSourceRenderer.js'
+import { L3rdSourceRenderer } from './Renderers/L3rdSourceRenderer.js'
+import { SplitsSourceRenderer } from './Renderers/SplitsSourceRenderer.js'
+import { LocalLayerItemRenderer } from './Renderers/LocalLayerItemRenderer.js'
 
-import { DEBUG_MODE } from './SegmentTimelineDebugMode'
-import { getElementDocumentOffset, OffsetPosition } from '../../utils/positions'
-import { unprotectString } from '../../lib/tempLib'
+import { DEBUG_MODE } from './SegmentTimelineDebugMode.js'
+import { getElementDocumentOffset, OffsetPosition } from '../../utils/positions.js'
+import { unprotectString } from '../../lib/tempLib.js'
 import { RundownViewEvents, HighlightEvent } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
-import { pieceUiClassNames } from '../../lib/ui/pieceUiClassNames'
-import { TransitionSourceRenderer } from './Renderers/TransitionSourceRenderer'
+import { pieceUiClassNames } from '../../lib/ui/pieceUiClassNames.js'
+import { TransitionSourceRenderer } from './Renderers/TransitionSourceRenderer.js'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { ReadonlyDeep } from 'type-fest'
-import { useSelectedElementsContext } from '../RundownView/SelectedElementsContext'
+import { useSelectedElementsContext } from '../RundownView/SelectedElementsContext.js'
 import { PieceContentStatusObj } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
 import { useCallback, useRef, useState, useEffect, useContext } from 'react'
 import {
 	convertSourceLayerItemToPreview,
 	IPreviewPopUpSession,
 	PreviewPopUpContext,
-} from '../PreviewPopUp/PreviewPopUpContext'
-import { useRundownViewEventBusListener } from '../../lib/lib'
+} from '../PreviewPopUp/PreviewPopUpContext.js'
+import { useRundownViewEventBusListener } from '../../lib/lib.js'
 const LEFT_RIGHT_ANCHOR_SPACER = 15
 const MARGINAL_ANCHORED_WIDTH = 5
 
@@ -144,6 +144,7 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 		},
 		[part, piece]
 	)
+
 	useRundownViewEventBusListener(RundownViewEvents.HIGHLIGHT, onHighlight)
 	useEffect(() => {
 		return () => {
@@ -154,10 +155,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 	const selectElementContext = useSelectedElementsContext()
 	const itemClick = useCallback(
 		(e: React.MouseEvent<HTMLDivElement>) => {
-			// this.props.onFollowLiveLine && this.props.onFollowLiveLine(false, e)
+			// this.props.onFollowLiveLine?.(false, e)
 			e.preventDefault()
 			e.stopPropagation()
-			onClick && onClick(piece, e)
+			onClick?.(piece, e)
 		},
 		[piece]
 	)
@@ -243,8 +244,6 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 						dur: props.piece.renderedDuration,
 					}
 				)
-
-				console.log(previewContents)
 
 				if (previewContents.length) {
 					previewSession.current = previewContext.requestPreview(e.target as any, previewContents, {
@@ -395,10 +394,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 							rightAnchoredWidth > 0
 								? (elementWidth - rightAnchoredWidth).toString() + 'px'
 								: maxLabelWidth !== undefined
-								? convertTimeToPixels(maxLabelWidth).toString() + 'px'
-								: nextIsTouching
-								? '100%'
-								: 'none',
+									? convertTimeToPixels(maxLabelWidth).toString() + 'px'
+									: nextIsTouching
+										? '100%'
+										: 'none',
 						transform:
 							'translate(' +
 							(widthConstrictedMode
@@ -424,10 +423,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 							rightAnchoredWidth > 0
 								? (elementWidth - rightAnchoredWidth).toString() + 'px'
 								: maxLabelWidth !== undefined
-								? convertTimeToPixels(maxLabelWidth).toString() + 'px'
-								: nextIsTouching
-								? '100%'
-								: 'none',
+									? convertTimeToPixels(maxLabelWidth).toString() + 'px'
+									: nextIsTouching
+										? '100%'
+										: 'none',
 						transform:
 							'translate(' +
 							Math.min(targetPos, elementWidth - rightAnchoredWidth - liveLineHistoryWithMargin - 10).toString() +
@@ -444,10 +443,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 							rightAnchoredWidth > 0
 								? (elementWidth - rightAnchoredWidth - 10).toString() + 'px'
 								: maxLabelWidth !== undefined
-								? convertTimeToPixels(maxLabelWidth).toString() + 'px'
-								: nextIsTouching
-								? '100%'
-								: 'none',
+									? convertTimeToPixels(maxLabelWidth).toString() + 'px'
+									: nextIsTouching
+										? '100%'
+										: 'none',
 					}
 				}
 			} else {
@@ -459,10 +458,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 							rightAnchoredWidth > 0
 								? (elementWidth - rightAnchoredWidth - 10).toString() + 'px'
 								: maxLabelWidth !== undefined
-								? convertTimeToPixels(maxLabelWidth).toString() + 'px'
-								: nextIsTouching
-								? '100%'
-								: 'none',
+									? convertTimeToPixels(maxLabelWidth).toString() + 'px'
+									: nextIsTouching
+										? '100%'
+										: 'none',
 						transform:
 							'translate(' +
 							(widthConstrictedMode || leftAnchoredWidth === 0 || rightAnchoredWidth === 0
@@ -477,10 +476,10 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 							rightAnchoredWidth > 0
 								? (elementWidth - rightAnchoredWidth - 10).toString() + 'px'
 								: maxLabelWidth !== undefined
-								? convertTimeToPixels(maxLabelWidth).toString() + 'px'
-								: nextIsTouching
-								? '100%'
-								: 'none',
+									? convertTimeToPixels(maxLabelWidth).toString() + 'px'
+									: nextIsTouching
+										? '100%'
+										: 'none',
 					}
 				}
 			}

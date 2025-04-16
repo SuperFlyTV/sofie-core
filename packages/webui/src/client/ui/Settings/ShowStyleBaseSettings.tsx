@@ -1,22 +1,22 @@
-import { useTracker } from '../../lib/ReactMeteorData/react-meteor-data'
-import { Spinner } from '../../lib/Spinner'
-import RundownLayoutEditor from './RundownLayoutEditor'
+import { useTracker } from '../../lib/ReactMeteorData/react-meteor-data.js'
+import { Spinner } from '../../lib/Spinner.js'
+import RundownLayoutEditor from './RundownLayoutEditor.js'
 import { MappingsExt } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import { BlueprintManifestType } from '@sofie-automation/blueprints-integration'
-import { RundownLayoutsAPI } from '../../lib/rundownLayouts'
-import { TriggeredActionsEditor } from './components/triggeredActions/TriggeredActionsEditor'
-import { SourceLayerSettings } from './ShowStyle/SourceLayer'
-import { OutputLayerSettings } from './ShowStyle/OutputLayer'
-import { HotkeyLegendSettings } from './ShowStyle/HotkeyLegend'
-import { ShowStyleVariantsSettings } from './ShowStyle/VariantSettings'
-import { ShowStyleGenericProperties } from './ShowStyle/Generic'
+import { RundownLayoutsAPI } from '../../lib/rundownLayouts.js'
+import { TriggeredActionsEditor } from './components/triggeredActions/TriggeredActionsEditor.js'
+import { SourceLayerSettings } from './ShowStyle/SourceLayer.js'
+import { OutputLayerSettings } from './ShowStyle/OutputLayer.js'
+import { HotkeyLegendSettings } from './ShowStyle/HotkeyLegend.js'
+import { ShowStyleVariantsSettings } from './ShowStyle/VariantSettings.js'
+import { ShowStyleGenericProperties } from './ShowStyle/Generic.js'
 import { Switch, Route, Redirect } from 'react-router-dom'
-import { ErrorBoundary } from '../../lib/ErrorBoundary'
+import { ErrorBoundary } from '../../lib/ErrorBoundary.js'
 import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import { Blueprints, ShowStyleBases, ShowStyleVariants, Studios } from '../../collections'
+import { Blueprints, ShowStyleBases, ShowStyleVariants, Studios } from '../../collections/index.js'
 import { JSONBlobParse } from '@sofie-automation/shared-lib/dist/lib/JSONBlob'
-import { ShowStyleBaseBlueprintConfigurationSettings } from './ShowStyle/BlueprintConfiguration'
+import { ShowStyleBaseBlueprintConfigurationSettings } from './ShowStyle/BlueprintConfiguration/index.js'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
 
@@ -49,7 +49,7 @@ export default function ShowStyleBaseSettings({ match }: IProps): JSX.Element {
 								_id: 1,
 							},
 						}
-				  ).fetch()
+					).fetch()
 				: [],
 		[showStyleBase?._id],
 		[]
@@ -62,7 +62,7 @@ export default function ShowStyleBaseSettings({ match }: IProps): JSX.Element {
 						supportedShowStyleBase: {
 							$in: [showStyleBase._id],
 						},
-				  }).fetch()
+					}).fetch()
 				: [],
 		[showStyleBase?._id],
 		[]
@@ -74,7 +74,7 @@ export default function ShowStyleBaseSettings({ match }: IProps): JSX.Element {
 				? Blueprints.findOne({
 						_id: showStyleBase.blueprintId,
 						blueprintType: BlueprintManifestType.SHOWSTYLE,
-				  })
+					})
 				: undefined,
 		[showStyleBase?.blueprintId]
 	)

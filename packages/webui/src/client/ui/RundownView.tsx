@@ -3,9 +3,9 @@ import React, { useCallback, useContext, useMemo } from 'react'
 import { ParsedQuery, parse as queryStringParse } from 'query-string'
 // @ts-expect-error No types available
 import * as VelocityReact from 'velocity-react'
-import { Translated, translateWithTracker, useTracker } from '../lib/ReactMeteorData/react-meteor-data'
+import { Translated, translateWithTracker, useTracker } from '../lib/ReactMeteorData/react-meteor-data.js'
 import { VTContent, NoteSeverity, ISourceLayer } from '@sofie-automation/blueprints-integration'
-import { Spinner } from '../lib/Spinner'
+import { Spinner } from '../lib/Spinner.js'
 import ClassNames from 'classnames'
 import * as _ from 'underscore'
 import { Prompt } from 'react-router-dom'
@@ -14,15 +14,14 @@ import { DBRundown, Rundown } from '@sofie-automation/corelib/dist/dataModel/Run
 import { DBSegment, SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { StudioRouteSet } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { RundownTimingProvider } from './RundownView/RundownTiming/RundownTimingProvider'
-import { SegmentTimelineContainer, PieceUi, PartUi, SegmentUi } from './SegmentTimeline/SegmentTimelineContainer'
-import { SegmentContextMenu } from './SegmentTimeline/SegmentContextMenu'
-import { Shelf, ShelfTabs } from './Shelf/Shelf'
+import { SegmentTimelineContainer, PieceUi, PartUi, SegmentUi } from './SegmentTimeline/SegmentTimelineContainer.js'
+import { SegmentContextMenu } from './SegmentTimeline/SegmentContextMenu.js'
+import { Shelf, ShelfTabs } from './Shelf/Shelf.js'
 import { unprotectString, protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
-import { getCurrentTime } from '../lib/systemTime'
-import { RundownUtils } from '../lib/rundown'
-import { ErrorBoundary } from '../lib/ErrorBoundary'
-import { ModalDialog, doModalDialog } from '../lib/ModalDialog'
+import { getCurrentTime } from '../lib/systemTime.js'
+import { RundownUtils } from '../lib/rundown.js'
+import { ErrorBoundary } from '../lib/ErrorBoundary.js'
+import { ModalDialog, doModalDialog } from '../lib/ModalDialog.js'
 import { ClientAPI } from '@sofie-automation/meteor-lib/dist/api/client'
 import {
 	scrollToPosition,
@@ -31,23 +30,23 @@ import {
 	scrollToPartInstance,
 	getHeaderHeight,
 } from '../lib/viewPort'
-import { AfterBroadcastForm } from './AfterBroadcastForm'
-import { RundownRightHandControls } from './RundownView/RundownRightHandControls'
+import { AfterBroadcastForm } from './AfterBroadcastForm.js'
+import { RundownRightHandControls } from './RundownView/RundownRightHandControls.js'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
-import { PeripheralDevicesAPI } from '../lib/clientAPI'
+import { PeripheralDevicesAPI } from '../lib/clientAPI.js'
 import {
 	RONotificationEvent,
 	onRONotificationClick as rundownNotificationHandler,
 	RundownNotifier,
-} from './RundownView/RundownNotifier'
-import { NotificationCenterPanel } from '../lib/notifications/NotificationCenterPanel'
-import { NotificationCenter, NoticeLevel, Notification } from '../lib/notifications/notifications'
+} from './RundownView/RundownNotifier.js'
+import { NotificationCenterPanel } from '../lib/notifications/NotificationCenterPanel.js'
+import { NotificationCenter, NoticeLevel, Notification } from '../lib/notifications/notifications.js'
 import { SupportPopUp } from './SupportPopUp'
-import { KeyboardFocusIndicator } from '../lib/KeyboardFocusIndicator'
+import { KeyboardFocusIndicator } from '../lib/KeyboardFocusIndicator.js'
 import { PeripheralDeviceType } from '@sofie-automation/corelib/dist/dataModel/PeripheralDevice'
-import { doUserAction, UserAction } from '../lib/clientUserAction'
-import { hashSingleUseToken, useRundownViewEventBusListener } from '../lib/lib'
-import { ClipTrimDialog } from './ClipTrimPanel/ClipTrimDialog'
+import { doUserAction, UserAction } from '../lib/clientUserAction.js'
+import { hashSingleUseToken, useRundownViewEventBusListener } from '../lib/lib.js'
+import { ClipTrimDialog } from './ClipTrimPanel/ClipTrimDialog.js'
 import {
 	RundownLayoutType,
 	RundownLayoutBase,
@@ -56,35 +55,34 @@ import {
 	RundownLayoutRundownHeader,
 	RundownLayoutFilterBase,
 } from '@sofie-automation/meteor-lib/dist/collections/RundownLayouts'
-import { VirtualElement } from '../lib/VirtualElement'
-import { SEGMENT_TIMELINE_ELEMENT_ID } from './SegmentTimeline/SegmentTimeline'
-import { OffsetPosition } from '../utils/positions'
-import { MeteorCall } from '../lib/meteorApi'
-import { Settings } from '../lib/Settings'
-import { PointerLockCursor } from '../lib/PointerLockCursor'
-import { documentTitle } from '../lib/DocumentTitleProvider'
+import { VirtualElement } from '../lib/VirtualElement.js'
+import { SEGMENT_TIMELINE_ELEMENT_ID } from './SegmentTimeline/SegmentTimeline.js'
+import { OffsetPosition } from '../utils/positions.js'
+import { MeteorCall } from '../lib/meteorApi.js'
+import { Settings } from '../lib/Settings.js'
+import { PointerLockCursor } from '../lib/PointerLockCursor.js'
+import { documentTitle } from '../lib/DocumentTitleProvider.js'
 import { PartInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
-import { RundownDividerHeader } from './RundownView/RundownDividerHeader'
-import { PlaylistLoopingHeader } from './RundownView/PlaylistLoopingHeader'
+import { RundownDividerHeader } from './RundownView/RundownDividerHeader.js'
+import { PlaylistLoopingHeader } from './RundownView/PlaylistLoopingHeader.js'
 import RundownViewEventBus, {
 	MiniShelfQueueAdLibEvent,
 	RundownViewEvents,
 } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
-import StudioContext from './RundownView/StudioContext'
-import { RundownLayoutsAPI } from '../lib/rundownLayouts'
-import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { BreakSegment } from './SegmentTimeline/BreakSegment'
-import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
-import { SegmentStoryboardContainer } from './SegmentStoryboard/SegmentStoryboardContainer'
-import { SegmentViewMode } from './SegmentContainer/SegmentViewModes'
-import { UIStateStorage } from '../lib/UIStateStorage'
-import { AdLibPieceUi, AdlibSegmentUi } from '../lib/shelf'
-import { fetchAndFilter } from './Shelf/AdLibPanel'
-import { matchFilter } from './Shelf/AdLibListView'
-import { SegmentListContainer } from './SegmentList/SegmentListContainer'
-import { getNextMode as getNextSegmentViewMode } from './SegmentContainer/SwitchViewModeButton'
-import { IResolvedSegmentProps } from './SegmentContainer/withResolvedSegment'
-import { UIParts, UIShowStyleBases, UIStudios } from './Collections'
+import { RundownLayoutsAPI } from '../lib/rundownLayouts.js'
+import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming.js'
+import { BreakSegment } from './SegmentTimeline/BreakSegment.js'
+import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant.js'
+import { SegmentStoryboardContainer } from './SegmentStoryboard/SegmentStoryboardContainer.js'
+import { SegmentViewMode } from './SegmentContainer/SegmentViewModes.js'
+import { UIStateStorage } from '../lib/UIStateStorage.js'
+import { AdLibPieceUi, AdlibSegmentUi } from '../lib/shelf.js'
+import { fetchAndFilter } from './Shelf/AdLibPanel.js'
+import { matchFilter } from './Shelf/AdLibListView.js'
+import { SegmentListContainer } from './SegmentList/SegmentListContainer.js'
+import { getNextMode as getNextSegmentViewMode } from './SegmentContainer/SwitchViewModeButton.js'
+import { IResolvedSegmentProps } from './SegmentContainer/withResolvedSegment.js'
+import { UIParts, UIShowStyleBases, UIStudios } from './Collections.js'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import {
 	RundownId,
@@ -93,27 +91,26 @@ import {
 	SegmentId,
 	ShowStyleBaseId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import { PeripheralDevices, RundownLayouts, RundownPlaylists, Rundowns, ShowStyleVariants } from '../collections'
+import { PeripheralDevices, RundownLayouts, RundownPlaylists, Rundowns, ShowStyleVariants } from '../collections/index.js'
 import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
-import { RundownPlaylistCollectionUtil } from '../collections/rundownPlaylistUtil'
-import { SegmentAdlibTestingContainer } from './SegmentAdlibTesting/SegmentAdlibTestingContainer'
-import { PromiseButton } from '../lib/Components/PromiseButton'
-import { logger } from '../lib/logging'
-import { isEntirePlaylistLooping, PieceExtended } from '../lib/RundownResolver'
-import { RundownPlaylistClientUtil } from '../lib/rundownPlaylistUtil'
-import { UserPermissionsContext, UserPermissions } from './UserPermissions'
-import { MAGIC_TIME_SCALE_FACTOR } from './SegmentTimeline/Constants'
-import { SelectedElementProvider, SelectedElementsContext } from './RundownView/SelectedElementsContext'
-import { PropertiesPanel } from './UserEditOperations/PropertiesPanel'
-import { PreviewPopUpContextProvider } from './PreviewPopUp/PreviewPopUpContext'
-import { RundownHeader } from './RundownView/RundownHeader/RundownHeader'
-import { RundownDataMissing } from './RundownView/DataMissing'
-import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons'
-import { RundownSorensenContext } from './RundownView/RundownSorensenContext'
-import { RundownDetachedShelf } from './RundownView/RundownDetachedShelf'
-import { useRundownViewSubscriptions } from './RundownView/RundownViewSubscriptions'
-import { useQueueMiniShelfAdlib } from './RundownView/useQueueMiniShelfAdlib'
-import { RundownViewContextProviders } from './RundownView/RundownViewContextProviders'
+import { RundownPlaylistCollectionUtil } from '../collections/rundownPlaylistUtil.js'
+import { SegmentAdlibTestingContainer } from './SegmentAdlibTesting/SegmentAdlibTestingContainer.js'
+import { PromiseButton } from '../lib/Components/PromiseButton.js'
+import { logger } from '../lib/logging.js'
+import { isEntirePlaylistLooping, PieceExtended } from '../lib/RundownResolver.js'
+import { RundownPlaylistClientUtil } from '../lib/rundownPlaylistUtil.js'
+import { UserPermissionsContext, UserPermissions } from './UserPermissions.js'
+import { MAGIC_TIME_SCALE_FACTOR } from './SegmentTimeline/Constants.js'
+import { SelectedElementsContext } from './RundownView/SelectedElementsContext.js'
+import { PropertiesPanel } from './UserEditOperations/PropertiesPanel.js'
+import { RundownHeader } from './RundownView/RundownHeader/RundownHeader.js'
+import { RundownDataMissing } from './RundownView/DataMissing.js'
+import { CasparCGRestartButtons } from './RundownView/CasparCGRestartButtons.js'
+import { RundownSorensenContext } from './RundownView/RundownSorensenContext.js'
+import { RundownDetachedShelf } from './RundownView/RundownDetachedShelf.js'
+import { useRundownViewSubscriptions } from './RundownView/RundownViewSubscriptions.js'
+import { useQueueMiniShelfAdlib } from './RundownView/useQueueMiniShelfAdlib.js'
+import { RundownViewContextProviders } from './RundownView/RundownViewContextProviders.js'
 
 const HIDE_NOTIFICATIONS_AFTER_MOUNT: number | undefined = 5000
 
@@ -367,7 +364,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 							`rundownView.${this.props.playlist._id}`,
 							`rundownDefaultSegmentViewMode`,
 							''
-					  ) as SegmentViewMode) || undefined
+						) as SegmentViewMode) || undefined
 					: undefined,
 				// uiSegmentMap: new Map(),
 				// uiSegments: [],
@@ -417,7 +414,7 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 								? {
 										...miniShelfFilter,
 										currentSegment: !(segment.isHidden && segment.showShelf) && miniShelfFilter.currentSegment,
-								  }
+									}
 								: undefined,
 							undefined,
 							uniquenessIds
@@ -1326,9 +1323,9 @@ const RundownViewContent = translateWithTracker<IPropsWithReady & ITrackedProps,
 					async (e, ts) => {
 						const tokenResponse = await MeteorCall.system.generateSingleUseToken()
 
-						if (ClientAPI.isClientResponseError(tokenResponse) || !tokenResponse.result) {
-							throw tokenResponse
-						}
+						if (ClientAPI.isClientResponseError(tokenResponse)) throw tokenResponse.error
+						if (!tokenResponse.result) throw new Meteor.Error(500, 'Failed to generate token')
+
 						return MeteorCall.userAction.storeRundownSnapshot(
 							e,
 							ts,

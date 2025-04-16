@@ -2,11 +2,11 @@
 sidebar_position: 3
 ---
 
-# Prompter
+# Prompter Screen
 
-See [Sofie views](sofie-views.mdx#prompter-view) for how to access the prompter page.
+See [Sofie Views and Screens](sofie-views-and-screens.mdx#prompter-screen) to learn how to access the Prompter Screen.
 
-![Prompter screen before the first Part is taken](/img/docs/main/features/prompter-view.png)
+![Prompter Screen before the first Part is taken](/img/docs/main/features/prompter-view.png)
 
 The prompter will display the script for the Rundown currently active in the Studio. On Air and Next parts and segments are highlighted - in red and green, respectively - to aid in navigation. In top-right corner of the screen, a Diff clock is shown, showing the difference between planned playback and what has been actually produced. This allows the host to know how far behind/ahead they are in regards to planned execution.
 
@@ -16,7 +16,7 @@ If the user scrolls the prompter ahead or behind the On Air part, helpful indica
 
 ## Customize looks
 
-The prompter UI can be configured using query parameters:
+The Prompter Screen can be configured using query parameters:
 
 | Query parameter | Type   | Description                                                                                                                                                         | Default |
 | :-------------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------ |
@@ -43,7 +43,7 @@ The prompter can be controlled by different types of controllers. The control mo
 | `?mode=mouse`           | Controlled by mouse only. [See configuration details](prompter.md#control-using-mouse-scroll-wheel)                                                                                                                                            |
 | `?mode=keyboard`        | Controlled by keyboard only. [See configuration details](prompter.md#control-using-keyboard)                                                                                                                                                   |
 | `?mode=shuttlekeyboard` | Controlled by a Contour Design ShuttleXpress, X-keys Jog and Shuttle or any compatible, configured as keyboard-ish device. [See configuration details](prompter.md#control-using-contour-shuttlexpress-or-x-keys)                              |
-| `?mode=shuttlewebhid`   | Controlled by a Contour Design ShuttleXpress, using the browser's WebHID API [See configuration details](prompter.md#control-using-contour-shuttlexpress-via-webhid)                                                                               |
+| `?mode=shuttlewebhid`   | Controlled by a Contour Design ShuttleXpress, using the browser's WebHID API [See configuration details](prompter.md#control-using-contour-shuttlexpress-via-webhid)                                                                           |
 | `?mode=pedal`           | Controlled by any MIDI device outputting note values between 0 - 127 of CC notes on channel 8. Analogue Expression pedals work well with TRS-USB midi-converters. [See configuration details](prompter.md#control-using-midi-input-mode-pedal) |
 | `?mode=joycon`          | Controlled by Nintendo Switch Joycon, using the HTML5 GamePad API. [See configuration details](prompter.md#control-using-nintendo-joycon-gamepad)                                                                                              |
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { PreviewPopUp, PreviewPopUpHandle } from './PreviewPopUp'
+import { PreviewPopUp, PreviewPopUpHandle } from './PreviewPopUp.js'
 import { Padding, Placement } from '@popperjs/core'
-import { PreviewPopUpContent } from './PreviewPopUpContent'
+import { PreviewPopUpContent } from './PreviewPopUpContent.js'
 import {
 	JSONBlobParse,
 	NoraPayload,
@@ -19,8 +19,9 @@ import { ReadonlyDeep, ReadonlyObjectDeep } from 'type-fest/source/readonly-deep
 import { PieceContentStatusObj } from '@sofie-automation/corelib/dist/dataModel/PieceContentStatus'
 import { ITranslatableMessage } from '@sofie-automation/corelib/dist/TranslatableMessage'
 import _ from 'underscore'
-import { IAdLibListItem } from '../Shelf/AdLibListItem'
+import { IAdLibListItem } from '../Shelf/AdLibListItem.js'
 import { PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
+import { createPrivateApiPath } from '../../url.js'
 
 type VirtualElement = {
 	getBoundingClientRect: () => DOMRect
@@ -46,7 +47,10 @@ export function convertSourceLayerItemToPreview(
 		if (popupPreview.preview) {
 			switch (popupPreview.preview.type) {
 				case PreviewType.BlueprintImage:
-					contents.push({ type: 'image', src: '/api/private/blueprints/assets/' + popupPreview.preview.image })
+					contents.push({
+						type: 'image',
+						src: createPrivateApiPath('/blueprints/assets/' + popupPreview.preview.image),
+					})
 					break
 				case PreviewType.HTML:
 					contents.push({
@@ -76,7 +80,7 @@ export function convertSourceLayerItemToPreview(
 					contents.push({
 						type: 'boxLayout',
 						boxSourceConfiguration: popupPreview.preview.boxes,
-						backgroundArtSrc: '/api/private/blueprints/assets/' + popupPreview.preview.background,
+						backgroundArtSrc: createPrivateApiPath('/blueprints/assets/' + popupPreview.preview.background),
 					})
 					break
 				case PreviewType.Table:
@@ -139,14 +143,20 @@ export function convertSourceLayerItemToPreview(
 					? {
 							type: 'video',
 							src: contentStatus.previewUrl,
-					  }
+						}
 					: contentStatus?.thumbnailUrl
+						? {
+								type: 'image',
+								src: contentStatus.thumbnailUrl,
+							}
+						: undefined,
+				content.lastWords
 					? {
-							type: 'image',
-							src: contentStatus.thumbnailUrl,
-					  }
+							type: 'inOutWords',
+							in: content.firstWords,
+							out: content.lastWords,
+						}
 					: undefined,
-				// todo - add in-out words after rebasing
 				...(contentStatus?.messages?.map<PreviewContent>((m) => ({
 					type: 'warning',
 					content: m as any,
@@ -194,11 +204,11 @@ export function convertSourceLayerItemToPreview(
 										step: payload.step,
 									},
 								},
-						  }
+							}
 						: {
 								type: 'data',
 								content: tableProps,
-						  },
+							},
 					item.content.step && {
 						type: 'stepCount',
 						current: item.content.step.current,
@@ -262,7 +272,10 @@ export function convertSourceLayerItemToPreview(
 	} else if (sourceLayerType === SourceLayerType.TRANSITION) {
 		const content = item.content as TransitionContent
 		if (content.preview)
-			return { contents: [{ type: 'image', src: '/api/private/blueprints/assets/' + content.preview }], options: {} }
+			return {
+				contents: [{ type: 'image', src: createPrivateApiPath('/blueprints/assets/' + content.preview) }],
+				options: {},
+			}
 	}
 
 	return { contents: [], options: {} }

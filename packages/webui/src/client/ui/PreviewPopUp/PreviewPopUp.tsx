@@ -80,7 +80,7 @@ export const PreviewPopUp = React.forwardRef<
 					x,
 					anchor?.getBoundingClientRect().y ?? 0
 				)
-				if (update) update().catch((e) => console.log(e))
+				if (update) update().catch((e) => console.error(e))
 			}
 			document.addEventListener('mousemove', listener)
 
@@ -90,18 +90,14 @@ export const PreviewPopUp = React.forwardRef<
 		}
 	}, [update, anchor])
 
-	useImperativeHandle(
-		ref,
-		() => {
-			return {
-				update: () => {
-					if (!updateRef.current) return
-					updateRef.current().catch(console.error)
-				},
-			}
-		},
-		[]
-	)
+	useImperativeHandle(ref, () => {
+		return {
+			update: () => {
+				if (!updateRef.current) return
+				updateRef.current().catch(console.error)
+			},
+		}
+	}, [])
 
 	return (
 		<div

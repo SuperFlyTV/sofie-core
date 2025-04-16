@@ -6,26 +6,26 @@ import ClassNames from 'classnames'
 import { faBars } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-import { Translated, useTracker } from '../../lib/ReactMeteorData/ReactMeteorData'
-import { PieceUi } from '../SegmentTimeline/SegmentTimelineContainer'
+import { Translated, useTracker } from '../../lib/ReactMeteorData/ReactMeteorData.js'
+import { PieceUi } from '../SegmentTimeline/SegmentTimelineContainer.js'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { getElementDocumentOffset } from '../../utils/positions'
+import { getElementDocumentOffset } from '../../utils/positions.js'
 import {
 	DashboardLayoutExternalFrame,
 	RundownLayoutElementType,
 	RundownLayoutFilter,
 	RundownLayoutShelfBase,
 } from '@sofie-automation/meteor-lib/dist/collections/RundownLayouts'
-import { UIStateStorage } from '../../lib/UIStateStorage'
-import { RundownLayoutsAPI } from '../../lib/rundownLayouts'
-import { contextMenuHoldToDisplayTime } from '../../lib/lib'
-import { ErrorBoundary } from '../../lib/ErrorBoundary'
-import { ShelfRundownLayout } from './ShelfRundownLayout'
-import { ShelfDashboardLayout } from './ShelfDashboardLayout'
+import { UIStateStorage } from '../../lib/UIStateStorage.js'
+import { RundownLayoutsAPI } from '../../lib/rundownLayouts.js'
+import { contextMenuHoldToDisplayTime } from '../../lib/lib.js'
+import { ErrorBoundary } from '../../lib/ErrorBoundary.js'
+import { ShelfRundownLayout } from './ShelfRundownLayout.js'
+import { ShelfDashboardLayout } from './ShelfDashboardLayout.js'
 import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
-import { RundownViewBuckets, BucketAdLibItem } from './RundownViewBuckets'
+import { RundownViewBuckets, BucketAdLibItem } from './RundownViewBuckets.js'
 import { ContextMenuTrigger } from '@jstarpl/react-contextmenu'
-import { ShelfInspector } from './Inspector/ShelfInspector'
+import { ShelfInspector } from './Inspector/ShelfInspector.js'
 import RundownViewEventBus, {
 	IEventContext,
 	RundownViewEvents,
@@ -33,12 +33,12 @@ import RundownViewEventBus, {
 	ShelfStateEvent,
 	SwitchToShelfTabEvent,
 } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
-import { IAdLibListItem } from './AdLibListItem'
-import ShelfContextMenu from './ShelfContextMenu'
-import { doUserAction, UserAction } from '../../lib/clientUserAction'
-import { MeteorCall } from '../../lib/meteorApi'
+import { IAdLibListItem } from './AdLibListItem.js'
+import ShelfContextMenu from './ShelfContextMenu.js'
+import { doUserAction, UserAction } from '../../lib/clientUserAction.js'
+import { MeteorCall } from '../../lib/meteorApi.js'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
-import { ShelfDisplayOptions } from '../../lib/shelf'
+import { ShelfDisplayOptions } from '../../lib/shelf.js'
 import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
 import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 
@@ -77,7 +77,7 @@ interface IState {
 	shelfHeight: string
 	overrideHeight: number | undefined
 	moving: boolean
-	selectedTab: string | undefined
+	selectedTab: string | ShelfTabs | undefined
 	shouldQueue: boolean
 	selectedPiece: BucketAdLibItem | IAdLibListItem | PieceUi | undefined
 	localStorageName: string
@@ -119,6 +119,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 			overrideHeight: undefined,
 			selectedTab: UIStateStorage.getItem(`rundownView.${props.playlist._id}`, 'shelfTab', undefined) as
 				| string
+				| ShelfTabs
 				| undefined,
 			shouldQueue: false,
 			selectedPiece: undefined,
@@ -207,8 +208,8 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 		return this.state.overrideHeight
 			? (this.state.overrideHeight / window.innerHeight) * 100 + 'vh'
 			: (newState !== undefined ? newState : this.props.isExpanded)
-			? this.state.shelfHeight
-			: undefined
+				? this.state.shelfHeight
+				: undefined
 	}
 
 	private getStyle() {
@@ -222,7 +223,7 @@ export class ShelfBase extends React.Component<Translated<IShelfProps>, IState> 
 		try {
 			// @ts-expect-error blur isnt always valid
 			document.activeElement.blur()
-		} catch (e) {
+		} catch (_e) {
 			// do nothing
 		}
 	}
@@ -560,7 +561,7 @@ export function Shelf(
 						key: poisonKey,
 						label: i18n.t('Cancel currently pressed hotkey'),
 					},
-			  ]
+				]
 			: []),
 		{
 			key: 'F11',

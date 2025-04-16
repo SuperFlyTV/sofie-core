@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react'
 import Moment from 'react-moment'
 import { useTranslation } from 'react-i18next'
-import { useTiming } from '../RundownView/RundownTiming/withTiming'
-import { useTracker } from '../../lib/ReactMeteorData/ReactMeteorData'
-import { PieceIconContainer } from '../PieceIcons/PieceIcon'
-import { PieceNameContainer } from '../PieceIcons/PieceName'
-import { Timediff } from './Timediff'
-import { getPresenterScreenReactive, usePresenterScreenSubscriptions } from './PresenterScreen'
+import { useTiming } from '../RundownView/RundownTiming/withTiming.js'
+import { useTracker } from '../../lib/ReactMeteorData/ReactMeteorData.js'
+import { PieceIconContainer } from '../PieceIcons/PieceIcon.js'
+import { PieceNameContainer } from '../PieceIcons/PieceName.js'
+import { Timediff } from './Timediff.js'
+import { getPresenterScreenReactive, usePresenterScreenSubscriptions } from './PresenterScreen.js'
 import { RundownPlaylistId, StudioId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
 interface TimeMap {
