@@ -4,6 +4,16 @@
 As of version 1.50, there still exists a legacy API for device integrations. In this documentation we will only consider the more modern variant informally known as the _StateHandler_ format.
 :::
 
+## Defining your class
+
+There is a base `Device` class that all device integrations are expected to implement. This defines the types of the various methods that your integration needs to implement to support all the TSR functionality.
+
+The class is generic so that the api can specialise types based on your device. There are a few generic arguments:
+
+- `DeviceTypes` - This is expected to be set to the `XDeviceTypes` type produced by the tsr-types generation. This is a collection of types that the device needs.
+- `DeviceState` - This should be a type you should define and use as an intermediate representation of the device state.
+- `Comamnd` - This should be a type you define, which extends the `CommandWithContext` interface and is used as the representation of a scheduled command that is to be sent.
+
 ## Setup and status
 
 There are essentially 2 parts to the TSR API, the first thing you need to do is set up a connection with the device you are integrating with. This is done in the `init` method. It takes a parameter with the Device options as specified in the config schema. Additionally a `terminate` call is to be implemented to tear down the connection and prepare any timers to be garbage collected.
