@@ -1,6 +1,6 @@
 import { UserError, UserErrorMessage } from '@sofie-automation/corelib/dist/error'
-import { logger } from '../../../logging'
-import { APIFactory, APIRegisterHook, ServerAPIContext } from './types'
+import { logger } from '../../../../logging'
+import { APIFactory, APIRegisterHook, ServerAPIContext } from '../types'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import {
 	AdLibActionId,
@@ -13,8 +13,8 @@ import {
 	RundownPlaylistId,
 	SegmentId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import { Match, check } from '../../../lib/check'
-import { PlaylistsRestAPI } from '../../../lib/rest/v1'
+import { Match, check } from '../../../../lib/check'
+import { PlaylistsRestAPI } from '../../../../lib/rest/v1'
 import { Meteor } from 'meteor/meteor'
 import { ClientAPI } from '@sofie-automation/meteor-lib/dist/api/client'
 import {
@@ -26,20 +26,22 @@ import {
 	RundownBaselineAdLibActions,
 	RundownBaselineAdLibPieces,
 	RundownPlaylists,
-} from '../../../collections'
+} from '../../../../collections'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { ServerClientAPI } from '../../client'
+import { ServerClientAPI } from '../../../client'
 import { QueueNextSegmentResult, StudioJobs } from '@sofie-automation/corelib/dist/worker/studio'
-import { getCurrentTime } from '../../../lib/lib'
+import { getCurrentTime } from '../../../../lib/lib'
 import { TriggerReloadDataResponse } from '@sofie-automation/meteor-lib/dist/api/userActions'
-import { ServerRundownAPI } from '../../rundown'
-import { triggerWriteAccess } from '../../../security/securityVerify'
-import {
-	ActivePlaylistEvent,
-	ActivePlaylistTiming,
-	ActivePlaylistTimingMode,
-} from '@sofie-automation/live-status-gateway-api'
-import { PlaylistTimingType, RundownPlaylistTiming } from '@sofie-automation/blueprints-integration'
+import { ServerRundownAPI } from '../../../rundown'
+import { triggerWriteAccess } from '../../../../security/securityVerify'
+import { ActivePlaylistEvent, PieceStatus } from '@sofie-automation/live-status-gateway-api'
+import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
+import rundownPlaylistTimingToActivePlaylistTiming from './helper/rundownPlaylistTimingToActivePlaylistTiming'
+import findActiveRundownPlaylist from './helper/findActiveRundownPlaylist'
+import findPartPieces from './helper/findPartPieces'
+import findRundownsFromRundownPlaylist from './helper/findRundownsFromRundownPlaylist'
+import findNextPart from './helper/findPart'
+import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 
 class PlaylistsServerAPI implements PlaylistsRestAPI {
 	constructor(private context: ServerAPIContext) {}
@@ -64,69 +66,62 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 		_connection: Meteor.Connection,
 		_event: string
 	): Promise<ClientAPI.ClientResponse<Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>>> {
-		const rundownPlaylist = (
-			await RundownPlaylists.findFetchAsync(
-				{ activationId: { $exists: true, $ne: undefined } },
-				{
-					projection: {
-						_id: 1,
-						name: 1,
-						rundownIdsInOrder: 1,
-						currentPartInfo: 1,
-						// segmentsStartedPlayback: 1, somehow get current segment,
-						nextPartInfo: 1,
-						publicData: 1,
-						timing: 1,
-						quickLoop: 1,
-					},
-					limit: 1,
-				}
+		const rundownPlaylist = await findActiveRundownPlaylist()
+
+		if (!rundownPlaylist) {
+			return ClientAPI.responseError(
+				UserError.from(
+					new Error(`There is no ActiveRundownPlaylist!`),
+					UserErrorMessage.RundownPlaylistNotFound
+				),
+				404
 			)
-		)?.[0] as Pick<
-			DBRundownPlaylist,
-			| '_id'
-			| 'name'
-			| 'rundownIdsInOrder'
-			| 'currentPartInfo'
-			| 'nextPartInfo'
-			| 'publicData'
-			| 'timing'
-			| 'quickLoop'
-		>
+		}
+
+		const rundowns: Rundown[] | null = rundownPlaylist
+			? await findRundownsFromRundownPlaylist(rundownPlaylist)
+			: null
+
+		const currentPart: DBPartInstance | null = rundownPlaylist.currentPartInfo
+			? await findNextPart(rundownPlaylist.currentPartInfo.partInstanceId)
+			: null
+
+		const nextPart: DBPartInstance | null = rundownPlaylist.nextPartInfo
+			? await findNextPart(rundownPlaylist.nextPartInfo.partInstanceId)
+			: null
+
+		const currentPartPieces: PieceStatus[] | null =
+			rundowns && currentPart ? await findPartPieces(rundowns, currentPart) : null
+
+		const nextPartPieces: PieceStatus[] | null =
+			rundowns && nextPart ? await findPartPieces(rundowns, nextPart) : null
+
 		return ClientAPI.responseSuccess({
 			id: unprotectString(rundownPlaylist._id),
 			name: rundownPlaylist.name,
 			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
-			currentPart: rundownPlaylist.currentPartInfo,
-			nextPart: rundownPlaylist.nextPartInfo,
+			nextPart: nextPart
+				? {
+						id: nextPart.part._id,
+						name: nextPart.part.title,
+						segmentId: nextPart.part.segmentId,
+						autoNext: nextPart.part.autoNext,
+						pieces: nextPartPieces,
+					}
+				: null,
+			currentPart: currentPart
+				? {
+						id: currentPart.part._id,
+						name: currentPart.part.title,
+						segmentId: currentPart.part.segmentId,
+						autoNext: currentPart.part.autoNext,
+						pieces: currentPartPieces,
+					}
+				: null,
 			publicData: rundownPlaylist.publicData,
-			timing: this.convertTiming(rundownPlaylist.timing),
+			timing: rundownPlaylistTimingToActivePlaylistTiming(rundownPlaylist.timing),
 			quickLoop: rundownPlaylist.quickLoop,
 		} as Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>)
-	}
-
-	convertTiming(timing: RundownPlaylistTiming): ActivePlaylistTiming {
-		switch (timing.type) {
-			case PlaylistTimingType.None:
-				return {
-					timingMode: ActivePlaylistTimingMode.NONE,
-					expectedDurationMs: timing.expectedDuration,
-				}
-			case PlaylistTimingType.ForwardTime:
-				return {
-					timingMode: ActivePlaylistTimingMode.FORWARD_MINUS_TIME,
-					expectedStart: Number(timing.expectedStart),
-					expectedDurationMs: timing.expectedDuration,
-					expectedEnd: timing.expectedEnd ? Number(timing.expectedEnd) : undefined,
-				}
-			case PlaylistTimingType.BackTime:
-				return {
-					timingMode: ActivePlaylistTimingMode.BACK_MINUS_TIME,
-					expectedStart: timing.expectedStart ? Number(timing.expectedStart) : undefined,
-					expectedDurationMs: timing.expectedDuration,
-					expectedEnd: Number(timing.expectedEnd),
-				}
-		}
 	}
 
 	async activate(
