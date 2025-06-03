@@ -1221,6 +1221,15 @@ __metadata:
   languageName: node
   linkType: soft
 
+"@sofie-automation/live-status-gateway-api@npm:1.53.0-nightly-release53-20250508-073553-5c20bea.0":
+  version: 1.53.0-nightly-release53-20250508-073553-5c20bea.0
+  resolution: "@sofie-automation/live-status-gateway-api@npm:1.53.0-nightly-release53-20250508-073553-5c20bea.0"
+  dependencies:
+    tslib: "npm:^2.6.2"
+  checksum: 10/b34644c0626acf6a96247dc82ec9d55ef9b596d7862fc9a7af719a8562833063bd3c209b7ff3c2f3b1e1e3a6ec4b2b5ebff12244ce4c857b132b35dc0b7c4838
+  languageName: node
+  linkType: hard
+
 "@sofie-automation/meteor-lib@portal:../packages/meteor-lib::locator=automation-core%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "@sofie-automation/meteor-lib@portal:../packages/meteor-lib::locator=automation-core%40workspace%3A."
@@ -2263,6 +2272,7 @@ __metadata:
     "@sofie-automation/code-standard-preset": "npm:^3.0.0"
     "@sofie-automation/corelib": "portal:../packages/corelib"
     "@sofie-automation/job-worker": "portal:../packages/job-worker"
+    "@sofie-automation/live-status-gateway-api": "npm:1.53.0-nightly-release53-20250508-073553-5c20bea.0"
     "@sofie-automation/meteor-lib": "portal:../packages/meteor-lib"
     "@sofie-automation/shared-lib": "portal:../packages/shared-lib"
     "@types/app-root-path": "npm:^1.2.8"

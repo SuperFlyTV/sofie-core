@@ -41,6 +41,8 @@ paths:
   # playlist operations
   /playlists:
     $ref: 'definitions/playlists.yaml#/resources/playlists'
+  /playlists/active:
+    $ref: 'definitions/playlists.yaml#/resources/playlist'
   /playlists/{playlistId}/activate:
     $ref: 'definitions/playlists.yaml#/resources/activate'
   /playlists/{playlistId}/deactivate:

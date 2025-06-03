@@ -12,6 +12,7 @@ import {
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { QueueNextSegmentResult } from '@sofie-automation/corelib/dist/worker/studio'
 import { Meteor } from 'meteor/meteor'
+import { ActivePlaylistEvent } from '@sofie-automation/live-status-gateway-api'
 
 /* *************************************************************************
 This file contains types and interfaces that are used by the REST API.
@@ -29,6 +30,15 @@ export interface PlaylistsRestAPI {
 		connection: Meteor.Connection,
 		event: string
 	): Promise<ClientAPI.ClientResponse<Array<{ id: string }>>>
+	/**
+	 * Gets a specific RundownPlaylist.
+	 * @param connection Connection data including client and header details
+	 * @param event User event string
+	 */
+	getActiveRundownPlaylist(
+		connection: Meteor.Connection,
+		event: string
+	): Promise<ClientAPI.ClientResponse<Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>>>
 	/**
 	 * Activates a Playlist.
 	 *

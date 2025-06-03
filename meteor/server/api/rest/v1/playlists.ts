@@ -34,6 +34,12 @@ import { getCurrentTime } from '../../../lib/lib'
 import { TriggerReloadDataResponse } from '@sofie-automation/meteor-lib/dist/api/userActions'
 import { ServerRundownAPI } from '../../rundown'
 import { triggerWriteAccess } from '../../../security/securityVerify'
+import {
+	ActivePlaylistEvent,
+	ActivePlaylistTiming,
+	ActivePlaylistTimingMode,
+} from '@sofie-automation/live-status-gateway-api'
+import { PlaylistTimingType, RundownPlaylistTiming } from '@sofie-automation/blueprints-integration'
 
 class PlaylistsServerAPI implements PlaylistsRestAPI {
 	constructor(private context: ServerAPIContext) {}
@@ -52,6 +58,75 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 				externalId: rundownPlaylist.externalId,
 			}))
 		)
+	}
+
+	async getActiveRundownPlaylist(
+		_connection: Meteor.Connection,
+		_event: string
+	): Promise<ClientAPI.ClientResponse<Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>>> {
+		const rundownPlaylist = (
+			await RundownPlaylists.findFetchAsync(
+				{ activationId: { $exists: true, $ne: undefined } },
+				{
+					projection: {
+						_id: 1,
+						name: 1,
+						rundownIdsInOrder: 1,
+						currentPartInfo: 1,
+						// segmentsStartedPlayback: 1, somehow get current segment,
+						nextPartInfo: 1,
+						publicData: 1,
+						timing: 1,
+						quickLoop: 1,
+					},
+					limit: 1,
+				}
+			)
+		)?.[0] as Pick<
+			DBRundownPlaylist,
+			| '_id'
+			| 'name'
+			| 'rundownIdsInOrder'
+			| 'currentPartInfo'
+			| 'nextPartInfo'
+			| 'publicData'
+			| 'timing'
+			| 'quickLoop'
+		>
+		return ClientAPI.responseSuccess({
+			id: unprotectString(rundownPlaylist._id),
+			name: rundownPlaylist.name,
+			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
+			currentPart: rundownPlaylist.currentPartInfo,
+			nextPart: rundownPlaylist.nextPartInfo,
+			publicData: rundownPlaylist.publicData,
+			timing: this.convertTiming(rundownPlaylist.timing),
+			quickLoop: rundownPlaylist.quickLoop,
+		} as Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>)
+	}
+
+	convertTiming(timing: RundownPlaylistTiming): ActivePlaylistTiming {
+		switch (timing.type) {
+			case PlaylistTimingType.None:
+				return {
+					timingMode: ActivePlaylistTimingMode.NONE,
+					expectedDurationMs: timing.expectedDuration,
+				}
+			case PlaylistTimingType.ForwardTime:
+				return {
+					timingMode: ActivePlaylistTimingMode.FORWARD_MINUS_TIME,
+					expectedStart: Number(timing.expectedStart),
+					expectedDurationMs: timing.expectedDuration,
+					expectedEnd: timing.expectedEnd ? Number(timing.expectedEnd) : undefined,
+				}
+			case PlaylistTimingType.BackTime:
+				return {
+					timingMode: ActivePlaylistTimingMode.BACK_MINUS_TIME,
+					expectedStart: timing.expectedStart ? Number(timing.expectedStart) : undefined,
+					expectedDurationMs: timing.expectedDuration,
+					expectedEnd: Number(timing.expectedEnd),
+				}
+		}
 	}
 
 	async activate(
@@ -563,6 +638,17 @@ export function registerRoutes(registerRoute: APIRegisterHook<PlaylistsRestAPI>)
 		async (serverAPI, connection, event, _params, _body) => {
 			logger.info(`API GET: playlists`)
 			return await serverAPI.getAllRundownPlaylists(connection, event)
+		}
+	)
+
+	registerRoute<never, never, Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>>(
+		'get',
+		'/playlists/active', // should we use '/playlist'?
+		new Map(),
+		playlistsAPIFactory,
+		async (serverAPI, connection, event, _params, _body) => {
+			logger.info(`API GET: Active playlist`)
+			return await serverAPI.getActiveRundownPlaylist(connection, event)
 		}
 	)
 

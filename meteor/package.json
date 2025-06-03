@@ -45,6 +45,7 @@
 		"@sofie-automation/blueprints-integration": "portal:../packages/blueprints-integration",
 		"@sofie-automation/corelib": "portal:../packages/corelib",
 		"@sofie-automation/job-worker": "portal:../packages/job-worker",
+		"@sofie-automation/live-status-gateway-api": "1.53.0-nightly-release53-20250508-073553-5c20bea.0",
 		"@sofie-automation/meteor-lib": "portal:../packages/meteor-lib",
 		"@sofie-automation/shared-lib": "portal:../packages/shared-lib",
 		"app-root-path": "^3.1.0",
