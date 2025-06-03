@@ -72,9 +72,10 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 			return ClientAPI.responseError(
 				UserError.from(
 					new Error(`There is no ActiveRundownPlaylist!`),
-					UserErrorMessage.RundownPlaylistNotFound
-				),
-				404
+					UserErrorMessage.RundownPlaylistNotFound,
+					undefined,
+					404
+				)
 			)
 		}
 
@@ -97,18 +98,6 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 			rundowns && nextPart ? await findPartPieces(rundowns, nextPart) : null
 
 		return ClientAPI.responseSuccess({
-			id: unprotectString(rundownPlaylist._id),
-			name: rundownPlaylist.name,
-			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
-			nextPart: nextPart
-				? {
-						id: nextPart.part._id,
-						name: nextPart.part.title,
-						segmentId: nextPart.part.segmentId,
-						autoNext: nextPart.part.autoNext,
-						pieces: nextPartPieces,
-					}
-				: null,
 			currentPart: currentPart
 				? {
 						id: currentPart.part._id,
@@ -118,9 +107,31 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 						pieces: currentPartPieces,
 					}
 				: null,
-			publicData: rundownPlaylist.publicData,
+			id: unprotectString(rundownPlaylist._id),
+			name: rundownPlaylist.name,
+			nextPart: nextPart
+				? {
+						id: nextPart.part._id,
+						name: nextPart.part.title,
+						segmentId: nextPart.part.segmentId,
+						autoNext: nextPart.part.autoNext,
+						pieces: nextPartPieces,
+					}
+				: null,
+			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
 			timing: rundownPlaylistTimingToActivePlaylistTiming(rundownPlaylist.timing),
-			quickLoop: rundownPlaylist.quickLoop,
+			publicData: rundownPlaylist.publicData,
+			quickLoop: rundownPlaylist.quickLoop
+				? {
+						locked: rundownPlaylist.quickLoop.locked,
+						running: rundownPlaylist.quickLoop.running,
+						start: rundownPlaylist.quickLoop.start,
+						end: rundownPlaylist.quickLoop.end,
+						additionalProperties: rundownPlaylist.quickLoop.forceAutoNext
+							? { forceAutoNext: rundownPlaylist.quickLoop.forceAutoNext }
+							: undefined,
+					}
+				: undefined,
 		} as Omit<ActivePlaylistEvent, 'event' | 'currentSegment'>)
 	}
 
