@@ -8,7 +8,10 @@ import { PieceInstances, ShowStyleBases } from '../../../../../collections'
 import findSourceLayers from './findSourceLayers'
 import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 
-export default async function findPartPieces(rundowns: Rundown[], part: DBPartInstance): Promise<PieceStatus[]> {
+export default async function findPartPieces(
+	rundowns: Rundown[],
+	part: Pick<DBPartInstance, '_id' | 'part'>
+): Promise<PieceStatus[]> {
 	const showStyles: DBShowStyleBase[] | null = rundowns
 		? await ShowStyleBases.findFetchAsync({
 				_id: { $in: Array.from(new Set(rundowns.map((r) => r.showStyleBaseId))) },

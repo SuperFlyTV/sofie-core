@@ -40,8 +40,12 @@ import rundownPlaylistTimingToActivePlaylistTiming from './helper/rundownPlaylis
 import findActiveRundownPlaylist from './helper/findActiveRundownPlaylist'
 import findPartPieces from './helper/findPartPieces'
 import findRundownsFromRundownPlaylist from './helper/findRundownsFromRundownPlaylist'
-import findNextPart from './helper/findPart'
+import findPartById, { findPartInstancesBySegmentPlayoutId, findPartsBySegmentId } from './helper/findPart'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
+import { dbPartInstanceToCurrentSegmentPart, dbPartInstanceToPartStatus } from './helper/dbPartInstanceToLiveStatusPart'
+import findSegmentById, { FoundPlaylistStatusDBSegment } from './helper/findSegment'
+import _ from 'underscore'
+import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 
 class PlaylistsServerAPI implements PlaylistsRestAPI {
 	constructor(private context: ServerAPIContext) {}
@@ -83,41 +87,57 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 			? await findRundownsFromRundownPlaylist(rundownPlaylist)
 			: null
 
-		const currentPart: DBPartInstance | null = rundownPlaylist.currentPartInfo
-			? await findNextPart(rundownPlaylist.currentPartInfo.partInstanceId)
+		const currentPart: Pick<DBPartInstance, '_id' | 'part' | 'segmentPlayoutId'> | null =
+			rundownPlaylist.currentPartInfo ? await findPartById(rundownPlaylist.currentPartInfo.partInstanceId) : null
+
+		const currentSegment: FoundPlaylistStatusDBSegment | null = currentPart
+			? await findSegmentById(currentPart.part.segmentId)
 			: null
 
-		const nextPart: DBPartInstance | null = rundownPlaylist.nextPartInfo
-			? await findNextPart(rundownPlaylist.nextPartInfo.partInstanceId)
+		const currentSegmentPartInstances: Pick<DBPartInstance, '_id' | 'part'>[] = currentPart
+			? await findPartInstancesBySegmentPlayoutId(currentPart.segmentPlayoutId)
+			: []
+
+		const currentSegmentPartInstanceIds: PartId[] = currentSegmentPartInstances.map((part) => part.part._id)
+
+		const currentSegmentOrphanParts: DBPart[] = currentSegment
+			? (await findPartsBySegmentId(currentSegment._id)).filter((part) =>
+					!currentSegmentPartInstanceIds.includes(part._id) ? part : undefined
+				)
+			: []
+
+		const nextPart: Pick<DBPartInstance, '_id' | 'part'> | null = rundownPlaylist.nextPartInfo
+			? await findPartById(rundownPlaylist.nextPartInfo.partInstanceId)
 			: null
 
-		const currentPartPieces: PieceStatus[] | null =
-			rundowns && currentPart ? await findPartPieces(rundowns, currentPart) : null
+		const currentPartPieces: PieceStatus[] =
+			rundowns && currentPart ? await findPartPieces(rundowns, currentPart) : []
 
-		const nextPartPieces: PieceStatus[] | null =
-			rundowns && nextPart ? await findPartPieces(rundowns, nextPart) : null
+		const nextPartPieces: PieceStatus[] = rundowns && nextPart ? await findPartPieces(rundowns, nextPart) : []
 
 		return ClientAPI.responseSuccess({
-			currentPart: currentPart
+			currentPart: currentPart ? dbPartInstanceToPartStatus(currentPart, currentPartPieces) : null,
+			currentSegment: currentSegment
 				? {
-						id: currentPart.part._id,
-						name: currentPart.part.title,
-						segmentId: currentPart.part.segmentId,
-						autoNext: currentPart.part.autoNext,
-						pieces: currentPartPieces,
+						id: currentSegment._id,
+						parts: [
+							...currentSegmentPartInstances,
+							...Object.entries<DBPart>(
+								// Filter to only one instance. We do not care about which exact instance we have here.
+								_.indexBy(currentSegmentOrphanParts, (part) => unprotectString(part._id))
+							)
+								// Sort our parts to be in the same order as they will be played out in.
+								.sort(([_idA, a], [_idB, b]) => a._rank - b._rank)
+								.map(([_id, part]): Pick<DBPartInstance, '_id' | 'part'> => {
+									const partId = unprotectString(part._id)
+									return { _id: protectString(partId), part }
+								}),
+						].map((part) => dbPartInstanceToCurrentSegmentPart(part)),
 					}
 				: null,
 			id: unprotectString(rundownPlaylist._id),
 			name: rundownPlaylist.name,
-			nextPart: nextPart
-				? {
-						id: nextPart.part._id,
-						name: nextPart.part.title,
-						segmentId: nextPart.part.segmentId,
-						autoNext: nextPart.part.autoNext,
-						pieces: nextPartPieces,
-					}
-				: null,
+			nextPart: nextPart ? dbPartInstanceToPartStatus(nextPart, nextPartPieces) : null,
 			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
 			timing: rundownPlaylistTimingToActivePlaylistTiming(rundownPlaylist.timing),
 			publicData: rundownPlaylist.publicData,
