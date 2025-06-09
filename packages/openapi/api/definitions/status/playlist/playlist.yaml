@@ -1,0 +1,167 @@
+resources:
+  activePlaylist:
+    get:
+      operationId: activePlaylist
+      tags:
+        - playlists
+      summary: Returns an LSG object of a playlist
+      description: Returns an LSG object of a playlist
+      responses:
+        200:
+          description: Command successfully handled - Returns an LSG object of a playlist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  result:
+                    $ref: '#/components/schemas/activePlaylist'
+        404:
+          $ref: '../../playlists.yaml#/components/responses/playlistNotFound'
+        500:
+          $ref: '../../playlists.yaml#/components/responses/internalServerError'
+
+components:
+  schemas:
+    activePlaylist:
+      type: object
+      title: ActivePlaylistEvent
+      properties:
+        id:
+          description: Unique id of the active playlist
+          type: string
+          nullable: true
+        name:
+          description: User-presentable name for the active playlist
+          type: string
+        rundownIds:
+          description: The set of rundownIds in the active playlist, in order
+          type: array
+          items:
+            type: string
+        currentPart:
+          description: The current Part - if empty, no part in the active playlist is live
+          # $ref: '#/components/schemas/currentPart' - timing currently not supported
+          $ref: 'part.yaml#/components/schemas/part'
+        currentSegment:
+          description: The Segment of the current Part - if empty, no part in the active playlist is live
+          $ref: 'currentSegment.yaml#/components/schemas/currentSegment'
+        nextPart:
+          description: The next Part - if empty, no part will follow live part
+          $ref: 'part.yaml#/components/schemas/part'
+          nullable: true
+        publicData:
+          description: Optional arbitrary data
+        timing:
+          description: Timing information about the active playlist
+          type: object
+          title: ActivePlaylistTiming
+          properties:
+            timingMode:
+              description: 'Timing mode for the playlist.'
+              type: string
+              title: ActivePlaylistTimingMode
+              enum:
+                - none
+                - forward-time
+                - back-time
+            startedPlayback:
+              description: Unix timestamp of when the playlist started (milliseconds)
+              type: number
+            expectedStart:
+              description: Unix timestamp of when the playlist is expected to start (milliseconds). Required when the timingMode is set to forward-time.
+              type: number
+            expectedDurationMs:
+              description: Duration of the playlist in ms
+              type: number
+            expectedEnd:
+              description: Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
+              type: number
+          required: [timingMode]
+          additionalProperties: false
+        quickLoop:
+          description: Information about the current quickLoop, if any
+          type: object
+          title: ActivePlaylistQuickLoop
+          properties:
+            locked:
+              description: Whether the user is allowed to make alterations to the Start/End markers
+              type: boolean
+            running:
+              description: Whether the loop has two valid markers and is currently running
+              type: boolean
+            start:
+              description: The start of the loop
+              $ref: 'quickLoopMarker.yaml#/components/schemas/quickLoopMarker'
+            end:
+              description: The end of the loop
+              $ref: 'quickLoopMarker.yaml#/components/schemas/quickLoopMarker'
+          required: [locked, running]
+      required: [id, name, rundownIds, currentPart, currentSegment, nextPart, timing]
+      additionalProperties: false
+      examples:
+        - id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
+          name: 'Playlist 0'
+          rundownIds: ['y9HauyWkcxQS3XaAOsW40BRLLsI_']
+          currentPart:
+            id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+            name: 'Intro'
+            segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
+            autoNext: false
+            timing:
+              startTime: 1600000060000
+              expectedDurationMs: 15000
+              projectedEndTime: 1600000075000
+            pieces:
+              - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+                name: 'Camera 1'
+                sourceLayer: 'Camera'
+                outputLayer: 'PGM'
+                tags: ['camera']
+                publicData:
+                  switcherSource: 1
+            publicData:
+              partType: 'intro'
+          currentSegment:
+            id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+            # timing:
+            #   expectedDurationMs: 15000
+            #   budgetDurationMs: 20000
+            #   projectedEndTime: 1600000075000
+            #   countdownType: segment_budget_duration
+            parts:
+              - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+                name: 'Intro'
+                # timing:
+                #   expectedDurationMs: 15000
+          nextPart:
+            id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+            name: 'Intro'
+            segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
+            pieces:
+              - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+                name: 'Camera 1'
+                sourceLayer: 'Camera'
+                outputLayer: 'PGM'
+                tags: ['camera']
+                publicData:
+                  switcherSource: 1
+              - id: 'SFHZT65645tgfhdtdzhhgsepsps_'
+                name: 'Camera 2'
+                sourceLayer: 'Camera'
+                outputLayer: 'PGM'
+                tags: ['camera']
+                publicData:
+                  switcherSource: 2
+            autoNext: false
+            publicData:
+              partType: 'intro'
+          publicData:
+            category: 'Evening News'
+          timing:
+            timingMode: 'forward-time'
+            expectedStart: 1728895750727
+            expectedDurationMs: 180000

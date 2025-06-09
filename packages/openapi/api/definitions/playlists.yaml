@@ -26,41 +26,6 @@ resources:
                       - id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
         500:
           $ref: '#/components/responses/internalServerError'
-  playlist:
-    get:
-      operationId: playlist
-      tags:
-        - playlist
-      summary: Returns an LSG object of a playlist
-      description: Returns an LSG object of a playlist
-      parameters:
-        - name: playlistId
-          in: path
-          description: Requested playlist.
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Command successfully handled - Returns an LSG object of a playlist.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: number
-                    example: 200
-                  result:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/playlistItem'
-                    example:
-                      - id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
-        404:
-          $ref: '#/components/responses/playlistNotFound'
-        500:
-          $ref: '#/components/responses/internalServerError'
   activate:
     put:
       operationId: activate
@@ -1067,7 +1032,7 @@ components:
           description: The part that this marker references. This will be set for only part markers
           type: string
       required: [markerType]
-# END OF PLAYLIST SCHEMAS
+  # END OF PLAYLIST SCHEMAS
   responses:
     putSuccess:
       description: Action successfully sent

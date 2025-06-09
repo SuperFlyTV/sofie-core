@@ -1,0 +1,45 @@
+components:
+  schemas:
+    currentPart: # Unused until timings are supported
+      oneOf:
+        - title: CurrentPartStatus
+          allOf:
+            - $ref: 'part.yaml#/components/schemas/part'
+            - type: object
+              properties:
+                timing:
+                  description: Timing information about the current part
+                  type: object
+                  title: CurrentPartTiming
+                  properties:
+                    startTime:
+                      description: Unix timestamp of when the part started (milliseconds)
+                      type: number
+                    expectedDurationMs:
+                      description: Expected duration of the part (milliseconds)
+                      type: number
+                    projectedEndTime:
+                      description: Unix timestamp of when the part is projected to end (milliseconds). A sum of `startTime` and `expectedDurationMs`.
+                      type: number
+                  required: [startTime, expectedDurationMs, projectedEndTime]
+              required: [timing]
+      nullable: true
+      examples:
+        - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+          name: 'Intro'
+          segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
+          autoNext: false
+          timing:
+            startTime: 1600000060000
+            expectedDurationMs: 15000
+            projectedEndTime: 1600000075000
+          pieces:
+            - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+              name: 'Camera 1'
+              sourceLayer: 'Camera'
+              outputLayer: 'PGM'
+              tags: ['camera']
+              publicData:
+                switcherSource: 1
+          publicData:
+            partType: 'intro'

@@ -1,0 +1,30 @@
+components:
+  schemas:
+    currentSegmentPart:
+      type: object
+      title: CurrentSegmentPart
+      properties:
+        id:
+          description: Unique id of the part
+          type: string
+        name:
+          description: User-presentable name of the part
+          type: string
+        autoNext:
+          description: If this part will progress to the next automatically
+          type: boolean
+          default: false
+        # timing: - timing currently not supported
+        #   type: object
+        #   title: CurrentSegmentPartTiming
+        #   properties:
+        #     expectedDurationMs:
+        #       description: Expected duration of the part
+        #       type: number
+      required: [id, name] # ADD 'timing' as required when it's supported in the future.
+      additionalProperties: false
+      examples:
+        - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+          name: 'Intro'
+          # timing:
+          #   expectedDurationMs: 15000

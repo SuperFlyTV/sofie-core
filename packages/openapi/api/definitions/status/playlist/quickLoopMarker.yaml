@@ -1,0 +1,25 @@
+components:
+  schemas:
+    quickLoopMarker:
+      type: object
+      title: QuickLoopMarker
+      properties:
+        markerType:
+          description: The type of entity the marker is locked to
+          title: QuickLoopMarkerType
+          type: string
+          enum:
+            - playlist
+            - rundown
+            - segment
+            - part
+        rundownId:
+          description: The rundown that this marker references. This will be set for rundown, segment and part markers
+          type: string
+        segmentId:
+          description: The segment that this marker references. This will be set for segment and part markers
+          type: string
+        partId:
+          description: The part that this marker references. This will be set for only part markers
+          type: string
+      required: [markerType]

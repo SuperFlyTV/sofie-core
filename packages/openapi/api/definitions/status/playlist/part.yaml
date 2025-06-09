@@ -1,0 +1,50 @@
+components:
+  schemas:
+    part:
+      type: object
+      title: PartStatus
+      properties:
+        id:
+          description: Unique id of the part
+          type: string
+        name:
+          description: User name of the part
+          type: string
+        segmentId:
+          description: Unique id of the segment this part belongs to
+          type: string
+        autoNext:
+          description: If this part will progress to the next automatically
+          type: boolean
+          default: false
+        pieces:
+          description: All pieces in this part
+          type: array
+          items:
+            $ref: 'piece.yaml#/components/schemas/piece'
+        publicData:
+          description: Optional arbitrary data
+      required: [id, name, segmentId, pieces]
+      # additionalProperties: false
+      example:
+        id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+        name: 'Intro'
+        segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
+        pieces:
+          - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
+            name: 'Camera 1'
+            sourceLayer: 'Camera'
+            outputLayer: 'PGM'
+            tags: ['camera']
+            publicData:
+              switcherSource: 1
+          - id: 'SFHZT65645tgfhdtdzhhgsepsps_'
+            name: 'Camera 2'
+            sourceLayer: 'Camera'
+            outputLayer: 'PGM'
+            tags: ['camera']
+            publicData:
+              switcherSource: 2
+        autoNext: false
+        publicData:
+          partType: 'intro'
