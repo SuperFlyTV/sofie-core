@@ -2,7 +2,8 @@ import { RundownPlaylistTiming, PlaylistTimingType } from '@sofie-automation/blu
 import { ActivePlaylistTiming, ActivePlaylistTimingMode } from '@sofie-automation/live-status-gateway-api'
 
 export default function rundownPlaylistTimingToActivePlaylistTiming(
-	timing: RundownPlaylistTiming
+	timing: RundownPlaylistTiming,
+	startedPlayback: number | undefined
 ): ActivePlaylistTiming {
 	switch (timing.type) {
 		case PlaylistTimingType.None:
@@ -16,6 +17,7 @@ export default function rundownPlaylistTimingToActivePlaylistTiming(
 				expectedStart: Number(timing.expectedStart),
 				expectedDurationMs: timing.expectedDuration,
 				expectedEnd: timing.expectedEnd ? Number(timing.expectedEnd) : undefined,
+				startedPlayback: startedPlayback,
 			}
 		case PlaylistTimingType.BackTime:
 			return {

@@ -139,7 +139,10 @@ class PlaylistsServerAPI implements PlaylistsRestAPI {
 			name: rundownPlaylist.name,
 			nextPart: nextPart ? dbPartInstanceToPartStatus(nextPart, nextPartPieces) : null,
 			rundownIds: rundownPlaylist.rundownIdsInOrder.map((id) => unprotectString(id)),
-			timing: rundownPlaylistTimingToActivePlaylistTiming(rundownPlaylist.timing),
+			timing: rundownPlaylistTimingToActivePlaylistTiming(
+				rundownPlaylist.timing,
+				rundownPlaylist.startedPlayback
+			),
 			publicData: rundownPlaylist.publicData,
 			quickLoop: rundownPlaylist.quickLoop
 				? {

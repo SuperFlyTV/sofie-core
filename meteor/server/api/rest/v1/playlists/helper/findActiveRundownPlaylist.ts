@@ -3,7 +3,15 @@ import { RundownPlaylists } from '../../../../../collections'
 
 export type FoundActiveRundownPlaylist = Pick<
 	DBRundownPlaylist,
-	'_id' | 'name' | 'rundownIdsInOrder' | 'currentPartInfo' | 'nextPartInfo' | 'publicData' | 'timing' | 'quickLoop'
+	| '_id'
+	| 'name'
+	| 'rundownIdsInOrder'
+	| 'currentPartInfo'
+	| 'nextPartInfo'
+	| 'publicData'
+	| 'timing'
+	| 'quickLoop'
+	| 'startedPlayback'
 >
 
 export default async function findActiveRundownPlaylist(): Promise<FoundActiveRundownPlaylist | null> {
@@ -16,11 +24,11 @@ export default async function findActiveRundownPlaylist(): Promise<FoundActiveRu
 					name: 1,
 					rundownIdsInOrder: 1,
 					currentPartInfo: 1,
-					// segmentsStartedPlayback: 1, somehow get current segment,
 					nextPartInfo: 1,
 					publicData: 1,
 					timing: 1,
 					quickLoop: 1,
+					startedPlayback: 1,
 				},
 				limit: 1,
 			}
