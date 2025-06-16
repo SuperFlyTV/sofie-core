@@ -42,17 +42,16 @@ components:
           type: array
           items:
             type: string
-        currentPart:
-          description: The current Part - if empty, no part in the active playlist is live
-          # $ref: '#/components/schemas/currentPart' - timing currently not supported
-          $ref: 'part.yaml#/components/schemas/part'
         currentSegment:
           description: The Segment of the current Part - if empty, no part in the active playlist is live
           $ref: 'currentSegment.yaml#/components/schemas/currentSegment'
         nextPart:
           description: The next Part - if empty, no part will follow live part
           $ref: 'part.yaml#/components/schemas/part'
-          nullable: true
+        currentPart:
+          description: The current Part - if empty, no part in the active playlist is live
+          # $ref: '#/components/schemas/currentPart' - timing currently not supported
+          $ref: 'part.yaml#/components/schemas/part'
         publicData:
           description: Optional arbitrary data
         timing:
@@ -106,25 +105,6 @@ components:
         - id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
           name: 'Playlist 0'
           rundownIds: ['y9HauyWkcxQS3XaAOsW40BRLLsI_']
-          currentPart:
-            id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
-            name: 'Intro'
-            segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
-            autoNext: false
-            timing:
-              startTime: 1600000060000
-              expectedDurationMs: 15000
-              projectedEndTime: 1600000075000
-            pieces:
-              - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
-                name: 'Camera 1'
-                sourceLayer: 'Camera'
-                outputLayer: 'PGM'
-                tags: ['camera']
-                publicData:
-                  switcherSource: 1
-            publicData:
-              partType: 'intro'
           currentSegment:
             id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
             # timing:
@@ -137,28 +117,6 @@ components:
                 name: 'Intro'
                 # timing:
                 #   expectedDurationMs: 15000
-          nextPart:
-            id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
-            name: 'Intro'
-            segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
-            pieces:
-              - id: 'H5CBGYjThrMSmaYvRaa5FVKJIzk_'
-                name: 'Camera 1'
-                sourceLayer: 'Camera'
-                outputLayer: 'PGM'
-                tags: ['camera']
-                publicData:
-                  switcherSource: 1
-              - id: 'SFHZT65645tgfhdtdzhhgsepsps_'
-                name: 'Camera 2'
-                sourceLayer: 'Camera'
-                outputLayer: 'PGM'
-                tags: ['camera']
-                publicData:
-                  switcherSource: 2
-            autoNext: false
-            publicData:
-              partType: 'intro'
           publicData:
             category: 'Evening News'
           timing:
