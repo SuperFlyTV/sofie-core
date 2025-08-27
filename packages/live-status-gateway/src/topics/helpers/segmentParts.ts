@@ -24,14 +24,16 @@ export function getCurrentSegmentParts(
 	})
 	return Object.values<{ _id: string | PartInstanceId; part: DBPart }>(partInstancesByPartId)
 		.sort((a, b) => a.part._rank - b.part._rank)
-		.map(
-			(partInstance): CurrentSegmentPart => ({
-				id: unprotectString(partInstance.part._id),
-				name: partInstance.part.title,
-				autoNext: partInstance.part.autoNext,
-				timing: {
-					expectedDurationMs: partInstance.part.expectedDuration,
-				},
-			})
-		)
+		.map((partInstance): CurrentSegmentPart => dbPartToCurrentSegmentPart(partInstance.part))
+}
+
+export function dbPartToCurrentSegmentPart(part: DBPart): CurrentSegmentPart {
+	return {
+		id: unprotectString(part._id),
+		name: part.title,
+		autoNext: part.autoNext,
+		timing: {
+			expectedDurationMs: part.expectedDuration,
+		},
+	}
 }

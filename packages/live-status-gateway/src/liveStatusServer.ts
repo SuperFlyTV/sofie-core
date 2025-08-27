@@ -30,6 +30,7 @@ import { BucketsHandler } from './collections/bucketsHandler.js'
 import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler.js'
 import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler.js'
 import { BucketsTopic } from './topics/bucketsTopic.js'
+import { ExtendedActivePlaylistTopic } from './topics/extendedActivePlaylistTopic.js'
 import { NotificationsHandler } from './collections/notifications/notificationsHandler.js'
 import { NotificationsTopic } from './topics/notificationsTopic.js'
 import { PlaylistNotificationsHandler } from './collections/notifications/playlistNotificationsHandler.js'
@@ -130,6 +131,7 @@ export class LiveStatusServer {
 		const studioTopic = new StudioTopic(this._logger, handlers)
 		const activePiecesTopic = new ActivePiecesTopic(this._logger, handlers)
 		const activePlaylistTopic = new ActivePlaylistTopic(this._logger, handlers)
+		const extendedActivePlaylistTopic = new ExtendedActivePlaylistTopic(this._logger, handlers)
 		const segmentsTopic = new SegmentsTopic(this._logger, handlers)
 		const adLibsTopic = new AdLibsTopic(this._logger, handlers)
 		const notificationsTopic = new NotificationsTopic(this._logger, handlers)
@@ -138,6 +140,7 @@ export class LiveStatusServer {
 
 		rootChannel.addTopic(SubscriptionName.STUDIO, studioTopic)
 		rootChannel.addTopic(SubscriptionName.ACTIVE_PLAYLIST, activePlaylistTopic)
+		rootChannel.addTopic(SubscriptionName.EXTENDED_ACTIVE_PLAYLIST, extendedActivePlaylistTopic)
 		rootChannel.addTopic(SubscriptionName.ACTIVE_PIECES, activePiecesTopic)
 		rootChannel.addTopic(SubscriptionName.SEGMENTS, segmentsTopic)
 		rootChannel.addTopic(SubscriptionName.AD_LIBS, adLibsTopic)

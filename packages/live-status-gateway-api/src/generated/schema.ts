@@ -60,6 +60,7 @@ interface SubscriptionRequestDetails {
 enum SubscriptionName {
 	STUDIO = 'studio',
 	ACTIVE_PLAYLIST = 'activePlaylist',
+	EXTENDED_ACTIVE_PLAYLIST = 'extendedActivePlaylist',
 	ACTIVE_PIECES = 'activePieces',
 	SEGMENTS = 'segments',
 	AD_LIBS = 'adLibs',
@@ -154,7 +155,7 @@ enum PlaylistActivationStatus {
 }
 
 interface ActivePlaylistEvent {
-	event: 'activePlaylist'
+	event: 'activePlaylist' | 'extendedActivePlaylist'
 	/**
 	 * Unique id of the active playlist
 	 */
@@ -170,6 +171,7 @@ interface ActivePlaylistEvent {
 	/**
 	 * The set of rundownIds in the active playlist, in order
 	 */
+	segments?: (Segment | null)[]
 	rundownIds: string[]
 	currentPart: CurrentPartStatus | null
 	currentSegment: CurrentSegment | null

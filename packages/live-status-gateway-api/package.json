@@ -3,6 +3,7 @@
 	"version": "1.53.0-in-development",
 	"description": "Library for types & values shared by core, workers and gateways",
 	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"typings": "dist/index.d.ts",
 	"license": "MIT",
 	"repository": {
