@@ -107,6 +107,12 @@ components:
       description: Active Playlist status
       payload:
         $ref: './schemas/activePlaylist.yaml#/$defs/activePlaylist'
+    extendedActivePlaylist:
+      name: extendedActivePlaylist
+      messageId: extendedActivePlaylistUpdate
+      description: Extended Active Playlist status
+      payload:
+        $ref: './schemas/activePlaylist.yaml#/$defs/activePlaylist'
     activePieces:
       name: activePieces
       messageId: activePiecesUpdate

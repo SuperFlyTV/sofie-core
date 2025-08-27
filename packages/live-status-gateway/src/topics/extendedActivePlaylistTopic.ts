@@ -20,12 +20,12 @@ import {
 	PlaylistStatusCache,
 	Segment,
 	SEGMENT_KEYS,
-	toPlaylistStatus,
 } from './helpers/playlist/playlistStatus.js'
+import { toExtendedPlaylistStatus } from './helpers/playlist/extendedPlaylistStatus.js'
 
 const THROTTLE_PERIOD_MS = 100
 
-export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
+export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
 	private _playlistStatusCache: PlaylistStatusCache = {
 		partInstancesInCurrentSegment: [],
 		partsById: {},
@@ -34,7 +34,7 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 	}
 
 	constructor(logger: Logger, handlers: CollectionHandlers) {
-		super(ActivePlaylistTopic.name, logger, THROTTLE_PERIOD_MS)
+		super(ExtendedActivePlaylistTopic.name, logger, THROTTLE_PERIOD_MS)
 
 		handlers.playlistHandler.subscribe(this.onPlaylistUpdate, PLAYLIST_KEYS)
 		handlers.partsHandler.subscribe(this.onPartsUpdate)
@@ -52,7 +52,7 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 			return
 		}
 
-		const message = toPlaylistStatus(this._playlistStatusCache)
+		const message = { ...toExtendedPlaylistStatus(this._playlistStatusCache) }
 
 		this.sendMessage(subscribers, message)
 	}

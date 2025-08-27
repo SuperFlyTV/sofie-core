@@ -7,10 +7,11 @@ import { groupByToMap } from '@sofie-automation/corelib/dist/lib'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import _ from 'underscore'
-import { calculateSegmentTiming } from './helpers/segmentTiming.js'
 import { SegmentsEvent } from '@sofie-automation/live-status-gateway-api'
 import { CollectionHandlers } from '../liveStatusServer.js'
 import { PickKeys } from '@sofie-automation/shared-lib/dist/lib/types'
+import { toSegmentStatus } from './helpers/segment/segmentStatus.js'
+import { PlaylistStatusCache } from './helpers/playlist/playlistStatus.js'
 
 const THROTTLE_PERIOD_MS = 200
 
@@ -35,17 +36,12 @@ export class SegmentsTopic extends WebSocketTopicBase implements WebSocketTopic 
 		const segmentsStatus: SegmentsEvent = {
 			event: 'segments',
 			rundownPlaylistId: this._activePlaylist ? unprotectString(this._activePlaylist._id) : null,
-			segments: this._orderedSegments.map((segment) => {
-				const segmentId = unprotectString(segment._id)
-				return {
-					id: segmentId,
-					rundownId: unprotectString(segment.rundownId),
-					name: segment.name,
-					timing: calculateSegmentTiming(segment.segmentTiming, this._partsBySegment[segmentId] ?? []),
-					identifier: segment.identifier,
-					publicData: segment.publicData,
-				}
-			}),
+			segments: this._orderedSegments
+				.map((segment) => {
+					// TODO: use proper types here
+					return toSegmentStatus({ partsBySegmentId: this._partsBySegment } as PlaylistStatusCache, segment)
+				})
+				.filter((segment) => segment !== null),
 		}
 
 		this.sendMessage(subscribers, segmentsStatus)
