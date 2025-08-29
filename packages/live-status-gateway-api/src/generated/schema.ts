@@ -440,7 +440,7 @@ interface ExtendedActivePlaylistEvent {
 	/**
 	 * All segments in the playlist
 	 */
-	segments?: Segment[]
+	segments?: ExtendedSegment[]
 	nextPart: PartStatus | null
 	/**
 	 * Optional arbitrary data
@@ -456,7 +456,7 @@ interface ExtendedActivePlaylistEvent {
 	quickLoop?: ActivePlaylistQuickLoop
 }
 
-interface Segment {
+interface ExtendedSegment {
 	/**
 	 * Unique id of the segment
 	 */
@@ -473,6 +473,10 @@ interface Segment {
 	 * Name of the segment
 	 */
 	name: string
+	/**
+	 * Parts belonging to a segment
+	 */
+	parts?: PartStatus[]
 	timing: SegmentTiming
 	/**
 	 * Optional arbitrary data
@@ -518,6 +522,30 @@ interface SegmentsEvent {
 	 * The segments that are in the currently active rundown playlist, in order
 	 */
 	segments: Segment[]
+}
+
+interface Segment {
+	/**
+	 * Unique id of the segment
+	 */
+	id: string
+	/**
+	 * User-facing identifier that can be used to identify the contents of a segment in the Rundown source system
+	 */
+	identifier?: string
+	/**
+	 * Unique id of the rundown this segment belongs to
+	 */
+	rundownId: string
+	/**
+	 * Name of the segment
+	 */
+	name: string
+	timing: SegmentTiming
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
 }
 
 interface AdLibsEvent {
@@ -795,10 +823,11 @@ export {
 	QuickLoopMarker,
 	QuickLoopMarkerType,
 	ExtendedActivePlaylistEvent,
-	Segment,
+	ExtendedSegment,
 	SegmentTiming,
 	ActivePiecesEvent,
 	SegmentsEvent,
+	Segment,
 	AdLibsEvent,
 	AdLibStatus,
 	AdLibActionType,

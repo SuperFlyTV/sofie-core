@@ -36,7 +36,7 @@ $defs:
         description: All segments in the playlist
         type: array
         items:
-          $ref: 'segments.yaml#/$defs/segment'
+          $ref: 'segments.yaml#/$defs/extendedSegment'
       nextPart:
         description: The next Part - if empty, no part will follow live part
         $ref: '#/$defs/part'

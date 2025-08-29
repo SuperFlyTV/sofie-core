@@ -1,10 +1,11 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { CurrentSegment, Segment as SegmentStatus } from '@sofie-automation/live-status-gateway-api'
+import { CurrentSegment, ExtendedSegment, Segment as SegmentStatus } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { getCurrentSegmentParts } from '../segmentParts.js'
 import { calculateCurrentSegmentTiming, calculateSegmentTiming } from '../segmentTiming.js'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { PlaylistStatusCache } from '../playlist/playlistStatus.js'
+import { toPartStatus } from '../part/partStatus.js'
 
 export function toCurrentSegmentStatus(
 	{
@@ -33,6 +34,18 @@ export function toCurrentSegmentStatus(
 }
 
 // TODO: use proper types here
+export function toExtendedSegmentStatus(cache: PlaylistStatusCache, segment: DBSegment): ExtendedSegment | null {
+	const { partsBySegmentId } = cache
+	const segmentId = unprotectString(segment._id)
+	const segmentStatus = toSegmentStatus(cache, segment)
+	if (!segmentStatus) return null
+
+	return {
+		...segmentStatus,
+		parts: partsBySegmentId[segmentId].map((part) => toPartStatus(cache, part)).filter((part) => part !== null),
+	}
+}
+
 export function toSegmentStatus({ partsBySegmentId }: PlaylistStatusCache, segment: DBSegment): SegmentStatus | null {
 	const segmentId = unprotectString(segment._id)
 	return {

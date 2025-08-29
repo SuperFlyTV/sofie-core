@@ -34,3 +34,22 @@ export function toPartStatus(
 
 	return literal<PartStatus>(base)
 }
+
+export function toExtendedPartStatus(
+	{ pieceInstancesInCurrentPartInstance, showStyleBaseExt }: PlaylistStatusCache,
+	part: DBPart | null
+): PartStatus | null {
+	if (!part) return null
+
+	const base = {
+		id: unprotectString(part._id),
+		name: part.title,
+		autoNext: part.autoNext,
+		segmentId: unprotectString(part.segmentId),
+		// TODO: fix pieces
+		pieces: (pieceInstancesInCurrentPartInstance ?? []).map((piece) => toPieceStatus(piece, showStyleBaseExt)),
+		publicData: part.publicData,
+	}
+
+	return literal<PartStatus>(base)
+}
