@@ -5,7 +5,7 @@ import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { PlaylistStatusCache } from './playlistStatus.js'
 import { toPlaylistTiming } from './timing.js'
 import { transformQuickLoopStatus } from './quickLoop.js'
-import { toCurrentSegmentStatus, toSegmentStatus } from '../segment/segmentStatus.js'
+import { toCurrentSegmentStatus, toExtendedSegmentStatus } from '../segment/segmentStatus.js'
 import { toCurrentPartStatus, toPartStatus } from '../part/partStatus.js'
 
 export function toExtendedPlaylistStatus(props: PlaylistStatusCache): ExtendedActivePlaylistEvent {
@@ -29,7 +29,7 @@ export function toExtendedPlaylistStatus(props: PlaylistStatusCache): ExtendedAc
 				// TODO: add all fields to this object, then add parts to it.
 				segments: segmentsById
 					? Object.entries<DBSegment | undefined>(segmentsById)
-							.map(([_id, segment]) => (segment ? toSegmentStatus(props, segment) : null))
+							.map(([_id, segment]) => (segment ? toExtendedSegmentStatus(props, segment) : null))
 							.filter((segment) => segment !== null)
 					: [],
 				nextPart: toPartStatus(props, nextPart),
