@@ -45,6 +45,7 @@ channels:
           - $ref: '#/components/messages/subscriptionStatus'
           - $ref: '#/components/messages/studio'
           - $ref: '#/components/messages/activePlaylist'
+          - $ref: '#/components/messages/extendedActivePlaylist'
           - $ref: '#/components/messages/activePieces'
           - $ref: '#/components/messages/segments'
           - $ref: '#/components/messages/adLibs'
@@ -112,7 +113,7 @@ components:
       messageId: extendedActivePlaylistUpdate
       description: Extended Active Playlist status
       payload:
-        $ref: './schemas/activePlaylist.yaml#/$defs/activePlaylist'
+        $ref: './schemas/extendedActivePlaylist.yaml#/$defs/extendedActivePlaylist'
     activePieces:
       name: activePieces
       messageId: activePiecesUpdate
@@ -140,6 +141,7 @@ components:
         $ref: './schemas/packages.yaml#/$defs/packages'
     buckets:
       name: buckets
+      messageId: bucketsUpdate
       description: Buckets in Studio
       payload:
         $ref: './schemas/buckets.yaml#/$defs/buckets'

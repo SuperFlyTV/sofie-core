@@ -12,6 +12,7 @@ type Slash =
 	| SubscriptionStatusSuccess
 	| StudioEvent
 	| ActivePlaylistEvent
+	| ExtendedActivePlaylistEvent
 	| ActivePiecesEvent
 	| SegmentsEvent
 	| AdLibsEvent
@@ -127,7 +128,7 @@ enum PlaylistActivationStatus {
 }
 
 interface ActivePlaylistEvent {
-	event: 'activePlaylist' | 'extendedActivePlaylist'
+	event: 'activePlaylist'
 	/**
 	 * Unique id of the active playlist
 	 */
@@ -143,7 +144,6 @@ interface ActivePlaylistEvent {
 	/**
 	 * The set of rundownIds in the active playlist, in order
 	 */
-	segments?: (Segment | null)[]
 	rundownIds: string[]
 	currentPart: CurrentPartStatus | null
 	currentSegment: CurrentSegment | null
@@ -417,28 +417,43 @@ enum QuickLoopMarkerType {
 	PART = 'part',
 }
 
-interface ActivePiecesEvent {
-	event: 'activePieces'
+interface ExtendedActivePlaylistEvent {
+	event: 'extendedActivePlaylist'
 	/**
-	 * Unique id of the rundown playlist, or null if no playlist is active
+	 * Unique id of the active playlist
 	 */
-	rundownPlaylistId: string | null
+	id: string | null
 	/**
-	 * Pieces that are currently active (on air)
+	 * Id normally sourced from the ingest system
 	 */
-	activePieces: PieceStatus[]
-}
-
-interface SegmentsEvent {
-	event: 'segments'
+	externalId: string | null
 	/**
-	 * Unique id of the rundown playlist, or null if no playlist is active
+	 * User-presentable name for the active playlist
 	 */
-	rundownPlaylistId: string | null
+	name: string
 	/**
-	 * The segments that are in the currently active rundown playlist, in order
+	 * The set of rundownIds in the active playlist, in order
 	 */
-	segments: Segment[]
+	rundownIds: string[]
+	currentPart: CurrentPartStatus | null
+	currentSegment: CurrentSegment | null
+	/**
+	 * All segments in the playlist
+	 */
+	segments?: Segment[]
+	nextPart: PartStatus | null
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
+	/**
+	 * Timing information about the active playlist
+	 */
+	timing: ActivePlaylistTiming
+	/**
+	 * Information about the current quickLoop, if any
+	 */
+	quickLoop?: ActivePlaylistQuickLoop
 }
 
 interface Segment {
@@ -479,6 +494,30 @@ interface SegmentTiming {
 	 */
 	countdownType?: SegmentCountdownType
 	additionalProperties?: Record<string, any>
+}
+
+interface ActivePiecesEvent {
+	event: 'activePieces'
+	/**
+	 * Unique id of the rundown playlist, or null if no playlist is active
+	 */
+	rundownPlaylistId: string | null
+	/**
+	 * Pieces that are currently active (on air)
+	 */
+	activePieces: PieceStatus[]
+}
+
+interface SegmentsEvent {
+	event: 'segments'
+	/**
+	 * Unique id of the rundown playlist, or null if no playlist is active
+	 */
+	rundownPlaylistId: string | null
+	/**
+	 * The segments that are in the currently active rundown playlist, in order
+	 */
+	segments: Segment[]
 }
 
 interface AdLibsEvent {
@@ -755,10 +794,11 @@ export {
 	ActivePlaylistQuickLoop,
 	QuickLoopMarker,
 	QuickLoopMarkerType,
-	ActivePiecesEvent,
-	SegmentsEvent,
+	ExtendedActivePlaylistEvent,
 	Segment,
 	SegmentTiming,
+	ActivePiecesEvent,
+	SegmentsEvent,
 	AdLibsEvent,
 	AdLibStatus,
 	AdLibActionType,
