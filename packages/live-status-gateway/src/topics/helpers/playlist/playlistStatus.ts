@@ -12,6 +12,7 @@ import { toPlaylistTiming } from './timing.js'
 import { transformQuickLoopStatus } from './quickLoop.js'
 import { toCurrentSegmentStatus } from '../segment/segmentStatus.js'
 import { toCurrentPartStatus, toPartStatus } from '../part/partStatus.js'
+import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 
 export interface PlaylistStatusCache {
 	// main data
@@ -33,6 +34,11 @@ export interface PlaylistStatusCache {
 
 	// show style
 	showStyleBaseExt?: ShowStyleBaseExt
+}
+
+export interface ExtendedPlaylistStatusCache extends PlaylistStatusCache {
+	// pieces
+	piecesByPartId: Record<string, Piece[]>
 }
 
 export const PLAYLIST_KEYS = [

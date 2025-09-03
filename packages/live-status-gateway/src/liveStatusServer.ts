@@ -35,6 +35,7 @@ import { NotificationsHandler } from './collections/notifications/notificationsH
 import { NotificationsTopic } from './topics/notificationsTopic.js'
 import { PlaylistNotificationsHandler } from './collections/notifications/playlistNotificationsHandler.js'
 import { RundownNotificationsHandler } from './collections/notifications/rundownNotificationsHandler.js'
+import { PiecesHandler } from './collections/piecesHandler.js'
 
 export interface CollectionHandlers {
 	studioHandler: StudioHandler
@@ -48,6 +49,7 @@ export interface CollectionHandlers {
 	partHandler: PartHandler
 	partInstancesHandler: PartInstancesHandler
 	pieceInstancesHandler: PieceInstancesHandler
+	piecesHandler: PiecesHandler
 	adLibActionsHandler: AdLibActionsHandler
 	adLibsHandler: AdLibsHandler
 	globalAdLibActionsHandler: GlobalAdLibActionsHandler
@@ -87,6 +89,7 @@ export class LiveStatusServer {
 		const partHandler = new PartHandler(this._logger, this._coreHandler, partsHandler)
 		const partInstancesHandler = new PartInstancesHandler(this._logger, this._coreHandler)
 		const pieceInstancesHandler = new PieceInstancesHandler(this._logger, this._coreHandler)
+		const piecesHandler = new PiecesHandler(this._logger, this._coreHandler)
 		const adLibActionsHandler = new AdLibActionsHandler(this._logger, this._coreHandler)
 		const adLibsHandler = new AdLibsHandler(this._logger, this._coreHandler)
 		const globalAdLibActionsHandler = new GlobalAdLibActionsHandler(this._logger, this._coreHandler)
@@ -111,6 +114,7 @@ export class LiveStatusServer {
 			partHandler,
 			partInstancesHandler,
 			pieceInstancesHandler,
+			piecesHandler,
 			adLibActionsHandler,
 			adLibsHandler,
 			globalAdLibActionsHandler,
