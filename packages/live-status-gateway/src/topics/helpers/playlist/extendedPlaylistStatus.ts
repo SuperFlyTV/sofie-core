@@ -2,13 +2,13 @@ import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { ActivePlaylistTimingMode, ExtendedActivePlaylistEvent } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
-import { PlaylistStatusCache } from './playlistStatus.js'
+import { ExtendedPlaylistStatusCache } from './playlistStatus.js'
 import { toPlaylistTiming } from './timing.js'
 import { transformQuickLoopStatus } from './quickLoop.js'
 import { toCurrentSegmentStatus, toExtendedSegmentStatus } from '../segment/segmentStatus.js'
 import { toCurrentPartStatus, toPartStatus } from '../part/partStatus.js'
 
-export function toExtendedPlaylistStatus(props: PlaylistStatusCache): ExtendedActivePlaylistEvent {
+export function toExtendedPlaylistStatus(props: ExtendedPlaylistStatusCache): ExtendedActivePlaylistEvent {
 	const { activePlaylist, partsById, segmentsById, currentPartInstance, partsBySegmentId, nextPartInstance } = props
 	const currentPart: DBPart | null = currentPartInstance ? currentPartInstance.part : null
 	console.log('nextPartInstance', nextPartInstance)

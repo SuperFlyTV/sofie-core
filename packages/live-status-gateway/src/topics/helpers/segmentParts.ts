@@ -4,8 +4,9 @@ import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartIns
 import { unprotectString } from '@sofie-automation/server-core-integration'
 import _ from 'underscore'
 import type { CurrentSegmentPart } from '@sofie-automation/live-status-gateway-api'
+import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 
-export function getCurrentSegmentParts(
+export function getCurrentSegmentPartInstances(
 	segmentPartInstances: DBPartInstance[],
 	segmentParts: DBPart[]
 ): CurrentSegmentPart[] {
@@ -25,6 +26,24 @@ export function getCurrentSegmentParts(
 	return Object.values<{ _id: string | PartInstanceId; part: DBPart }>(partInstancesByPartId)
 		.sort((a, b) => a.part._rank - b.part._rank)
 		.map((partInstance): CurrentSegmentPart => dbPartToCurrentSegmentPart(partInstance.part))
+}
+
+interface ExtendedCurrentSegmentPart extends CurrentSegmentPart {
+	pieces: Piece[]
+}
+
+export function getCurrentSegmentParts(
+	segmentParts: DBPart[],
+	piecesByPartId: Record<string, Piece[]>
+): ExtendedCurrentSegmentPart[] {
+	return segmentParts
+		.sort((a, b) => a._rank - b._rank)
+		.map(
+			(part): ExtendedCurrentSegmentPart => ({
+				...dbPartToCurrentSegmentPart(part),
+				pieces: piecesByPartId[unprotectString(part._id)],
+			})
+		)
 }
 
 export function dbPartToCurrentSegmentPart(part: DBPart): CurrentSegmentPart {

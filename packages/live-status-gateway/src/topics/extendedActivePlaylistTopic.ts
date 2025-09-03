@@ -11,26 +11,28 @@ import { normalizeArray } from '@sofie-automation/corelib/dist/lib'
 import { CollectionHandlers } from '../liveStatusServer.js'
 import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isShallowEqual'
 import {
+	ExtendedPlaylistStatusCache,
 	PART_INSTANCES_KEYS,
 	PartInstances,
 	PIECE_INSTANCES_KEYS,
 	PieceInstances,
 	Playlist,
 	PLAYLIST_KEYS,
-	PlaylistStatusCache,
 	Segment,
 	SEGMENT_KEYS,
 } from './helpers/playlist/playlistStatus.js'
 import { toExtendedPlaylistStatus } from './helpers/playlist/extendedPlaylistStatus.js'
+import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 
 const THROTTLE_PERIOD_MS = 100
 
 export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
-	private _playlistStatusCache: PlaylistStatusCache = {
+	private _playlistStatusCache: ExtendedPlaylistStatusCache = {
 		partInstancesInCurrentSegment: [],
 		partsById: {},
 		partsBySegmentId: {},
 		segmentsById: {},
+		piecesByPartId: {},
 	}
 
 	constructor(logger: Logger, handlers: CollectionHandlers) {
@@ -40,6 +42,7 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 		handlers.partsHandler.subscribe(this.onPartsUpdate)
 		handlers.partInstancesHandler.subscribe(this.onPartInstancesUpdate, PART_INSTANCES_KEYS)
 		handlers.pieceInstancesHandler.subscribe(this.onPieceInstancesUpdate, PIECE_INSTANCES_KEYS)
+		handlers.piecesHandler.subscribe(this.onPiecesUpdate)
 		handlers.showStyleBaseHandler.subscribe(this.onShowStyleBaseUpdate)
 		handlers.segmentHandler.subscribe(this.onSegmentUpdate, SEGMENT_KEYS)
 		handlers.segmentsHandler.subscribe(this.onSegmentsUpdate)
@@ -121,6 +124,14 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 
 		this._playlistStatusCache.pieceInstancesInCurrentPartInstance = pieceInstances.currentPartInstance
 		this._playlistStatusCache.pieceInstancesInNextPartInstance = pieceInstances.nextPartInstance
+		this.throttledSendStatusToAll()
+	}
+
+	private onPiecesUpdate = (pieces: Piece[] | undefined): void => {
+		this.logUpdateReceived('pieces')
+		if (!pieces) return
+
+		this._playlistStatusCache.piecesByPartId = _.groupBy(pieces, 'startPartId')
 		this.throttledSendStatusToAll()
 	}
 

@@ -3,7 +3,7 @@ import { CurrentPartStatus, PartStatus } from '@sofie-automation/live-status-gat
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { calculateCurrentPartTiming } from '../partTiming.js'
 import { toPieceStatus } from '../pieceStatus.js'
-import { PlaylistStatusCache } from '../playlist/playlistStatus.js'
+import { ExtendedPlaylistStatusCache, PlaylistStatusCache } from '../playlist/playlistStatus.js'
 
 export function toCurrentPartStatus(cache: PlaylistStatusCache, part: DBPart | null): CurrentPartStatus | null {
 	if (!cache.currentPartInstance) return null
@@ -36,7 +36,7 @@ export function toPartStatus(
 }
 
 export function toExtendedPartStatus(
-	{ pieceInstancesInCurrentPartInstance, showStyleBaseExt }: PlaylistStatusCache,
+	{ showStyleBaseExt, piecesByPartId }: ExtendedPlaylistStatusCache,
 	part: DBPart | null
 ): PartStatus | null {
 	if (!part) return null
@@ -46,8 +46,7 @@ export function toExtendedPartStatus(
 		name: part.title,
 		autoNext: part.autoNext,
 		segmentId: unprotectString(part.segmentId),
-		// TODO: fix pieces
-		pieces: (pieceInstancesInCurrentPartInstance ?? []).map((piece) => toPieceStatus(piece, showStyleBaseExt)),
+		pieces: piecesByPartId[unprotectString(part._id)].map((piece) => toPieceStatus(piece, showStyleBaseExt)),
 		publicData: part.publicData,
 	}
 
