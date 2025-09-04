@@ -23,12 +23,14 @@ import {
 } from './helpers/playlist/playlistStatus.js'
 import { toExtendedPlaylistStatus } from './helpers/playlist/extendedPlaylistStatus.js'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 
 const THROTTLE_PERIOD_MS = 100
 
 export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
 	private _playlistStatusCache: ExtendedPlaylistStatusCache = {
 		partInstancesInCurrentSegment: [],
+		rundownsInCurrentPlaylist: [],
 		partsById: {},
 		partsBySegmentId: {},
 		segmentsById: {},
@@ -39,6 +41,7 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 		super(ExtendedActivePlaylistTopic.name, logger, THROTTLE_PERIOD_MS)
 
 		handlers.playlistHandler.subscribe(this.onPlaylistUpdate, PLAYLIST_KEYS)
+		handlers.rundownsHandler.subscribe(this.onRundownsUpdapte)
 		handlers.partsHandler.subscribe(this.onPartsUpdate)
 		handlers.partInstancesHandler.subscribe(this.onPartInstancesUpdate, PART_INSTANCES_KEYS)
 		handlers.pieceInstancesHandler.subscribe(this.onPieceInstancesUpdate, PIECE_INSTANCES_KEYS)
@@ -86,6 +89,18 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 			? rundownPlaylist
 			: undefined
 
+		this.throttledSendStatusToAll()
+	}
+
+	private onRundownsUpdapte = (rundowns: DBRundown[] | undefined): void => {
+		this.logUpdateReceived('rundowns')
+		if (!rundowns) return
+
+		this._playlistStatusCache.rundownsInCurrentPlaylist = this._playlistStatusCache.activePlaylist
+			? this._playlistStatusCache.activePlaylist?.rundownIdsInOrder
+					.map((rundownId) => rundowns.find((rundown) => rundown._id === rundownId))
+					.filter((rundown) => rundown !== undefined)
+			: []
 		this.throttledSendStatusToAll()
 	}
 

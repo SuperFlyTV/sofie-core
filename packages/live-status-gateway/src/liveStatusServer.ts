@@ -36,6 +36,7 @@ import { NotificationsTopic } from './topics/notificationsTopic.js'
 import { PlaylistNotificationsHandler } from './collections/notifications/playlistNotificationsHandler.js'
 import { RundownNotificationsHandler } from './collections/notifications/rundownNotificationsHandler.js'
 import { PiecesHandler } from './collections/piecesHandler.js'
+import { RundownsHandler } from './collections/rundownsHandler.js'
 
 export interface CollectionHandlers {
 	studioHandler: StudioHandler
@@ -43,6 +44,7 @@ export interface CollectionHandlers {
 	playlistHandler: PlaylistHandler
 	playlistsHandler: PlaylistsHandler
 	rundownHandler: RundownHandler
+	rundownsHandler: RundownsHandler
 	segmentsHandler: SegmentsHandler
 	segmentHandler: SegmentHandler
 	partsHandler: PartsHandler
@@ -83,6 +85,7 @@ export class LiveStatusServer {
 		const playlistHandler = new PlaylistHandler(this._logger, this._coreHandler)
 		const playlistsHandler = playlistHandler.playlistsHandler
 		const rundownHandler = new RundownHandler(this._logger, this._coreHandler)
+		const rundownsHandler = new RundownsHandler(this._logger, this._coreHandler)
 		const segmentsHandler = new SegmentsHandler(this._logger, this._coreHandler)
 		const segmentHandler = new SegmentHandler(this._logger, this._coreHandler, segmentsHandler)
 		const partsHandler = new PartsHandler(this._logger, this._coreHandler)
@@ -108,6 +111,7 @@ export class LiveStatusServer {
 			playlistHandler,
 			playlistsHandler,
 			rundownHandler,
+			rundownsHandler,
 			segmentsHandler,
 			segmentHandler,
 			partsHandler,

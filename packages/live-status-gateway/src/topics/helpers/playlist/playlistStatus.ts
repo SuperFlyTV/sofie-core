@@ -13,6 +13,7 @@ import { transformQuickLoopStatus } from './quickLoop.js'
 import { toCurrentSegmentStatus } from '../segment/segmentStatus.js'
 import { toCurrentPartStatus, toPartStatus } from '../part/partStatus.js'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 
 export interface PlaylistStatusCache {
 	// main data
@@ -37,6 +38,8 @@ export interface PlaylistStatusCache {
 }
 
 export interface ExtendedPlaylistStatusCache extends PlaylistStatusCache {
+	//rundowns
+	rundownsInCurrentPlaylist: DBRundown[]
 	// pieces
 	piecesByPartId: Record<string, Piece[]>
 }
