@@ -21,22 +21,17 @@ $defs:
       name:
         description: User-presentable name for the active playlist
         type: string
-      rundownIds:
-        description: The set of rundownIds in the active playlist, in order
+      rundowns:
+        description: The set of rundowns in the active playlist, in order
         type: array
         items:
-          type: string
+          $ref: 'rundowns.yaml#/$defs/rundown'
       currentPart:
         description: The current Part - if empty, no part in the active playlist is live
         $ref: '#/$defs/currentPart'
       currentSegment:
         description: The Segment of the current Part - if empty, no part in the active playlist is live
         $ref: '#/$defs/currentSegment'
-      segments:
-        description: All segments in the playlist
-        type: array
-        items:
-          $ref: 'segments.yaml#/$defs/extendedSegment'
       nextPart:
         description: The next Part - if empty, no part will follow live part
         $ref: '#/$defs/part'
@@ -44,31 +39,7 @@ $defs:
         description: Optional arbitrary data
       timing:
         description: Timing information about the active playlist
-        type: object
-        title: ActivePlaylistTiming
-        properties:
-          timingMode:
-            description: 'Timing mode for the playlist.'
-            type: string
-            title: ActivePlaylistTimingMode
-            enum:
-              - none
-              - forward-time
-              - back-time
-          startedPlayback:
-            description: Unix timestamp of when the playlist started (milliseconds)
-            type: number
-          expectedStart:
-            description: Unix timestamp of when the playlist is expected to start (milliseconds). Required when the timingMode is set to forward-time.
-            type: number
-          expectedDurationMs:
-            description: Duration of the playlist in ms
-            type: number
-          expectedEnd:
-            description: Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
-            type: number
-        required: [timingMode]
-        additionalProperties: false
+        $ref: 'timing/rundownPlaylistTiming.yaml#/$defs/rundownPlaylistTiming'
       quickLoop:
         description: Information about the current quickLoop, if any
         type: object
@@ -87,20 +58,19 @@ $defs:
             description: The end of the loop
             $ref: '#/$defs/quickLoopMarker'
         required: [locked, running]
-    # TODO: Add segments as required
-    required: [event, id, externalId, name, rundownIds, currentPart, currentSegment, nextPart, timing]
+    required: [event, id, externalId, name, rundowns, currentPart, currentSegment, nextPart, timing]
     additionalProperties: false
     examples:
       - event: extendedActivePlaylist
         id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
         externalId: '1ZIYVYL1aEkNEJbeGsmRXr5s8wtkyxfPRjNSTxZfcoEI'
         name: 'Playlist 0'
-        rundownIds: ['y9HauyWkcxQS3XaAOsW40BRLLsI_']
+        rundowns:
+          $ref: 'rundowns.yaml#/$defs/rundown/examples'
         currentPart:
           $ref: '#/$defs/currentPart/examples/0'
         currentSegment:
           $ref: '#/$defs/currentSegment/examples/0'
-        # TODO: Add segments
         nextPart:
           $ref: '#/$defs/part/examples/0'
         publicData:
