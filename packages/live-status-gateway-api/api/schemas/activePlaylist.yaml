@@ -39,31 +39,7 @@ $defs:
         description: Optional arbitrary data
       timing:
         description: Timing information about the active playlist
-        type: object
-        title: ActivePlaylistTiming
-        properties:
-          timingMode:
-            description: 'Timing mode for the playlist.'
-            type: string
-            title: ActivePlaylistTimingMode
-            enum:
-              - none
-              - forward-time
-              - back-time
-          startedPlayback:
-            description: Unix timestamp of when the playlist started (milliseconds)
-            type: number
-          expectedStart:
-            description: Unix timestamp of when the playlist is expected to start (milliseconds). Required when the timingMode is set to forward-time.
-            type: number
-          expectedDurationMs:
-            description: Duration of the playlist in ms
-            type: number
-          expectedEnd:
-            description: Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
-            type: number
-        required: [timingMode]
-        additionalProperties: false
+        $ref: 'timing/rundownPlaylistTiming.yaml#/$defs/rundownPlaylistTiming'
       quickLoop:
         description: Information about the current quickLoop, if any
         type: object

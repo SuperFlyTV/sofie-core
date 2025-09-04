@@ -1,5 +1,5 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { ActivePlaylistTimingMode, ExtendedActivePlaylistEvent } from '@sofie-automation/live-status-gateway-api'
+import { ExtendedActivePlaylistEvent, RundownPlaylistTimingMode } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { ExtendedPlaylistStatusCache } from './playlistStatus.js'
@@ -23,7 +23,7 @@ export function toExtendedPlaylistStatus(props: ExtendedPlaylistStatusCache): Ex
 				id: unprotectString(activePlaylist._id),
 				externalId: activePlaylist.externalId,
 				name: activePlaylist.name,
-				rundownIds: activePlaylist.rundownIdsInOrder.map((r) => unprotectString(r)),
+				rundowns: activePlaylist.rundownIdsInOrder.map((r) => unprotectString(r)),
 				currentPart: toCurrentPartStatus(props, currentPart),
 				currentSegment: toCurrentSegmentStatus({ ...props }, currentPart, currentSegmentParts),
 				// TODO: add all fields to this object, then add parts to it.
@@ -42,14 +42,14 @@ export function toExtendedPlaylistStatus(props: ExtendedPlaylistStatusCache): Ex
 				id: null,
 				externalId: null,
 				name: '',
-				rundownIds: [],
+				rundowns: [],
 				currentPart: null,
 				currentSegment: null,
 				nextPart: null,
 				quickLoop: undefined,
 				publicData: undefined,
 				timing: {
-					timingMode: ActivePlaylistTimingMode.NONE,
+					timingMode: RundownPlaylistTimingMode.NONE,
 				},
 			})
 }

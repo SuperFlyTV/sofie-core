@@ -1,5 +1,5 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { ActivePlaylistEvent, ActivePlaylistTimingMode } from '@sofie-automation/live-status-gateway-api'
+import { ActivePlaylistEvent, RundownPlaylistTimingMode } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
@@ -99,7 +99,7 @@ export function toPlaylistStatus(props: PlaylistStatusCache): ActivePlaylistEven
 				quickLoop: undefined,
 				publicData: undefined,
 				timing: {
-					timingMode: ActivePlaylistTimingMode.NONE,
+					timingMode: RundownPlaylistTimingMode.NONE,
 				},
 			})
 }
