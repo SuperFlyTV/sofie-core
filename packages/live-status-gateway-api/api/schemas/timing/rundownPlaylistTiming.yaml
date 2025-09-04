@@ -1,0 +1,28 @@
+$defs:
+  rundownPlaylistTiming:
+    description: Timing information about a playlist or rundown
+    type: object
+    title: RundownPlaylistTiming
+    properties:
+      timingMode:
+        description: 'Timing mode for a playlist or rundown.'
+        type: string
+        title: RundownPlaylistTimingMode
+        enum:
+          - none
+          - forward-time
+          - back-time
+      startedPlayback:
+        description: Unix timestamp of when a playlist or rundown started (milliseconds)
+        type: number
+      expectedStart:
+        description: Unix timestamp of when a playlist or rundown is expected to start (milliseconds). Required when the timingMode is set to forward-time.
+        type: number
+      expectedDurationMs:
+        description: Duration of a playlist or rundown in ms
+        type: number
+      expectedEnd:
+        description: Unix timestamp of when a playlist or rundown is expected to end (milliseconds) Required when the timingMode is set to back-time.
+        type: number
+    required: [timingMode]
+    additionalProperties: false

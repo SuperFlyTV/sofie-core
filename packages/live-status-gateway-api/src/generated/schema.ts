@@ -432,28 +432,90 @@ interface ExtendedActivePlaylistEvent {
 	 */
 	name: string
 	/**
-	 * The set of rundownIds in the active playlist, in order
+	 * The set of rundowns in the active playlist, in order
 	 */
-	rundownIds: string[]
+	rundowns: Rundown[]
 	currentPart: CurrentPartStatus | null
 	currentSegment: CurrentSegment | null
-	/**
-	 * All segments in the playlist
-	 */
-	segments?: ExtendedSegment[]
 	nextPart: PartStatus | null
 	/**
 	 * Optional arbitrary data
 	 */
 	publicData?: any
 	/**
-	 * Timing information about the active playlist
+	 * Timing information about a playlist or rundown
 	 */
-	timing: ActivePlaylistTiming
+	timing: RundownPlaylistTiming
 	/**
 	 * Information about the current quickLoop, if any
 	 */
 	quickLoop?: ActivePlaylistQuickLoop
+}
+
+interface Rundown {
+	/**
+	 * Unique id of the rundown
+	 */
+	id: string
+	/**
+	 * Name of the rundown
+	 */
+	name: string
+	/**
+	 * Longer user-presentable description of the rundown
+	 */
+	description?: string
+	/**
+	 * Timing information about a playlist or rundown
+	 */
+	timing?: RundownPlaylistTiming
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
+	/**
+	 * Whether the end of the rundown marks a commercial break
+	 */
+	endOfRundownIsShowBreak?: boolean
+	/**
+	 * The segments that in the rundown
+	 */
+	segments: ExtendedSegment[]
+}
+
+/**
+ * Timing information about a playlist or rundown
+ */
+interface RundownPlaylistTiming {
+	/**
+	 * Timing mode for a playlist or rundown.
+	 */
+	timingMode: RundownPlaylistTimingMode
+	/**
+	 * Unix timestamp of when a playlist or rundown started (milliseconds)
+	 */
+	startedPlayback?: number
+	/**
+	 * Unix timestamp of when a playlist or rundown is expected to start (milliseconds). Required when the timingMode is set to forward-time.
+	 */
+	expectedStart?: number
+	/**
+	 * Duration of a playlist or rundown in ms
+	 */
+	expectedDurationMs?: number
+	/**
+	 * Unix timestamp of when a playlist or rundown is expected to end (milliseconds) Required when the timingMode is set to back-time.
+	 */
+	expectedEnd?: number
+}
+
+/**
+ * Timing mode for a playlist or rundown.
+ */
+enum RundownPlaylistTimingMode {
+	NONE = 'none',
+	FORWARD_MINUS_TIME = 'forward-time',
+	BACK_MINUS_TIME = 'back-time',
 }
 
 interface ExtendedSegment {
@@ -823,6 +885,9 @@ export {
 	QuickLoopMarker,
 	QuickLoopMarkerType,
 	ExtendedActivePlaylistEvent,
+	Rundown,
+	RundownPlaylistTiming,
+	RundownPlaylistTimingMode,
 	ExtendedSegment,
 	SegmentTiming,
 	ActivePiecesEvent,
