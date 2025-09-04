@@ -180,9 +180,9 @@ interface ActivePlaylistEvent {
 	 */
 	publicData?: any
 	/**
-	 * Timing information about the active playlist
+	 * Timing information about a playlist or rundown
 	 */
-	timing: ActivePlaylistTiming
+	timing: RundownPlaylistTiming
 	/**
 	 * Information about the current quickLoop, if any
 	 */
@@ -365,35 +365,35 @@ interface PartStatus {
 }
 
 /**
- * Timing information about the active playlist
+ * Timing information about a playlist or rundown
  */
-interface ActivePlaylistTiming {
+interface RundownPlaylistTiming {
 	/**
-	 * Timing mode for the playlist.
+	 * Timing mode for a playlist or rundown.
 	 */
-	timingMode: ActivePlaylistTimingMode
+	timingMode: RundownPlaylistTimingMode
 	/**
-	 * Unix timestamp of when the playlist started (milliseconds)
+	 * Unix timestamp of when a playlist or rundown started (milliseconds)
 	 */
 	startedPlayback?: number
 	/**
-	 * Unix timestamp of when the playlist is expected to start (milliseconds). Required when the timingMode is set to forward-time.
+	 * Unix timestamp of when a playlist or rundown is expected to start (milliseconds). Required when the timingMode is set to forward-time.
 	 */
 	expectedStart?: number
 	/**
-	 * Duration of the playlist in ms
+	 * Duration of a playlist or rundown in ms
 	 */
 	expectedDurationMs?: number
 	/**
-	 * Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
+	 * Unix timestamp of when a playlist or rundown is expected to end (milliseconds) Required when the timingMode is set to back-time.
 	 */
 	expectedEnd?: number
 }
 
 /**
- * Timing mode for the playlist.
+ * Timing mode for a playlist or rundown.
  */
-enum ActivePlaylistTimingMode {
+enum RundownPlaylistTimingMode {
 	NONE = 'none',
 	FORWARD_MINUS_TIME = 'forward-time',
 	BACK_MINUS_TIME = 'back-time',
@@ -520,41 +520,6 @@ interface Rundown {
 	 * The segments that in the rundown
 	 */
 	segments: ExtendedSegment[]
-}
-
-/**
- * Timing information about a playlist or rundown
- */
-interface RundownPlaylistTiming {
-	/**
-	 * Timing mode for a playlist or rundown.
-	 */
-	timingMode: RundownPlaylistTimingMode
-	/**
-	 * Unix timestamp of when a playlist or rundown started (milliseconds)
-	 */
-	startedPlayback?: number
-	/**
-	 * Unix timestamp of when a playlist or rundown is expected to start (milliseconds). Required when the timingMode is set to forward-time.
-	 */
-	expectedStart?: number
-	/**
-	 * Duration of a playlist or rundown in ms
-	 */
-	expectedDurationMs?: number
-	/**
-	 * Unix timestamp of when a playlist or rundown is expected to end (milliseconds) Required when the timingMode is set to back-time.
-	 */
-	expectedEnd?: number
-}
-
-/**
- * Timing mode for a playlist or rundown.
- */
-enum RundownPlaylistTimingMode {
-	NONE = 'none',
-	FORWARD_MINUS_TIME = 'forward-time',
-	BACK_MINUS_TIME = 'back-time',
 }
 
 interface ExtendedSegment {
@@ -1049,8 +1014,8 @@ export {
 	CurrentSegmentPart,
 	CurrentSegmentPartTiming,
 	PartStatus,
-	ActivePlaylistTiming,
-	ActivePlaylistTimingMode,
+	RundownPlaylistTiming,
+	RundownPlaylistTimingMode,
 	ActivePlaylistQuickLoop,
 	QuickLoopMarker,
 	QuickLoopMarkerType,
@@ -1062,8 +1027,6 @@ export {
 =======
 	ExtendedActivePlaylistEvent,
 	Rundown,
-	RundownPlaylistTiming,
-	RundownPlaylistTimingMode,
 	ExtendedSegment,
 	SegmentTiming,
 	ActivePiecesEvent,
