@@ -46,7 +46,9 @@ export function toExtendedPartStatus(
 		name: part.title,
 		autoNext: part.autoNext,
 		segmentId: unprotectString(part.segmentId),
-		pieces: piecesByPartId[unprotectString(part._id)].map((piece) => toPieceStatus(piece, showStyleBaseExt)),
+		pieces: (piecesByPartId[unprotectString(part._id)] ?? []).map((piece) =>
+			toPieceStatus(piece, showStyleBaseExt)
+		),
 		publicData: part.publicData,
 	}
 

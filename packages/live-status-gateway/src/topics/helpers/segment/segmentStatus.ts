@@ -45,7 +45,7 @@ export function toExtendedSegmentStatus(
 
 	return {
 		...segmentStatus,
-		parts: partsBySegmentId[segmentId]
+		parts: (partsBySegmentId[segmentId] ?? [])
 			.map((part) => toExtendedPartStatus(cache, part))
 			.filter((part) => part !== null),
 	}
