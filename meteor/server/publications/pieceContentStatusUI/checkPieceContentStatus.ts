@@ -596,6 +596,7 @@ async function checkPieceContentExpectedPackageStatus(
 	messageFactory: PieceContentStatusMessageFactory
 ): Promise<PieceContentStatusObj> {
 	const settings: IStudioSettings | undefined = studio?.settings
+	let fallbackPackageName: string | null = null
 
 	const ignoreMediaAudioStatus = piece.content && piece.content.ignoreAudioFormat
 
@@ -713,6 +714,9 @@ async function checkPieceContentExpectedPackageStatus(
 				}
 
 				const fileName = getExpectedPackageFileName(expectedPackage) ?? ''
+				if (fileName !== '') {
+					fallbackPackageName = fileName
+				}
 				const containerLabel = matchedPackageContainer[1].container.label
 
 				if (!matchedExpectedPackageId || warningMessage) {
@@ -863,7 +867,7 @@ async function checkPieceContentExpectedPackageStatus(
 		thumbnailUrl,
 		previewUrl,
 
-		packageName,
+		packageName: packageName ?? fallbackPackageName,
 
 		contentDuration,
 	}
