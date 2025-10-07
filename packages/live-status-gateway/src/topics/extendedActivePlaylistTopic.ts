@@ -9,7 +9,6 @@ import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { normalizeArray } from '@sofie-automation/corelib/dist/lib'
 
 import { CollectionHandlers } from '../liveStatusServer.js'
-import areElementsShallowEqual from '@sofie-automation/shared-lib/dist/lib/isShallowEqual'
 import {
 	ExtendedPlaylistStatusCache,
 	PART_INSTANCES_KEYS,
@@ -25,7 +24,7 @@ import { toExtendedPlaylistStatus } from './helpers/playlist/extendedPlaylistSta
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 
-const THROTTLE_PERIOD_MS = 100
+const THROTTLE_PERIOD_MS = 200
 
 export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements WebSocketTopic {
 	private _playlistStatusCache: ExtendedPlaylistStatusCache = {
@@ -85,86 +84,103 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 			'playlist',
 			`rundownPlaylistId ${rundownPlaylist?._id}, activationId ${rundownPlaylist?.activationId}`
 		)
-		this._playlistStatusCache.activePlaylist = unprotectString(rundownPlaylist?.activationId)
-			? rundownPlaylist
-			: undefined
 
-		this.throttledSendStatusToAll()
+		this.updateAndNotify({
+			activePlaylist: unprotectString(rundownPlaylist?.activationId) ? rundownPlaylist : undefined,
+		})
 	}
 
 	private onRundownsUpdapte = (rundowns: DBRundown[] | undefined): void => {
 		this.logUpdateReceived('rundowns')
-		if (!rundowns) return
 
-		this._playlistStatusCache.rundownsInCurrentPlaylist = this._playlistStatusCache.activePlaylist
-			? this._playlistStatusCache.activePlaylist?.rundownIdsInOrder
-					.map((rundownId) => rundowns.find((rundown) => rundown._id === rundownId))
-					.filter((rundown) => rundown !== undefined)
-			: []
-		this.throttledSendStatusToAll()
+		const newRundownsInCurrentPlaylist =
+			rundowns && this._playlistStatusCache.activePlaylist
+				? this._playlistStatusCache.activePlaylist?.rundownIdsInOrder
+						.map((rundownId) => rundowns.find((rundown) => rundown._id === rundownId))
+						.filter((rundown) => rundown !== undefined)
+				: []
+
+		this.updateAndNotify({
+			rundownsInCurrentPlaylist: newRundownsInCurrentPlaylist,
+		})
 	}
 
 	private onPartsUpdate = (parts: DBPart[] | undefined): void => {
-		const previousParts = this._playlistStatusCache.partsBySegmentId
-		this._playlistStatusCache.partsBySegmentId = _.groupBy(parts ?? [], 'segmentId')
 		this.logUpdateReceived('parts')
 
-		const currentSegmentId = unprotectString(this._playlistStatusCache.currentPartInstance?.segmentId)
-		if (
-			currentSegmentId &&
-			!areElementsShallowEqual(
-				previousParts[currentSegmentId] ?? [],
-				this._playlistStatusCache.partsBySegmentId[currentSegmentId] ?? []
-			)
-		) {
-			// we have to collect all the parts, but only when those from the current segment change, we should update status
-			this.throttledSendStatusToAll()
-		}
+		this.updateAndNotify({
+			partsBySegmentId: _.groupBy(parts ?? [], 'segmentId'),
+		})
 	}
 
 	private onPartInstancesUpdate = (partInstances: PartInstances | undefined): void => {
 		this.logUpdateReceived('partInstances', `${partInstances?.inCurrentSegment.length} instances in segment`)
-
-		if (!partInstances) return
-		this._playlistStatusCache.currentPartInstance = partInstances.current
-		this._playlistStatusCache.nextPartInstance = partInstances.next
-		this._playlistStatusCache.firstInstanceInSegmentPlayout = partInstances.firstInSegmentPlayout
-		this._playlistStatusCache.partInstancesInCurrentSegment = partInstances.inCurrentSegment
-		this.throttledSendStatusToAll()
+		if (!partInstances)
+			this.updateAndNotify({
+				currentPartInstance: undefined,
+				nextPartInstance: undefined,
+				firstInstanceInSegmentPlayout: undefined,
+				partInstancesInCurrentSegment: undefined,
+			})
+		else
+			this.updateAndNotify({
+				currentPartInstance: partInstances.current,
+				nextPartInstance: partInstances.next,
+				firstInstanceInSegmentPlayout: partInstances.firstInSegmentPlayout,
+				partInstancesInCurrentSegment: partInstances.inCurrentSegment,
+			})
 	}
 
 	private onPieceInstancesUpdate = (pieceInstances: PieceInstances | undefined): void => {
 		this.logUpdateReceived('pieceInstances')
-		if (!pieceInstances) return
-
-		this._playlistStatusCache.pieceInstancesInCurrentPartInstance = pieceInstances.currentPartInstance
-		this._playlistStatusCache.pieceInstancesInNextPartInstance = pieceInstances.nextPartInstance
-		this.throttledSendStatusToAll()
+		if (!pieceInstances)
+			this.updateAndNotify({
+				pieceInstancesInCurrentPartInstance: undefined,
+				pieceInstancesInNextPartInstance: undefined,
+			})
+		else
+			this.updateAndNotify({
+				pieceInstancesInCurrentPartInstance: pieceInstances.currentPartInstance,
+				pieceInstancesInNextPartInstance: pieceInstances.nextPartInstance,
+			})
 	}
 
 	private onPiecesUpdate = (pieces: Piece[] | undefined): void => {
 		this.logUpdateReceived('pieces')
-		if (!pieces) return
-
-		this._playlistStatusCache.piecesByPartId = _.groupBy(pieces, 'startPartId')
-		this.throttledSendStatusToAll()
+		this.updateAndNotify({
+			piecesByPartId: pieces ? _.groupBy(pieces, 'startPartId') : undefined,
+		})
 	}
 
 	private onShowStyleBaseUpdate = (showStyleBase: ShowStyleBaseExt | undefined): void => {
 		this.logUpdateReceived('showStyleBase')
-		this._playlistStatusCache.showStyleBaseExt = showStyleBase
-		this.throttledSendStatusToAll()
+
+		this.updateAndNotify({
+			showStyleBaseExt: showStyleBase,
+		})
 	}
 
 	private onSegmentUpdate = (segment: Segment | undefined): void => {
 		this.logUpdateReceived('segment')
-		this._playlistStatusCache.currentSegment = segment
-		this.throttledSendStatusToAll()
+
+		this.updateAndNotify({
+			currentSegment: segment,
+		})
 	}
 
 	private onSegmentsUpdate = (segments: DBSegment[] | undefined): void => {
 		this.logUpdateReceived('segments')
-		this._playlistStatusCache.segmentsById = segments ? normalizeArray(segments, '_id') : {}
-		this.throttledSendStatusToAll() // TODO: can this be smarter?
+		this.updateAndNotify({
+			segmentsById: segments ? normalizeArray(segments, '_id') : {},
+		})
+	}
+
+	private updateAndNotify(newCacheContent: Partial<ExtendedPlaylistStatusCache>) {
+		const updatedCacheContent = { ...this._playlistStatusCache, ...newCacheContent }
+		const hasAnythingChanged = !_.isEqual(this._playlistStatusCache, updatedCacheContent)
+		if (hasAnythingChanged) {
+			this._playlistStatusCache = updatedCacheContent
+			this.throttledSendStatusToAll()
+		}
 	}
 }
