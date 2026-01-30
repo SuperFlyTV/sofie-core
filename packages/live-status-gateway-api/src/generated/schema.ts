@@ -60,7 +60,6 @@ interface SubscriptionRequestDetails {
 enum SubscriptionName {
 	STUDIO = 'studio',
 	ACTIVE_PLAYLIST = 'activePlaylist',
-	EXTENDED_ACTIVE_PLAYLIST = 'extendedActivePlaylist',
 	ACTIVE_PIECES = 'activePieces',
 	SEGMENTS = 'segments',
 	AD_LIBS = 'adLibs',
@@ -180,9 +179,9 @@ interface ActivePlaylistEvent {
 	 */
 	publicData?: any
 	/**
-	 * Timing information about a playlist or rundown
+	 * Timing information about the active playlist
 	 */
-	timing: RundownPlaylistTiming
+	timing: ActivePlaylistTiming
 	/**
 	 * Information about the current quickLoop, if any
 	 */
@@ -365,35 +364,35 @@ interface PartStatus {
 }
 
 /**
- * Timing information about a playlist or rundown
+ * Timing information about the active playlist
  */
-interface RundownPlaylistTiming {
+interface ActivePlaylistTiming {
 	/**
-	 * Timing mode for a playlist or rundown.
+	 * Timing mode for the playlist.
 	 */
-	timingMode: RundownPlaylistTimingMode
+	timingMode: ActivePlaylistTimingMode
 	/**
-	 * Unix timestamp of when a playlist or rundown started (milliseconds)
+	 * Unix timestamp of when the playlist started (milliseconds)
 	 */
 	startedPlayback?: number
 	/**
-	 * Unix timestamp of when a playlist or rundown is expected to start (milliseconds). Required when the timingMode is set to forward-time.
+	 * Unix timestamp of when the playlist is expected to start (milliseconds). Required when the timingMode is set to forward-time.
 	 */
 	expectedStart?: number
 	/**
-	 * Duration of a playlist or rundown in ms
+	 * Duration of the playlist in ms
 	 */
 	expectedDurationMs?: number
 	/**
-	 * Unix timestamp of when a playlist or rundown is expected to end (milliseconds) Required when the timingMode is set to back-time.
+	 * Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
 	 */
 	expectedEnd?: number
 }
 
 /**
- * Timing mode for a playlist or rundown.
+ * Timing mode for the playlist.
  */
-enum RundownPlaylistTimingMode {
+enum ActivePlaylistTimingMode {
 	NONE = 'none',
 	FORWARD_MINUS_TIME = 'forward-time',
 	BACK_MINUS_TIME = 'back-time',
@@ -455,118 +454,6 @@ enum QuickLoopMarkerType {
 	PART = 'part',
 }
 
-interface ExtendedActivePlaylistEvent {
-	event: 'extendedActivePlaylist'
-	/**
-	 * Unique id of the active playlist
-	 */
-	id: string | null
-	/**
-	 * Id normally sourced from the ingest system
-	 */
-	externalId: string | null
-	/**
-	 * User-presentable name for the active playlist
-	 */
-	name: string
-	/**
-	 * The set of rundowns in the active playlist, in order
-	 */
-	rundowns: Rundown[]
-	currentPart: CurrentPartStatus | null
-	currentSegment: CurrentSegment | null
-	nextPart: PartStatus | null
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * Timing information about a playlist or rundown
-	 */
-	timing: RundownPlaylistTiming
-	/**
-	 * Information about the current quickLoop, if any
-	 */
-	segments: Segment[]
-	additionalProperties?: Record<string, any>
-}
-
-interface Rundown {
-	/**
-	 * Unique id of the rundown
-	 */
-	id: string
-	/**
-	 * Name of the rundown
-	 */
-	name: string
-	/**
-	 * Longer user-presentable description of the rundown
-	 */
-	description?: string
-	/**
-	 * Timing information about a playlist or rundown
-	 */
-	timing?: RundownPlaylistTiming
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * Whether the end of the rundown marks a commercial break
-	 */
-	endOfRundownIsShowBreak?: boolean
-	/**
-	 * The segments that in the rundown
-	 */
-	segments: ExtendedSegment[]
-}
-
-interface ExtendedSegment {
-	/**
-	 * Unique id of the segment
-	 */
-	id: string
-	/**
-	 * User-facing identifier that can be used to identify the contents of a segment in the Rundown source system
-	 */
-	identifier?: string
-	/**
-	 * Unique id of the rundown this segment belongs to
-	 */
-	rundownId: string
-	/**
-	 * Name of the segment
-	 */
-	name: string
-	/**
-	 * Parts belonging to a segment
-	 */
-	parts?: PartStatus[]
-	timing: SegmentTiming
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	additionalProperties?: Record<string, any>
-}
-
-interface SegmentTiming {
-	/**
-	 * Expected duration of the segment (milliseconds)
-	 */
-	expectedDurationMs: number
-	/**
-	 * Budget duration of the segment (milliseconds)
-	 */
-	budgetDurationMs?: number
-	/**
-	 * Countdown type within the segment. Default: `part_expected_duration`
-	 */
-	countdownType?: SegmentCountdownType
-	additionalProperties?: Record<string, any>
-}
-
 interface ActivePiecesEvent {
 	event: 'activePieces'
 	/**
@@ -589,6 +476,7 @@ interface SegmentsEvent {
 	 * The segments that are in the currently active rundown playlist, in order
 	 */
 	segments: Segment[]
+	additionalProperties?: Record<string, any>
 }
 
 interface Segment {
@@ -613,6 +501,23 @@ interface Segment {
 	 * Optional arbitrary data
 	 */
 	publicData?: any
+	additionalProperties?: Record<string, any>
+}
+
+interface SegmentTiming {
+	/**
+	 * Expected duration of the segment (milliseconds)
+	 */
+	expectedDurationMs: number
+	/**
+	 * Budget duration of the segment (milliseconds)
+	 */
+	budgetDurationMs?: number
+	/**
+	 * Countdown type within the segment. Default: `part_expected_duration`
+	 */
+	countdownType?: SegmentCountdownType
+	additionalProperties?: Record<string, any>
 }
 
 interface AdLibsEvent {
@@ -1014,25 +919,15 @@ export {
 	CurrentSegmentPart,
 	CurrentSegmentPartTiming,
 	PartStatus,
-	RundownPlaylistTiming,
-	RundownPlaylistTimingMode,
+	ActivePlaylistTiming,
+	ActivePlaylistTimingMode,
 	ActivePlaylistQuickLoop,
 	QuickLoopMarker,
 	QuickLoopMarkerType,
-<<<<<<< HEAD
 	ActivePiecesEvent,
 	SegmentsEvent,
 	Segment,
 	SegmentTiming,
-=======
-	ExtendedActivePlaylistEvent,
-	Rundown,
-	ExtendedSegment,
-	SegmentTiming,
-	ActivePiecesEvent,
-	SegmentsEvent,
-	Segment,
->>>>>>> 6583046751 (feat(lsg): add parts to segments)
 	AdLibsEvent,
 	AdLibStatus,
 	AdLibActionType,
