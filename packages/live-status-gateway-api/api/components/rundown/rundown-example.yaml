@@ -1,0 +1,9 @@
+id: 'OKAgZmZ0Buc99lE_2uPPSKVbMrQ_'
+name: 'Example Rundown'
+description: 'Rundown description: Longer user-presentable description of the rundown'
+timing:
+  $ref: '../timing/activePlaylistTiming/activePlaylistTiming-example.yaml'
+publicData:
+  containsLiveSource: true
+segments:
+  - $ref: '../segment/extendedSegment/extendedSegment-example.yaml'

@@ -60,6 +60,7 @@ interface SubscriptionRequestDetails {
 enum SubscriptionName {
 	STUDIO = 'studio',
 	ACTIVE_PLAYLIST = 'activePlaylist',
+	EXTENDED_ACTIVE_PLAYLIST = 'extendedActivePlaylist',
 	ACTIVE_PIECES = 'activePieces',
 	SEGMENTS = 'segments',
 	AD_LIBS = 'adLibs',
@@ -454,6 +455,117 @@ enum QuickLoopMarkerType {
 	PART = 'part',
 }
 
+interface ExtendedActivePlaylistEvent {
+	event: 'extendedActivePlaylist'
+	/**
+	 * Unique id of the active playlist
+	 */
+	id: string | null
+	/**
+	 * Id normally sourced from the ingest system
+	 */
+	externalId: string | null
+	/**
+	 * User-presentable name for the active playlist
+	 */
+	name: string
+	/**
+	 * The set of rundowns in the active playlist, in order
+	 */
+	rundowns: Rundown[]
+	currentPart: CurrentPartStatus | null
+	currentSegment: CurrentSegment | null
+	nextPart: PartStatus | null
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
+	/**
+	 * Timing information about the active playlist
+	 */
+	timing: ActivePlaylistTiming
+	/**
+	 * Information about the current quickLoop, if any
+	 */
+	quickLoop?: ActivePlaylistQuickLoop
+}
+
+interface Rundown {
+	/**
+	 * Unique id of the rundown
+	 */
+	id: string
+	/**
+	 * Name of the rundown
+	 */
+	name: string
+	/**
+	 * Longer user-presentable description of the rundown
+	 */
+	description?: string
+	/**
+	 * Timing information about the active playlist
+	 */
+	timing?: ActivePlaylistTiming
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
+	/**
+	 * Whether the end of the rundown marks a commercial break
+	 */
+	endOfRundownIsShowBreak?: boolean
+	/**
+	 * The segments that in the rundown
+	 */
+	segments: ExtendedSegment[]
+}
+
+interface ExtendedSegment {
+	/**
+	 * Unique id of the segment
+	 */
+	id: string
+	/**
+	 * User-facing identifier that can be used to identify the contents of a segment in the Rundown source system
+	 */
+	identifier?: string
+	/**
+	 * Unique id of the rundown this segment belongs to
+	 */
+	rundownId: string
+	/**
+	 * Name of the segment
+	 */
+	name: string
+	timing: SegmentTiming
+	/**
+	 * Optional arbitrary data
+	 */
+	publicData?: any
+	/**
+	 * Parts belonging to a segment
+	 */
+	parts?: PartStatus[]
+	additionalProperties?: Record<string, any>
+}
+
+interface SegmentTiming {
+	/**
+	 * Expected duration of the segment (milliseconds)
+	 */
+	expectedDurationMs: number
+	/**
+	 * Budget duration of the segment (milliseconds)
+	 */
+	budgetDurationMs?: number
+	/**
+	 * Countdown type within the segment. Default: `part_expected_duration`
+	 */
+	countdownType?: SegmentCountdownType
+	additionalProperties?: Record<string, any>
+}
+
 interface ActivePiecesEvent {
 	event: 'activePieces'
 	/**
@@ -501,22 +613,6 @@ interface Segment {
 	 * Optional arbitrary data
 	 */
 	publicData?: any
-	additionalProperties?: Record<string, any>
-}
-
-interface SegmentTiming {
-	/**
-	 * Expected duration of the segment (milliseconds)
-	 */
-	expectedDurationMs: number
-	/**
-	 * Budget duration of the segment (milliseconds)
-	 */
-	budgetDurationMs?: number
-	/**
-	 * Countdown type within the segment. Default: `part_expected_duration`
-	 */
-	countdownType?: SegmentCountdownType
 	additionalProperties?: Record<string, any>
 }
 
@@ -884,6 +980,7 @@ export type Slash =
 	| ActivePlaylistEvent
 	| AdLibsEvent
 	| BucketsEvent
+	| ExtendedActivePlaylistEvent
 	| HeartbeatEvent
 	| NotificationsEvent
 	| PackagesEvent
@@ -924,10 +1021,13 @@ export {
 	ActivePlaylistQuickLoop,
 	QuickLoopMarker,
 	QuickLoopMarkerType,
+	ExtendedActivePlaylistEvent,
+	Rundown,
+	ExtendedSegment,
+	SegmentTiming,
 	ActivePiecesEvent,
 	SegmentsEvent,
 	Segment,
-	SegmentTiming,
 	AdLibsEvent,
 	AdLibStatus,
 	AdLibActionType,

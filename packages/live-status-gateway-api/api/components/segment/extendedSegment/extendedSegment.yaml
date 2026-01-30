@@ -1,0 +1,18 @@
+$defs:
+  extendedSegment:
+    type: object
+    title: ExtendedSegment
+    allOf:
+      - $ref: '../segment/segment.yaml#/$defs/segment'
+      - type: object
+        title: ExtendedSegment
+        properties:
+          parts:
+            description: Parts belonging to a segment
+            type: array
+            items:
+              $ref: '../../part/partStatus/partStatus.yaml#/$defs/partStatus'
+        required: [id, rundownId, name, timing]
+    required: [id, rundownId, name, timing]
+    examples:
+      - $ref: './extendedSegment-example.yaml'

@@ -6,6 +6,7 @@ $defs:
     enum:
       - studio
       - activePlaylist
+      - extendedActivePlaylist
       - activePieces
       - segments
       - adLibs

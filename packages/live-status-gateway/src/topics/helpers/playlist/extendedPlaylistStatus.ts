@@ -1,5 +1,5 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { ExtendedActivePlaylistEvent, RundownPlaylistTimingMode } from '@sofie-automation/live-status-gateway-api'
+import { ActivePlaylistTimingMode, ExtendedActivePlaylistEvent } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
 import { ExtendedPlaylistStatusCache } from './playlistStatus.js'
 import { toPlaylistTiming } from './timing.js'
@@ -51,7 +51,7 @@ export function toExtendedPlaylistStatus(props: ExtendedPlaylistStatusCache): Ex
 				quickLoop: undefined,
 				publicData: undefined,
 				timing: {
-					timingMode: RundownPlaylistTimingMode.NONE,
+					timingMode: ActivePlaylistTimingMode.NONE,
 				},
 			})
 }

@@ -1,0 +1,53 @@
+# TODO: make a base active playlist schema and extend that both for the old and the new topic if both topics stay.
+title: Extended Active Playlist
+description: Active Playlist schema for websocket subscriptions
+$defs:
+  extendedActivePlaylistEvent:
+    type: object
+    title: ExtendedActivePlaylistEvent
+    properties:
+      event:
+        type: string
+        const: extendedActivePlaylist
+      id:
+        description: Unique id of the active playlist
+        oneOf:
+          - type: string
+          - type: 'null'
+      externalId:
+        description: Id normally sourced from the ingest system
+        oneOf:
+          - type: string
+          - type: 'null'
+      name:
+        description: User-presentable name for the active playlist
+        type: string
+      rundowns:
+        description: The set of rundowns in the active playlist, in order
+        type: array
+        items:
+          $ref: '../../rundown/rundown.yaml#/$defs/rundown'
+      currentPart:
+        oneOf:
+          - $ref: '../../part/currentPart/currentPartStatus.yaml#/$defs/currentPartStatus'
+          - type: 'null'
+      # This should later be replaced with and ID only, as the consumer will have access to all the segments
+      currentSegment:
+        oneOf:
+          - $ref: '../../segment/currentSegment/currentSegment.yaml#/$defs/currentSegment'
+          - type: 'null'
+      # This should later be replaced with and ID only, as the consumer will have access to all the parts
+      nextPart:
+        oneOf:
+          - $ref: '../../part/partStatus/partStatus.yaml#/$defs/partStatus'
+          - type: 'null'
+      publicData:
+        description: Optional arbitrary data
+      timing:
+        $ref: '../../timing/activePlaylistTiming/activePlaylistTiming.yaml#/$defs/activePlaylistTiming'
+      quickLoop:
+        $ref: '../../quickLoop/activePlaylistQuickLoop/activePlaylistQuickLoop.yaml#/$defs/activePlaylistQuickLoop'
+    required: [event, id, externalId, name, rundowns, currentPart, currentSegment, nextPart, timing]
+    additionalProperties: false
+    examples:
+      - $ref: './extendedActivePlaylistEvent-example.yaml'

@@ -1,0 +1,33 @@
+title: Rundown
+description: Rundown schema for websocket subscriptions
+$defs:
+  rundown:
+    type: object
+    title: Rundown
+    properties:
+      id:
+        description: Unique id of the rundown
+        type: string
+      name:
+        description: Name of the rundown
+        type: string
+      description:
+        description: Longer user-presentable description of the rundown
+        type: string
+      timing:
+        description: Timing information about the rundown
+        $ref: '../timing/activePlaylistTiming/activePlaylistTiming.yaml#/$defs/activePlaylistTiming'
+      publicData:
+        description: Optional arbitrary data
+      endOfRundownIsShowBreak:
+        description: Whether the end of the rundown marks a commercial break
+        type: boolean
+      segments:
+        description: The segments that in the rundown
+        type: array
+        items:
+          $ref: '../segment/extendedSegment/extendedSegment.yaml#/$defs/extendedSegment'
+    required: [id, name, segments]
+    additionalProperties: false
+    examples:
+      - $ref: './rundown-example.yaml'

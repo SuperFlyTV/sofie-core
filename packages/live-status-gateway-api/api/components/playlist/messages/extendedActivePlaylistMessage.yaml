@@ -1,0 +1,11 @@
+components:
+  messages:
+    extendedActivePlaylistMessage:
+      name: extendedActivePlaylist
+      messageId: extendedActivePlaylistUpdate
+      description: Extended Active Playlist status
+      payload:
+        $ref: '../extendedActivePlaylistEvent/extendedActivePlaylistEvent.yaml#/$defs/extendedActivePlaylistEvent'
+      examples:
+        - payload:
+            $ref: '../extendedActivePlaylistEvent/extendedActivePlaylistEvent-example.yaml'
