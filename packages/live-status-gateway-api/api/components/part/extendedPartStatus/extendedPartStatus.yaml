@@ -1,0 +1,44 @@
+$defs:
+  extendedPartStatus:
+    type: object
+    title: ExtendedPartStatus
+    allOf:
+      - $ref: '../partBase/partBase.yaml#/$defs/partBase'
+      - type: object
+        title: ExtendedPartStatus
+        properties:
+          segmentId:
+            description: Unique id of the segment this part belongs to
+            type: string
+          publicData:
+            description: Optional arbitrary data
+          identifier:
+            description: User-facing identifier that can be used by the User to identify the contents of a segment in the Rundown source system
+            type: string
+          externalId:
+            description: Id normally sourced from the ingest system
+            oneOf:
+              - type: string
+              - type: 'null'
+          prompterTitle:
+            description: The story title to show in the prompter If unset, `title` is used instead
+            type: string
+          gap:
+            description: When this part is just a filler to fill space in a segment. Generally, used with invalid being also true
+            type: boolean
+          invalid:
+            description: Something went wrong or the part is being processed
+            type: boolean
+          invalidReason:
+            $ref: '../invalidReason/invalidReason.yaml#/$defs/invalidReason'
+          floated:
+            description: When the NRCS informs us that the producer marked the part as floated, we can prevent the user from TAKE'ing and NEXT'ing it, but still have it visible and allow manipulation
+            type: boolean
+          pieces:
+            description: All pieces in this part
+            type: array
+            items:
+              - $ref: '../../piece/extendedPieceStatus/extendedPieceStatus.yaml#/$defs/extendedPieceStatus'
+        required: [id, name, segmentId, pieces]
+    examples:
+      - $ref: './extendedPartStatus-example.yaml'

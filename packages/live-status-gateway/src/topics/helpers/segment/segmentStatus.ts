@@ -48,6 +48,8 @@ export function toExtendedSegmentStatus(
 		parts: (partsBySegmentId[segmentId] ?? [])
 			.map((part) => toExtendedPartStatus(cache, part))
 			.filter((part) => part !== null),
+		isHidden: segment.isHidden,
+		externalId: segment.externalId,
 	}
 }
 

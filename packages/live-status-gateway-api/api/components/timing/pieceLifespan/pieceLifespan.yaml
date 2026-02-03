@@ -1,0 +1,10 @@
+type: string
+title: PieceLifespan
+description: Whether and how the piece is infinite
+enum:
+  - part-only
+  - segment-change
+  - segment-end
+  - rundown-change
+  - rundown-end
+  - showstyle-end

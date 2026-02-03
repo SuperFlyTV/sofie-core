@@ -8,7 +8,9 @@ $defs:
         type: string
       externalId:
         description: Id normally sourced from the ingest system
-        type: string
+        oneOf:
+          - type: string
+          - type: 'null'
       name:
         description: The user defined playlist name
         type: string

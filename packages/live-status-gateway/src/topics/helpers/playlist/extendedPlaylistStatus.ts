@@ -31,6 +31,7 @@ export function toExtendedPlaylistStatus(props: ExtendedPlaylistStatusCache): Ex
 				id: unprotectString(activePlaylist._id),
 				externalId: activePlaylist.externalId,
 				name: activePlaylist.name,
+				modified: activePlaylist.modified,
 				rundowns: rundownsInCurrentPlaylist.map((rundown) => toRundownStatus(props, rundown)),
 				currentPart: toCurrentPartStatus(props, currentPart),
 				currentSegment: toCurrentSegmentStatus({ ...props }, currentPart, currentSegmentParts),

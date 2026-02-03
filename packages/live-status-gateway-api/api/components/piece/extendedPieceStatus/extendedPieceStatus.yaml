@@ -1,0 +1,40 @@
+$defs:
+  extendedPieceStatus:
+    type: object
+    title: ExtendedPieceStatus
+    properties:
+      id:
+        description: Unique id of the Piece
+        type: string
+      name:
+        description: User-facing name of the Piece
+        type: string
+      sourceLayer:
+        description: The source layer name for this Piece
+        type: string
+      outputLayer:
+        description: The output layer name for this Piece
+        type: string
+      tags:
+        description: Tags attached to this Piece
+        type: array
+        items:
+          type: string
+      publicData:
+        description: Optional arbitrary data
+        externalId:
+          description: Id normally sourced from the ingest system
+          oneOf:
+            - type: string
+            - type: 'null'
+      notInVision:
+        description: Whether the piece affects the output of the Studio or is describing an invisible state within the Studio
+        type: boolean
+      pieceType:
+        description: Whether this piece is a special piece
+        type: string
+      timing:
+        $ref: '../../timing/pieceTiming/pieceTiming.yaml#/$defs/pieceTiming'
+    required: [id, name, sourceLayer, outputLayer, externalId]
+    examples:
+      - $ref: './extendedPieceStatus-example.yaml'

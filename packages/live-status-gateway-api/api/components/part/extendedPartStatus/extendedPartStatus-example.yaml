@@ -1,0 +1,14 @@
+$ref: '../partBase/partBase-example.yaml'
+segmentId: 'n1mOVd5_K5tt4sfk6HYfTuwumGQ_'
+publicData:
+  partType: 'intro'
+identifier: 'Intro'
+externalId: '1ZIYVYL1aEkNEJbeGsmRXr5s8wtkyxfPRjNSTxZfcoEI'
+prompterTitle: 'Intro'
+gap: false
+invalid: true
+invalidReason:
+  $ref: '../invalidReason/invalidReason-example.yaml'
+pieces:
+  - $ref: '../../piece/extendedPieceStatus/extendedPieceStatus-example.yaml'
+floated: false

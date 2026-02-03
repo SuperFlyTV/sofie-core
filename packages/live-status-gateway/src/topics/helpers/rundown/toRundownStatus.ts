@@ -11,6 +11,7 @@ export default function toRundownStatus(props: ExtendedPlaylistStatusCache, rund
 
 	return {
 		id: rundownId,
+		externalId: rundown.externalId,
 		description: rundown.description ?? undefined,
 		name: rundown.name,
 		segments: props.segmentsById
@@ -22,6 +23,5 @@ export default function toRundownStatus(props: ExtendedPlaylistStatusCache, rund
 			: [],
 		timing: rundown.timing ? toPlaylistTiming(rundown.timing) : undefined,
 		publicData: rundown.publicData ?? undefined,
-		endOfRundownIsShowBreak: rundown.endOfRundownIsShowBreak ?? undefined,
 	}
 }

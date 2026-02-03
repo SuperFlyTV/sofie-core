@@ -8,6 +8,11 @@ $defs:
       id:
         description: Unique id of the rundown
         type: string
+      externalId:
+        description: Id normally sourced from the ingest system
+        oneOf:
+          - type: string
+          - type: 'null'
       name:
         description: Name of the rundown
         type: string
@@ -19,9 +24,6 @@ $defs:
         $ref: '../timing/activePlaylistTiming/activePlaylistTiming.yaml#/$defs/activePlaylistTiming'
       publicData:
         description: Optional arbitrary data
-      endOfRundownIsShowBreak:
-        description: Whether the end of the rundown marks a commercial break
-        type: boolean
       segments:
         description: The segments that in the rundown
         type: array

@@ -49,6 +49,7 @@ export const PLAYLIST_KEYS = [
 	'externalId',
 	'activationId',
 	'name',
+	'modified',
 	'rundownIdsInOrder',
 	'publicData',
 	'currentPartInfo',

@@ -1,0 +1,15 @@
+$defs:
+  invalidReason:
+    type: object
+    title: InvalidReason
+    description: When something bad has happened, we can mark the part as invalid, which will prevent the user from TAKEing it.
+    properties:
+      message:
+        type: string
+      severity:
+        $ref: '../../notifications/notificationSeverity.yaml#/$defs/severity'
+      color:
+        type: string
+    required: [message]
+    examples:
+      - $ref: './invalidReason-example.yaml'

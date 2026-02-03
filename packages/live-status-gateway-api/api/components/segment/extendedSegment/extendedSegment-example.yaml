@@ -1,3 +1,3 @@
 $ref: '../segment/segment-example.yaml'
 parts:
-  - $ref: '../../part/partStatus/partStatus-example.yaml'
+  - $ref: '../../part/extendedPartStatus/extendedPartStatus-example.yaml'

@@ -1,0 +1,17 @@
+$defs:
+  pieceTiming:
+    type: object
+    title: PieceTiming
+    description: Timing information about a piece
+    properties:
+      startMs:
+        description: Relative value to the part's start (milliseconds)
+        type: number
+      durationMs:
+        description: The duration of the piece (milliseconds).
+        type: number
+      lifespan:
+        $ref: '../pieceLifespan/pieceLifespan.yaml'
+    required: [startMs, lifespan]
+    examples:
+      - $ref: './pieceTiming-example.yaml'

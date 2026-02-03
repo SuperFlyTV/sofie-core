@@ -7,11 +7,19 @@ $defs:
       - type: object
         title: ExtendedSegment
         properties:
+          externalId:
+            description: Id normally sourced from the ingest system
+            oneOf:
+              - type: string
+              - type: 'null'
+          isHidden:
+            description: Hide the Segment in the UI
+            type: boolean
           parts:
             description: Parts belonging to a segment
             type: array
             items:
-              $ref: '../../part/partStatus/partStatus.yaml#/$defs/partStatus'
+              - $ref: '../../part/extendedPartStatus/extendedPartStatus.yaml#/$defs/extendedPartStatus'
         required: [id, rundownId, name, timing]
     required: [id, rundownId, name, timing]
     examples:

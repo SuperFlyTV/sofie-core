@@ -22,6 +22,9 @@ $defs:
       name:
         description: User-presentable name for the active playlist
         type: string
+      modified:
+        description: Last modified timestamp
+        type: number
       rundowns:
         description: The set of rundowns in the active playlist, in order
         type: array
