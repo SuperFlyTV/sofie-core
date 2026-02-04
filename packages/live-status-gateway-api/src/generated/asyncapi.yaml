@@ -444,6 +444,9 @@ channels:
                                           - camera
                                         publicData:
                                           switcherSource: 1
+                                expectedDuration:
+                                  description: Expected duration of the part, in milliseconds
+                                  type: number
                                 publicData:
                                   description: Optional arbitrary data
                               required:
@@ -458,6 +461,7 @@ channels:
                                 - *a13
                               publicData: &a16
                                 partType: intro
+                              expectedDuration: 200
                               id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
                               name: Intro
                               autoNext: false
@@ -505,6 +509,7 @@ channels:
                           segmentId: n1mOVd5_K5tt4sfk6HYfTuwumGQ_
                           pieces: *a15
                           publicData: *a16
+                          expectedDuration: 200
                           id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
                           name: Intro
                           autoNext: false
@@ -937,6 +942,9 @@ channels:
                                                 but still have it visible and
                                                 allow manipulation
                                               type: boolean
+                                            expectedDuration:
+                                              description: Expected duration of the part, in milliseconds
+                                              type: number
                                             pieces:
                                               description: All pieces in this part
                                               type: array
@@ -987,6 +995,11 @@ channels:
                                                         durationMs:
                                                           description: The duration of the piece (milliseconds).
                                                           type: number
+                                                        isAbsolute:
+                                                          description: Some pieces can be timed to be absolute (using wall time) rather
+                                                            than relative to the
+                                                            part
+                                                          type: boolean
                                                         lifespan:
                                                           type: string
                                                           title: PieceLifespan
@@ -1006,6 +1019,7 @@ channels:
                                                           startMs: 1600000060000
                                                           durationMs: 1600000075000
                                                           lifespan: part-only
+                                                          isAbsolute: true
                                                   required:
                                                     - id
                                                     - name

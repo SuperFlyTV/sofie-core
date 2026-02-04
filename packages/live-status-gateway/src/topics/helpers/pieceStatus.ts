@@ -67,6 +67,7 @@ export function toPieceTimingStatus(piece: Piece): PieceTiming {
 		startMs: piece.enable.start == 'now' ? 0 : piece.enable.start,
 		durationMs: piece.enable.duration,
 		lifespan: toPieceLifespan(piece.lifespan),
+		isAbsolute: piece.enable.isAbsolute,
 	})
 }
 

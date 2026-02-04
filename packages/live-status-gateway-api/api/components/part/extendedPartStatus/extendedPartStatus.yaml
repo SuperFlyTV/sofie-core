@@ -34,6 +34,9 @@ $defs:
           floated:
             description: When the NRCS informs us that the producer marked the part as floated, we can prevent the user from TAKE'ing and NEXT'ing it, but still have it visible and allow manipulation
             type: boolean
+          expectedDuration:
+            description: Expected duration of the part, in milliseconds
+            type: number
           pieces:
             description: All pieces in this part
             type: array

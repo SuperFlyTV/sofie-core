@@ -4,3 +4,4 @@ pieces:
   - $ref: '../../piece/pieceStatus/pieceStatus.yaml#/$defs/pieceStatus/examples/0'
 publicData:
   partType: 'intro'
+expectedDuration: 200

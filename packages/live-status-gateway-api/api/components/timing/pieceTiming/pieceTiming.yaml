@@ -10,6 +10,9 @@ $defs:
       durationMs:
         description: The duration of the piece (milliseconds).
         type: number
+      isAbsolute:
+        description: Some pieces can be timed to be absolute (using wall time) rather than relative to the part
+        type: boolean
       lifespan:
         $ref: '../pieceLifespan/pieceLifespan.yaml'
     required: [startMs, lifespan]

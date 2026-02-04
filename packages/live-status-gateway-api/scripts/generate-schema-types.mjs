@@ -67,7 +67,7 @@ if (!asyncApiDoc.document) {
 	const filteredDiagnostics = asyncApiDoc.diagnostics.filter((d) => d.code !== 'asyncapi-latest-version')
 
 	console.error('No document was produced from the asyncapi parser')
-	console.error(JSON.stringify(asyncApiDoc.diagnostics))
+	console.error(JSON.stringify(asyncApiDoc.diagnostics, null, 2))
 
 	// eslint-disable-next-line n/no-process-exit
 	process.exit(5)

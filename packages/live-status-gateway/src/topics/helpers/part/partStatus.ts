@@ -6,7 +6,7 @@ import {
 	PartStatus,
 } from '@sofie-automation/live-status-gateway-api'
 import { literal, unprotectString } from '@sofie-automation/server-core-integration'
-import { calculateCurrentPartTiming } from '../partTiming.js'
+import { calculateCurrentPartInstanceTiming } from '../partTiming.js'
 import { toExtendedPieceStatus, toPieceStatus } from '../pieceStatus.js'
 import { ExtendedPlaylistStatusCache, PlaylistStatusCache } from '../playlist/playlistStatus.js'
 import { interpollateTranslation } from '@sofie-automation/corelib/dist/TranslatableMessage'
@@ -20,7 +20,10 @@ export function toCurrentPartStatus(cache: PlaylistStatusCache, part: DBPart | n
 
 	return literal<CurrentPartStatus>({
 		...base,
-		timing: calculateCurrentPartTiming(cache.currentPartInstance, cache.partInstancesInCurrentSegment ?? []),
+		timing: calculateCurrentPartInstanceTiming(
+			cache.currentPartInstance,
+			cache.partInstancesInCurrentSegment ?? []
+		),
 	})
 }
 
@@ -30,14 +33,15 @@ export function toPartStatus(
 ): PartStatus | null {
 	if (!part) return null
 
-	const base = {
+	const base = literal<PartStatus>({
 		id: unprotectString(part._id),
 		name: part.title,
 		autoNext: part.autoNext ?? false,
 		segmentId: unprotectString(part.segmentId),
 		pieces: (pieceInstancesInCurrentPartInstance ?? []).map((piece) => toPieceStatus(piece, showStyleBaseExt)),
 		publicData: part.publicData,
-	}
+		expectedDuration: part.expectedDuration,
+	})
 
 	return literal<PartStatus>(base)
 }
@@ -64,6 +68,7 @@ export function toExtendedPartStatus(
 			toExtendedPieceStatus(piece, showStyleBaseExt)
 		),
 		publicData: part.publicData,
+		expectedDuration: part.expectedDuration,
 	})
 }
 

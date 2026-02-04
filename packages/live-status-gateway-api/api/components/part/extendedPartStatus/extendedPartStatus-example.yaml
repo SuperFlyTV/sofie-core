@@ -12,3 +12,4 @@ invalidReason:
 pieces:
   - $ref: '../../piece/extendedPieceStatus/extendedPieceStatus-example.yaml'
 floated: false
+expectedDuration: 200

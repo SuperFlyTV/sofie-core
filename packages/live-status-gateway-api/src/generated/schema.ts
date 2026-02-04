@@ -211,6 +211,10 @@ interface CurrentPartStatus {
 	 */
 	pieces: PieceStatus[]
 	/**
+	 * Expected duration of the part, in milliseconds
+	 */
+	expectedDuration?: number
+	/**
 	 * Optional arbitrary data
 	 */
 	publicData?: any
@@ -357,6 +361,10 @@ interface PartStatus {
 	 * All pieces in this part
 	 */
 	pieces: PieceStatus[]
+	/**
+	 * Expected duration of the part, in milliseconds
+	 */
+	expectedDuration?: number
 	/**
 	 * Optional arbitrary data
 	 */
@@ -628,6 +636,10 @@ interface ExtendedPartStatus {
 	 */
 	floated?: boolean
 	/**
+	 * Expected duration of the part, in milliseconds
+	 */
+	expectedDuration?: number
+	/**
 	 * All pieces in this part
 	 */
 	pieces: (ExtendedPieceStatus | any)[]
@@ -708,6 +720,10 @@ interface PieceTiming {
 	 * The duration of the piece (milliseconds).
 	 */
 	durationMs?: number
+	/**
+	 * Some pieces can be timed to be absolute (using wall time) rather than relative to the part
+	 */
+	isAbsolute?: boolean
 	/**
 	 * Whether and how the piece is infinite
 	 */
