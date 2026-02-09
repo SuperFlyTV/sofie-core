@@ -600,6 +600,10 @@ interface ExtendedPartStatus {
 	 */
 	autoNext?: boolean
 	/**
+	 * Unique id of the instance if the current part has one
+	 */
+	instanceId?: string
+	/**
 	 * Unique id of the segment this part belongs to
 	 */
 	segmentId: string

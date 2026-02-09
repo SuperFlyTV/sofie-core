@@ -40,8 +40,11 @@ export interface PlaylistStatusCache {
 export interface ExtendedPlaylistStatusCache extends PlaylistStatusCache {
 	//rundowns
 	rundownsInCurrentPlaylist: DBRundown[]
+	// TODO: only have one array for part instances, replace partInstancesInCurrentSegment
+	partInstancesBySegmentId: Record<string, DBPartInstance[]>
 	// pieces
 	piecesByPartId: Record<string, Piece[]>
+	pieceInstancesByPartInstanceId: PieceInstanceMin[]
 }
 
 export const PLAYLIST_KEYS = [
@@ -64,7 +67,7 @@ export type Playlist = PickKeys<DBRundownPlaylist, typeof PLAYLIST_KEYS>
 export const PART_INSTANCES_KEYS = ['current', 'next', 'inCurrentSegment', 'firstInSegmentPlayout'] as const
 export type PartInstances = PickKeys<SelectedPartInstances, typeof PART_INSTANCES_KEYS>
 
-export const PIECE_INSTANCES_KEYS = ['currentPartInstance', 'nextPartInstance'] as const
+export const PIECE_INSTANCES_KEYS = ['active', 'currentPartInstance', 'nextPartInstance'] as const
 export type PieceInstances = PickKeys<SelectedPieceInstances, typeof PIECE_INSTANCES_KEYS>
 
 export const SEGMENT_KEYS = ['_id', 'segmentTiming'] as const

@@ -882,6 +882,9 @@ channels:
                                         - type: object
                                           title: ExtendedPartStatus
                                           properties:
+                                            instanceId:
+                                              description: Unique id of the instance if the current part has one
+                                              type: string
                                             segmentId:
                                               description: Unique id of the segment this part belongs to
                                               type: string
@@ -1051,6 +1054,7 @@ channels:
                                           publicData:
                                             partType: intro
                                           identifier: Intro
+                                          instanceId: 156z23fg3fds_1mOVd5_K5tt4sfk6HYfTuwumGQ_
                                           externalId: 1ZIYVYL1aEkNEJbeGsmRXr5s8wtkyxfPRjNSTxZfcoEI
                                           prompterTitle: Intro
                                           gap: false
@@ -1059,6 +1063,7 @@ channels:
                                           pieces:
                                             - *a37
                                           floated: false
+                                          expectedDuration: 200
                                           id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
                                           name: Intro
                                           autoNext: false

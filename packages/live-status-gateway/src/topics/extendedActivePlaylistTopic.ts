@@ -34,6 +34,8 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 		partsBySegmentId: {},
 		segmentsById: {},
 		piecesByPartId: {},
+		pieceInstancesByPartInstanceId: [],
+		partInstancesBySegmentId: {},
 	}
 
 	constructor(logger: Logger, handlers: CollectionHandlers) {
@@ -57,7 +59,11 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 			return
 		}
 
-		const message = { ...toExtendedPlaylistStatus(this._playlistStatusCache) }
+		const message = {
+			...toExtendedPlaylistStatus(this._playlistStatusCache),
+			pieceInstancesInCurrentPartInstance: this._playlistStatusCache.pieceInstancesInCurrentPartInstance,
+			pieceInstancesByPartInstanceId: this._playlistStatusCache.pieceInstancesByPartInstanceId,
+		}
 
 		this.sendMessage(subscribers, message)
 	}
@@ -128,6 +134,7 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 				nextPartInstance: partInstances.next,
 				firstInstanceInSegmentPlayout: partInstances.firstInSegmentPlayout,
 				partInstancesInCurrentSegment: partInstances.inCurrentSegment,
+				partInstancesBySegmentId: _.groupBy(partInstances.inCurrentSegment ?? [], 'segmentId'),
 			})
 	}
 
@@ -137,11 +144,16 @@ export class ExtendedActivePlaylistTopic extends WebSocketTopicBase implements W
 			this.updateAndNotify({
 				pieceInstancesInCurrentPartInstance: undefined,
 				pieceInstancesInNextPartInstance: undefined,
+				pieceInstancesByPartInstanceId: undefined,
 			})
 		else
 			this.updateAndNotify({
 				pieceInstancesInCurrentPartInstance: pieceInstances.currentPartInstance,
 				pieceInstancesInNextPartInstance: pieceInstances.nextPartInstance,
+				pieceInstancesByPartInstanceId: [
+					...(pieceInstances.currentPartInstance ?? []),
+					...(pieceInstances.nextPartInstance ?? []),
+				],
 			})
 	}
 

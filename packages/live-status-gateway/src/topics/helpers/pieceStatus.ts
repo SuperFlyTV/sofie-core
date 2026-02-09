@@ -36,39 +36,66 @@ export function toPieceStatus(
 
 export function toExtendedPieceStatus(
 	pieceInstance: PieceInstanceMin | Piece,
-	showStyleBaseExt: ShowStyleBaseExt | undefined
+	showStyleBaseExt: ShowStyleBaseExt | undefined,
+	partDurationMs: number
 ): ExtendedPieceStatus {
-	if ('piece' in pieceInstance) {
-		return toPieceStatus(pieceInstance, showStyleBaseExt)
-	}
+	const base = toPieceStatus(pieceInstance, showStyleBaseExt)
 
-	const sourceLayerName = pieceInstance.sourceLayerId
-		? showStyleBaseExt?.sourceLayerNamesById.get(pieceInstance.sourceLayerId)
-		: undefined
-	const outputLayerName = pieceInstance.outputLayerId
-		? showStyleBaseExt?.outputLayerNamesById.get(pieceInstance.outputLayerId)
-		: undefined
+	const piece = 'piece' in pieceInstance ? pieceInstance.piece : pieceInstance
+
+	const timing =
+		'piece' in pieceInstance
+			? (toPieceTimingStatusFromInstance(pieceInstance.piece as Piece, pieceInstance, partDurationMs) ??
+				toPieceTimingStatus(pieceInstance.piece as Piece, partDurationMs))
+			: toPieceTimingStatus(piece as Piece, partDurationMs)
 
 	return {
-		id: unprotectString(pieceInstance._id),
-		name: pieceInstance.name,
-		sourceLayer: sourceLayerName ?? 'invalid',
-		outputLayer: outputLayerName ?? 'invalid',
-		tags: clone<string[] | undefined>(pieceInstance.tags),
-		publicData: pieceInstance.publicData,
-		notInVision: pieceInstance.notInVision,
-		pieceType: pieceInstance.pieceType,
-		timing: toPieceTimingStatus(pieceInstance),
+		...base,
+		timing,
 	}
 }
 
-export function toPieceTimingStatus(piece: Piece): PieceTiming {
+export function toPieceTimingStatus(piece: Piece, partDurationMs: number): PieceTiming {
+	const startMs = piece.enable.start === 'now' ? 0 : piece.enable.start
+	const durationMs = piece.enable.duration ?? Math.max(0, partDurationMs - startMs)
+
 	return literal<PieceTiming>({
-		startMs: piece.enable.start == 'now' ? 0 : piece.enable.start,
-		durationMs: piece.enable.duration,
+		startMs,
+		durationMs,
 		lifespan: toPieceLifespan(piece.lifespan),
 		isAbsolute: piece.enable.isAbsolute,
 	})
+}
+
+export function toPieceTimingStatusFromInstance(
+	piece: Piece,
+	instance: PieceInstanceMin,
+	partDurationMs: number
+): PieceTiming | undefined {
+	const started = instance.reportedStartedPlayback ?? instance.plannedStartedPlayback
+	const stopped = instance.reportedStoppedPlayback ?? instance.plannedStoppedPlayback
+
+	if (!started && !stopped && !instance.userDuration) {
+		return undefined
+	}
+
+	const timing = toPieceTimingStatus(piece, partDurationMs)
+
+	if (instance.userDuration) {
+		return {
+			...timing,
+			durationMs: instance.userDuration.endRelativeToPart - timing.startMs,
+		}
+	}
+
+	if (started && stopped) {
+		return {
+			...timing,
+			durationMs: stopped - started,
+		}
+	}
+
+	return timing
 }
 
 function toPieceLifespan(lifespan: PieceLifespan): PieceLifespanStatus {

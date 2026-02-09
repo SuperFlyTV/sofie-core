@@ -39,7 +39,7 @@ type PartInstances = PickKeys<SelectedPartInstances, typeof PART_INSTANCES_KEYS>
 const SHOW_STYLE_BASE_KEYS = ['sourceLayers'] as const
 type ShowStyle = PickKeys<ShowStyleBaseExt, typeof SHOW_STYLE_BASE_KEYS>
 
-export type PieceInstanceMin = Omit<ReadonlyDeep<PieceInstance>, 'reportedStartedPlayback' | 'reportedStoppedPlayback'>
+export type PieceInstanceMin = ReadonlyDeep<PieceInstance>
 
 export interface SelectedPieceInstances {
 	// Pieces reported by the Playout Gateway as active
@@ -145,7 +145,11 @@ export class PieceInstancesHandler extends PublicationCollection<
 			this._partInstances?.previous?.timings &&
 			(this._partInstances.previous.timings.plannedStoppedPlayback ?? 0) > Date.now()
 		) {
-			active.push(...inPreviousPartInstance)
+			const carried = inPreviousPartInstance.filter(
+				(p) => p.infinite && (p.plannedStoppedPlayback ?? Infinity) > Date.now()
+			)
+
+			active.push(...carried)
 		}
 
 		let hasAnythingChanged = false

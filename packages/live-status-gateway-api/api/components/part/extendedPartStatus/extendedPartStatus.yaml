@@ -7,6 +7,9 @@ $defs:
       - type: object
         title: ExtendedPartStatus
         properties:
+          instanceId:
+            description: Unique id of the instance if the current part has one
+            type: string
           segmentId:
             description: Unique id of the segment this part belongs to
             type: string
