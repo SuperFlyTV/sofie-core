@@ -1,10 +1,10 @@
 import classNames from 'classnames'
 import React, { useCallback, useEffect, useState } from 'react'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
-import { ISourceLayerExtended } from '../../../lib/RundownResolver.js'
 import { RundownUtils } from '../../../lib/rundown.js'
 import { AdLibPieceUi } from '../../../lib/shelf.js'
-import { PieceUi } from '../../SegmentContainer/withResolvedSegment.js'
+import { ISourceLayerExtended } from '@sofie-automation/corelib/src/dataModel/ShowStyleBase.js'
+import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
+import { PieceUi } from '@sofie-automation/corelib/src/dataModel/Piece.js'
 
 interface IProps {
 	overlay?: (ref: HTMLDivElement | null, setIsOver: (isOver: boolean) => void) => React.ReactNode

@@ -1,5 +1,5 @@
 import _ from 'underscore'
-import { DBStudio } from '@sofie-automation/corelib/dist/dataModel/Studio'
+import { DBStudio, UIStudio } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import {
 	PieceLifespan,
 	IOutputLayer,
@@ -7,7 +7,7 @@ import {
 	SourceLayerType,
 	IBlueprintPieceType,
 } from '@sofie-automation/blueprints-integration'
-import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
+import { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { ICoreSystem, SYSTEM_ID } from '@sofie-automation/meteor-lib/dist/collections/CoreSystem'
 import { literal, getRandomId, Complete, normalizeArray } from '@sofie-automation/corelib/dist/lib'
@@ -26,8 +26,6 @@ import {
 	applyAndValidateOverrides,
 	wrapDefaultObject,
 } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
-import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import {
 	BlueprintId,
 	RundownId,
