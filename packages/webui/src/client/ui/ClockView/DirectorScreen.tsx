@@ -11,7 +11,6 @@ import {
 	withTracker,
 } from '../../lib/ReactMeteorData/ReactMeteorData.js'
 import { getCurrentTime } from '../../lib/systemTime.js'
-import { PartInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { PieceIconContainer } from './ClockViewPieceIcons/ClockViewPieceIcon.js'
 import { PieceNameContainer } from './ClockViewPieceIcons/ClockViewPieceName.js'
@@ -31,9 +30,7 @@ import {
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { getPlaylistTimingDiff } from '../../lib/rundownTiming.js'
-import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
 import { UIShowStyleBases, UIStudios } from '../Collections.js'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { PieceInstances, RundownPlaylists, Rundowns, ShowStyleVariants } from '../../collections/index.js'
 import { RundownPlaylistCollectionUtil } from '../../collections/rundownPlaylistUtil.js'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
@@ -50,8 +47,10 @@ import {
 import { AdjustLabelFit } from '../util/AdjustLabelFit.js'
 import { AutoNextStatus } from '../RundownView/RundownTiming/AutoNextStatus.js'
 import { useTranslation } from 'react-i18next'
-import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
+import { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance.js'
+import { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
+import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 
 interface SegmentUi extends DBSegment {
 	items: Array<PartUi>

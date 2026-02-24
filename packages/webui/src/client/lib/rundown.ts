@@ -1,5 +1,4 @@
 import _ from 'underscore'
-import { PieceUi, PartUi } from '../ui/SegmentTimeline/SegmentTimelineContainer.js'
 import { Timecode } from '@sofie-automation/corelib/dist/index'
 import { Settings } from '../lib/Settings.js'
 import { TFunction } from 'react-i18next'
@@ -11,18 +10,9 @@ import {
 	IOutputLayer,
 	ISourceLayer,
 } from '@sofie-automation/blueprints-integration'
-import {
-	SegmentExtended,
-	PartExtended,
-	getPieceInstancesForPartInstance,
-	PieceExtended,
-	IOutputLayerExtended,
-	ISourceLayerExtended,
-	PartInstanceLimited,
-	isLoopRunning,
-} from './RundownResolver.js'
-import { PartInstance, wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
-import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
+import { getPieceInstancesForPartInstance, isLoopRunning } from './RundownResolver.js'
+import { wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
+import { DBSegment, SegmentExtended } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { literal, groupByToMap } from '@sofie-automation/corelib/dist/lib'
 import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
@@ -38,18 +28,23 @@ import { BucketAdLibItem, BucketAdLibUi } from '../ui/Shelf/RundownViewBuckets.j
 import { FindOptions } from '../collections/lib.js'
 import { getShowHiddenSourceLayers } from './localStorage.js'
 import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
-import { IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio'
+import { IStudioSettings, UIStudio } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { AdLibPieceUi } from './shelf.js'
-import { UIShowStyleBase } from '@sofie-automation/meteor-lib/dist/api/showStyles'
 import { PartId, PieceId, RundownId, SegmentId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceInstances, Segments } from '../collections/index.js'
-import { PieceStatusCode } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { PieceExtended, PieceStatusCode, PieceUi } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { assertNever } from '@sofie-automation/shared-lib/dist/lib/lib'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
-import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
+import { DBPart, PartExtended } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { RundownPlaylistClientUtil } from './rundownPlaylistUtil.js'
+import {
+	IOutputLayerExtended,
+	ISourceLayerExtended,
+	UIShowStyleBase,
+} from '@sofie-automation/corelib/src/dataModel/ShowStyleBase.js'
+import { PartInstance, PartInstanceLimited } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
+import { PartUi } from '../ui/SegmentContainer/withResolvedSegment.js'
 
 /**
  * Returns a human-readable, translatable string for a given SourceLayerType.

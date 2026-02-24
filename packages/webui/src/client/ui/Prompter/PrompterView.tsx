@@ -19,7 +19,6 @@ import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { withTranslation } from 'react-i18next'
 import { MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { RundownPlaylistCollectionUtil } from '../../collections/rundownPlaylistUtil.js'
 import { firstIfArray } from '../../lib/lib.js'
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
@@ -35,6 +34,7 @@ import { OverUnderTimer } from './OverUnderTimer.js'
 import { PrompterAPI, PrompterData, PrompterDataPart } from './prompter.js'
 import { doUserAction, UserAction } from '../../lib/clientUserAction.js'
 import { MeteorCall } from '../../lib/meteorApi.js'
+import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 
 const DEFAULT_UPDATE_THROTTLE = 250 //ms
 const PIECE_MISSING_UPDATE_THROTTLE = 2000 //ms

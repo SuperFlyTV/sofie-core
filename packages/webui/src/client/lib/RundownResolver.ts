@@ -1,7 +1,7 @@
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { DBSegment, SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { PartInstance, wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
+import { wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import {
 	getPieceInstancesForPart,
@@ -25,37 +25,7 @@ import {
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { RundownPlaylistClientUtil } from './rundownPlaylistUtil.js'
 import { PieceInstances, Pieces } from '../collections/index.js'
-
-import { PieceExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/Piece'
-import { ISourceLayerExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/SourceLayer'
-import { IOutputLayerExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/OutputLayer'
-
-export type { PieceExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/Piece'
-export type { ISourceLayerExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/SourceLayer'
-export type { IOutputLayerExtended } from '@sofie-automation/meteor-lib/dist/uiTypes/OutputLayer'
-
-export interface SegmentExtended extends DBSegment {
-	/** Output layers available in the installation used by this segment */
-	outputLayers: {
-		[key: string]: IOutputLayerExtended
-	}
-	/** Source layers used by this segment */
-	sourceLayers: {
-		[key: string]: ISourceLayerExtended
-	}
-}
-
-export type PartInstanceLimited = Omit<PartInstance, 'isTaken' | 'previousPartEndState'>
-
-export interface PartExtended {
-	partId: PartId
-	instance: PartInstanceLimited
-	/** Pieces belonging to this part */
-	pieces: Array<PieceExtended>
-	renderedDuration: number
-	startsAt: number
-	willProbablyAutoNext: boolean
-}
+import { PartInstance, PartInstanceLimited } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 
 function fetchPiecesThatMayBeActiveForPart(
 	part: DBPart,

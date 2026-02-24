@@ -17,7 +17,7 @@ import { SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/
 import { UserEditOperationMenuItems } from '../UserEditOperations/RenderUserEditOperations.js'
 import * as RundownResolver from '../../lib/RundownResolver.js'
 import { SelectedElement } from '../RundownView/SelectedElementsContext.js'
-import { PieceExtended } from '../../lib/RundownResolver.js'
+import { PieceExtended } from '@sofie-automation/corelib/src/dataModel/Piece.js'
 
 interface IProps {
 	onSetNext: (part: DBPart | undefined, e: any, offset?: number, take?: boolean) => void

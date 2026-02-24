@@ -5,7 +5,7 @@ import ClassNames from 'classnames'
 import { ContextMenuTrigger } from '@jstarpl/react-contextmenu'
 
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
-import { SegmentUi, PartUi, IOutputLayerUi, PieceUi } from './SegmentTimelineContainer.js'
+import { SegmentUi, PartUi, IOutputLayerUi } from './SegmentTimelineContainer.js'
 import { TimelineGrid } from './TimelineGrid.js'
 import { SegmentTimelinePart, SegmentTimelinePartClass } from './Parts/SegmentTimelinePart.js'
 import { SegmentTimelineZoomControls } from './SegmentTimelineZoomControls.js'
@@ -25,7 +25,7 @@ import { Settings } from '../../lib/Settings.js'
 import { IContextMenuContext } from '../RundownView.js'
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { protectString, unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
-import { isPartPlayable } from '@sofie-automation/corelib/dist/dataModel/Part'
+import { isPartPlayable, PartExtended } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { contextMenuHoldToDisplayTime } from '../../lib/lib.js'
 import { WarningIconSmall, CriticalIconSmall } from '../../lib/ui/icons/notifications.js'
 import RundownViewEventBus, {
@@ -41,11 +41,9 @@ import { IOutputLayer, ISourceLayer, NoteSeverity, UserEditingType } from '@sofi
 import { SegmentTimelineZoomButtons } from './SegmentTimelineZoomButtons.js'
 import { SegmentViewMode } from '../SegmentContainer/SegmentViewModes.js'
 import { SwitchViewModeButton } from '../SegmentContainer/SwitchViewModeButton.js'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
 import { PartId, PartInstanceId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { RundownHoldState } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { SegmentNoteCounts } from '../SegmentContainer/withResolvedSegment.js'
-import { PartExtended } from '../../lib/RundownResolver.js'
 import {
 	withTiming,
 	TimingTickResolution,
@@ -59,6 +57,8 @@ import * as RundownResolver from '../../lib/RundownResolver.js'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { SelectedElementsContext } from '../RundownView/SelectedElementsContext.js'
 import { BlueprintAssetIcon } from '../../lib/Components/BlueprintAssetIcon.js'
+import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
+import { PieceUi } from '@sofie-automation/corelib/src/dataModel/Piece.js'
 
 interface IProps {
 	id: string

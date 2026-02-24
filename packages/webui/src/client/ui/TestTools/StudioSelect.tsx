@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { UIStudios } from '../Collections.js'
 import { useTranslation } from 'react-i18next'
-import { UIStudio } from '@sofie-automation/meteor-lib/dist/api/studios'
+import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 
 function StudioSelect({ title, path }: Readonly<{ title: string; path: string }>): JSX.Element {
 	const studios = useTracker(
