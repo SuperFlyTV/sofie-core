@@ -89,6 +89,7 @@ export function buildPastInfinitePiecesForThisPartQuery(
 	}
 }
 
+// This is where we resolve OnChange infinites
 export function getPlayheadTrackingInfinitesForPart(
 	playlistActivationId: RundownPlaylistActivationId,
 	partsToReceiveOnSegmentEndFromSet: Set<PartId>,
@@ -116,7 +117,7 @@ export function getPlayheadTrackingInfinitesForPart(
 		return []
 	}
 
-	const canContinueAdlibOnEnds = nextPartIsAfterCurrentPart
+	const canContinueOnEnds = nextPartIsAfterCurrentPart
 	interface InfinitePieceSet {
 		[PieceLifespan.OutOnShowStyleEnd]?: ReadonlyDeep<PieceInstance>
 		[PieceLifespan.OutOnRundownEnd]?: ReadonlyDeep<PieceInstance>
@@ -178,8 +179,8 @@ export function getPlayheadTrackingInfinitesForPart(
 			}
 		}
 
-		// Check if we should persist any adlib onEnd infinites
-		if (canContinueAdlibOnEnds) {
+		// Check if we should persist any onEnd infinites
+		if (canContinueOnEnds) {
 			const piecesByInfiniteMode = groupByToMapFunc(
 				pieceInstances.filter((p) => p.dynamicallyInserted),
 				(p) => p.piece.lifespan
@@ -299,7 +300,7 @@ export function isPiecePotentiallyActiveInPart(
 
 	switch (pieceToCheck.lifespan) {
 		case PieceLifespan.WithinPart:
-			// This must be from another part
+			// pieceToCheck is from another part since the partId didn't match in the previous check.
 			return false
 		case PieceLifespan.OutOnSegmentEnd:
 			return (
@@ -362,8 +363,11 @@ export function isPiecePotentiallyActiveInPart(
 	}
 }
 
+// TODO: possibly break getPieceInstancesForPart into smaller functions for readabilityl?
+
 /**
- * Calculate all of the onEnd PieceInstances for a PartInstance
+ * Calculate all of the PieceInstances for a PartInstance
+ * This is where we resolve all infinites. The function contains the logic for OnEnd infinites.
  * @param playlistActivationId The current playlist ActivationId
  * @param playingPartInstance The current PartInstance, if there is one
  * @param playingPieceInstances The PieceInstances from the current PartInstance
