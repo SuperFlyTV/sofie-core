@@ -1,4 +1,4 @@
-import { protectString, ProtectedString } from '../protectedString.js'
+import { protectString, ProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { FindOptions, mongoFindOptions, MongoQuery, mongoWhere } from '../mongo.js'
 
 describe('mongoFindOptions', () => {

@@ -3,7 +3,7 @@ import clone from 'fast-clone'
 import { EmptyPieceTimelineObjectsBlob, Piece } from '../../dataModel/Piece.js'
 import { PieceInstance, PieceInstancePiece, ResolvedPieceInstance } from '../../dataModel/PieceInstance.js'
 import { literal } from '../../lib.js'
-import { protectString } from '../../protectedString.js'
+import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import {
 	createPartCurrentTimes,
 	PartCurrentTimes,

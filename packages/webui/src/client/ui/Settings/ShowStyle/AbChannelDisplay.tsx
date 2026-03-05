@@ -7,9 +7,9 @@ import { applyAndValidateOverrides } from '@sofie-automation/corelib/dist/settin
 import { ColumnPackedGrid, ColumnPackedGridGroup, ColumnPackedGridItem } from '../components/ColumnPackedGrid'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSync } from '@fortawesome/free-solid-svg-icons'
-import { sourceLayerTypeString } from '../../../lib/rundown.js'
 import '../components/ColumnPackedGrid.scss'
 import './AbChannelDisplay.scss'
+import { sourceLayerTypeString } from '../../../lib/rundown'
 
 interface AbChannelDisplaySettingsProps {
 	showStyleBase: DBShowStyleBase

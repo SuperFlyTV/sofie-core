@@ -1,5 +1,5 @@
 import { ITranslatableMessage, PackageInfo } from '@sofie-automation/blueprints-integration'
-import { ProtectedString } from '../protectedString.js'
+import { ProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import {
 	RundownId,
 	PartId,

@@ -1,7 +1,6 @@
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { DBSegment, SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import {
 	getPieceInstancesForPart,
@@ -12,7 +11,7 @@ import { invalidateAfter } from './invalidatingTime.js'
 import { groupByToMap } from '@sofie-automation/corelib/dist/lib'
 import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { getCurrentTime } from './systemTime.js'
-import { DBRundownPlaylist, QuickLoopMarkerType } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
+import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist'
 import { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { mongoWhereFilter, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { FindOptions } from '@sofie-automation/meteor-lib/dist/collections/lib'
@@ -26,6 +25,7 @@ import {
 import { RundownPlaylistClientUtil } from './rundownPlaylistUtil.js'
 import { PieceInstances, Pieces } from '../collections/index.js'
 import { PartInstance, PartInstanceLimited } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
+import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/src/playout/stateCacheResolver.js'
 
 function fetchPiecesThatMayBeActiveForPart(
 	part: DBPart,
@@ -268,51 +268,4 @@ export function getSegmentsWithPartInstances(
 			}
 		}
 	})
-}
-
-export function isLoopDefined(playlist: DBRundownPlaylist | undefined): boolean {
-	return playlist?.quickLoop?.start != null && playlist?.quickLoop?.end != null
-}
-
-export function isAnyLoopMarkerDefined(playlist: DBRundownPlaylist | undefined): boolean {
-	return playlist?.quickLoop?.start != null || playlist?.quickLoop?.end != null
-}
-
-export function isLoopRunning(playlist: DBRundownPlaylist | undefined): boolean {
-	return !!playlist?.quickLoop?.running
-}
-
-export function isLoopLocked(playlist: DBRundownPlaylist | undefined): boolean {
-	return !!playlist?.quickLoop?.locked
-}
-
-export function isEntirePlaylistLooping(playlist: DBRundownPlaylist | undefined): boolean {
-	return (
-		playlist?.quickLoop?.start?.type === QuickLoopMarkerType.PLAYLIST &&
-		playlist?.quickLoop?.end?.type === QuickLoopMarkerType.PLAYLIST
-	)
-}
-
-export function isQuickLoopStart(partId: PartId, playlist: DBRundownPlaylist | undefined): boolean {
-	return playlist?.quickLoop?.start?.type === QuickLoopMarkerType.PART && playlist.quickLoop.start.id === partId
-}
-
-export function isQuickLoopEnd(partId: PartId, playlist: DBRundownPlaylist | undefined): boolean {
-	return playlist?.quickLoop?.end?.type === QuickLoopMarkerType.PART && playlist.quickLoop.end.id === partId
-}
-
-export function isEndOfLoopingShow(
-	playlist: DBRundownPlaylist | undefined,
-	isLastSegment: boolean,
-	isPartLastInSegment: boolean,
-	part: DBPart
-): boolean {
-	return (
-		isPartLastInSegment &&
-		isLoopDefined(playlist) &&
-		((isLastSegment && playlist?.quickLoop?.end?.type === QuickLoopMarkerType.PLAYLIST) ||
-			(playlist?.quickLoop?.end?.type === QuickLoopMarkerType.SEGMENT &&
-				playlist?.quickLoop.end.id === part.segmentId) ||
-			(playlist?.quickLoop?.end?.type === QuickLoopMarkerType.PART && playlist?.quickLoop.end.id === part._id))
-	)
 }

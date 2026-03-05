@@ -3,7 +3,7 @@ import {
 	Time,
 	IBlueprintExternalMessageQueueType,
 } from '@sofie-automation/blueprints-integration'
-import { ProtectedStringProperties } from '../protectedString.js'
+import { ProtectedStringProperties } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { ExternalMessageQueueObjId, StudioId, RundownId } from './Ids.js'
 
 export interface ExternalMessageQueueObj extends ProtectedStringProperties<IBlueprintExternalMessageQueueObj, '_id'> {

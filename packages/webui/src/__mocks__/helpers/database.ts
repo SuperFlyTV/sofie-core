@@ -7,7 +7,7 @@ import {
 	SourceLayerType,
 	IBlueprintPieceType,
 } from '@sofie-automation/blueprints-integration'
-import { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
+import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
 import { ICoreSystem, SYSTEM_ID } from '@sofie-automation/meteor-lib/dist/collections/CoreSystem'
 import { literal, getRandomId, Complete, normalizeArray } from '@sofie-automation/corelib/dist/lib'
@@ -546,16 +546,6 @@ export async function setupDefaultRundown(
 // // const showStyleBlueprint
 // // const showStyleVariant
 
-export function convertToUIShowStyleBase(showStyleBase: DBShowStyleBase): UIShowStyleBase {
-	return literal<Complete<UIShowStyleBase>>({
-		_id: showStyleBase._id,
-		name: showStyleBase.name,
-		hotkeyLegend: showStyleBase.hotkeyLegend,
-		sourceLayers: applyAndValidateOverrides(showStyleBase.sourceLayersWithOverrides).obj,
-		outputLayers: applyAndValidateOverrides(showStyleBase.outputLayersWithOverrides).obj,
-		abChannelDisplay: showStyleBase.abChannelDisplay,
-	})
-}
 export function convertToUIStudio(studio: DBStudio): UIStudio {
 	return literal<Complete<UIStudio>>({
 		_id: studio._id,

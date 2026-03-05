@@ -1,4 +1,4 @@
-import { ProtectedString } from '../protectedString.js'
+import { ProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 /** A string, identifying an activation of a playlist */
 export type ActiveInstanceId = ProtectedString<'ActiveInstanceId'>

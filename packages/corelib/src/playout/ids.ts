@@ -1,7 +1,7 @@
 import { PartInstanceId, PieceInstanceId } from '../dataModel/Ids.js'
 import { DBPartInstance } from '../dataModel/PartInstance.js'
 import { PieceInstance } from '../dataModel/PieceInstance.js'
-import { isProtectedString } from '../protectedString.js'
+import { isProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 enum PlayoutTimelinePrefixes {
 	PART_GROUP_PREFIX = 'part_group_',

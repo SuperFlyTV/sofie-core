@@ -1,4 +1,4 @@
-import { ProtectedString } from '../protectedString.js'
+import { ProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 export interface MediaObjects {
 	_id: ProtectedString<'MediaObjId'>

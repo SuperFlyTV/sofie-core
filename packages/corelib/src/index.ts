@@ -2,3 +2,5 @@
 export { Timecode } from 'timecode'
 
 export { MOS } from '@sofie-automation/shared-lib/dist/mos'
+
+export * from './playout/stateCacheResolver.js'

@@ -5,11 +5,11 @@ import {
 	TimelineObjectCoreExt,
 	SomeContent,
 } from '@sofie-automation/blueprints-integration'
-import { ProtectedString, protectString, unprotectString } from '../protectedString.js'
 import { PieceId, RundownId, SegmentId, PartId } from './Ids.js'
 import { CoreUserEditingDefinition, CoreUserEditingProperties } from './UserEditingDefinitions.js'
 import { PieceInstanceWithTimings } from '../playout/processAndPrune.js'
 import { IOutputLayerExtended, ISourceLayerExtended } from './ShowStyleBase.js'
+import { ProtectedString, protectString, unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 
 /** A generic list of playback availability statuses for a Piece */
 export enum PieceStatusCode {
@@ -53,8 +53,7 @@ export interface PieceGeneric extends Omit<IBlueprintPieceGeneric, 'content'> {
 	timelineObjectsString: PieceTimelineObjectsBlob
 }
 export interface Piece
-	extends PieceGeneric,
-		Omit<IBlueprintPieceDB, '_id' | 'content' | 'userEditOperations' | 'userEditProperties'> {
+	extends PieceGeneric, Omit<IBlueprintPieceDB, '_id' | 'content' | 'userEditOperations' | 'userEditProperties'> {
 	/** Timeline enabler. When the piece should be active on the timeline. */
 	enable: {
 		start: number | 'now' // TODO - now will be removed from this eventually, but as it is not an acceptable value 99% of the time, that is not really breaking

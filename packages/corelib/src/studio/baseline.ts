@@ -1,7 +1,7 @@
 import { DBStudio } from '../dataModel/Studio.js'
 import { TimelineComplete } from '../dataModel/Timeline.js'
 import { ReadonlyDeep } from 'type-fest'
-import { unprotectString } from '../protectedString.js'
+import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { Blueprint } from '../dataModel/Blueprint.js'
 
 export function shouldUpdateStudioBaselineInner(

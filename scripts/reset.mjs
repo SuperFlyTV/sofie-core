@@ -18,7 +18,7 @@ if (parseInt(m[1]) < 16) {
 
 console.log("Removing all artifacts...");
 
-await rimrafLog("./meteor/.meteor/local");
+//await rimrafLog("./meteor/.meteor/local");
 await rimrafLog("./meteor/node_modules");
 await rimrafLog("./meteor/coverage");
 

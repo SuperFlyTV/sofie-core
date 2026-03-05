@@ -1,5 +1,5 @@
 import _ from 'underscore'
-import { ProtectedString } from './protectedString.js'
+import { ProtectedString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import * as objectPath from 'object-path'
 import type { Condition, Filter, UpdateFilter } from 'mongodb'
 import { clone } from './lib.js'

@@ -6,7 +6,7 @@ import { EmptyPieceTimelineObjectsBlob, Piece } from '../../dataModel/Piece.js'
 import { PieceInstance, PieceInstancePiece } from '../../dataModel/PieceInstance.js'
 import { Rundown, DBRundown } from '../../dataModel/Rundown.js'
 import { literal } from '../../lib.js'
-import { protectString } from '../../protectedString.js'
+import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { getPlayheadTrackingInfinitesForPart } from '../infinites.js'
 import { DBSegment, SegmentOrphanedReason } from '../../dataModel/Segment.js'
 

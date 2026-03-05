@@ -32,7 +32,6 @@ import RundownViewEventBus, {
 	RundownViewEvents,
 	HighlightEvent,
 } from '@sofie-automation/meteor-lib/dist/triggers/RundownViewEventBus'
-import { wrapPartToTemporaryInstance } from '@sofie-automation/meteor-lib/dist/collections/PartInstances'
 
 import { SegmentTimelineSmallPartFlag } from './SmallParts/SegmentTimelineSmallPartFlag.js'
 import { UIStateStorage } from '../../lib/UIStateStorage.js'
@@ -53,12 +52,12 @@ import {
 } from '../RundownView/RundownTiming/withTiming.js'
 import { SegmentTimeAnchorTime } from '../RundownView/RundownTiming/SegmentTimeAnchorTime.js'
 import { logger } from '../../lib/logging.js'
-import * as RundownResolver from '../../lib/RundownResolver.js'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { SelectedElementsContext } from '../RundownView/SelectedElementsContext.js'
 import { BlueprintAssetIcon } from '../../lib/Components/BlueprintAssetIcon.js'
 import { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 import { PieceUi } from '@sofie-automation/corelib/src/dataModel/Piece.js'
+import { isLoopRunning, wrapPartToTemporaryInstance } from '@sofie-automation/corelib/src/playout/stateCacheResolver.js'
 
 interface IProps {
 	id: string
@@ -675,7 +674,7 @@ export class SegmentTimelineClass extends React.Component<Translated<WithTiming<
 
 		return (
 			<>
-				{!RundownResolver.isLoopRunning(this.props.playlist) && (
+				{!isLoopRunning(this.props.playlist) && (
 					<div
 						className="segment-timeline__liveline-shade"
 						style={{

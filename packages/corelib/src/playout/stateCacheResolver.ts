@@ -23,9 +23,9 @@ import { PieceInstance, PieceInstancePiece } from '../dataModel/PieceInstance.js
 import { Rundown } from '../dataModel/Rundown.js'
 import { DBRundownPlaylist, QuickLoopMarkerType } from '../dataModel/RundownPlaylist.js'
 import { DBSegment, SegmentExtended, SegmentOrphanedReason } from '../dataModel/Segment.js'
-import { assertNever, literal, groupByToMap } from '../lib.js'
+import { assertNever, literal, groupByToMap, Complete } from '../lib.js'
 import { FindOneOptions, FindOptions, MongoQuery, mongoWhereFilter } from '../mongo.js'
-import { protectString } from '../protectedString.js'
+import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import {
 	createPartCurrentTimes,
 	processAndPrunePieceInstanceTimings,
@@ -37,7 +37,12 @@ import {
 	buildPiecesStartingInThisPartQuery,
 	getPieceInstancesForPart,
 } from './infinites.js'
-import { DBShowStyleBase, IOutputLayerExtended, ISourceLayerExtended } from '../dataModel/ShowStyleBase.js'
+import {
+	DBShowStyleBase,
+	IOutputLayerExtended,
+	ISourceLayerExtended,
+	UIShowStyleBase,
+} from '../dataModel/ShowStyleBase.js'
 import { applyAndValidateOverrides } from '../settings/objectWithOverrides.js'
 import { PartInstance, PartInstanceLimited } from '../dataModel/PartInstance.js'
 import { UIStudio } from '../dataModel/Studio.js'
@@ -45,8 +50,8 @@ import { ReadonlyDeep } from 'type-fest'
 import { TimeDuration } from '@sofie-automation/shared-lib/dist/lib/lib'
 
 type SegmentsFindOne = (
-	selector?: SegmentId | MongoQuery<DBSegment>,
-	options?: FindOneOptions<DBSegment>
+	selector: SegmentId | MongoQuery<DBSegment>,
+	options: FindOneOptions<DBSegment>
 ) => DBSegment | undefined
 type PieceInstancesFind = (
 	selector?: PieceInstanceId | MongoQuery<PieceInstance>,
@@ -126,7 +131,7 @@ export function getPieceStatusClassName(status: PieceStatusCode | undefined): st
  * @return {*}  {({
  */
 export function getResolvedSegment(
-	showStyleBase: DBShowStyleBase,
+	showStyleBaseProp: DBShowStyleBase | UIShowStyleBase,
 	studio: UIStudio | undefined,
 	playlist: DBRundownPlaylist,
 	rundown: Pick<Rundown, '_id' | 'showStyleBaseId'>,
@@ -137,8 +142,6 @@ export function getResolvedSegment(
 	orderedAllPartIds: PartId[],
 	currentPartInstance: PartInstance | undefined,
 	nextPartInstance: PartInstance | undefined,
-	pieceInstanceSimulation: boolean = false,
-	includeDisabledPieces: boolean = false,
 	// TODO: Add new parameters to JSDOC
 	segmentsFindOne: SegmentsFindOne,
 	getSegmentsAndPartsSync: GetSegmentsAndPartsSync,
@@ -146,7 +149,9 @@ export function getResolvedSegment(
 	piecesFind: PiecesFind,
 	pieceInstancesFind: PieceInstancesFind,
 	getCurrentTime: GetCurrentTime = () => Date.now(),
-	showHiddenSourceLayers: boolean,
+	pieceInstanceSimulation: boolean = false,
+	includeDisabledPieces: boolean = false,
+	showHiddenSourceLayers: boolean = false,
 	defaultDisplayDuration: number = 0 // I think 0 here is reasonable, and should be overridden by an actual value when used in a UI.
 ): {
 	/** A Segment with some additional information */
@@ -177,8 +182,9 @@ export function getResolvedSegment(
 	let hasAlreadyPlayed = false
 	let hasRemoteItems = false
 	let hasGuestItems = false
-	const resolvedOutputLayers = applyAndValidateOverrides(showStyleBase.outputLayersWithOverrides).obj
-	const resolvedSourceLayers = applyAndValidateOverrides(showStyleBase.sourceLayersWithOverrides).obj
+	const showStyleBase = isUIShowStyleBase(showStyleBaseProp)
+		? showStyleBaseProp
+		: convertToUIShowStyleBase(showStyleBaseProp)
 
 	let autoNextPart = false
 
@@ -220,7 +226,7 @@ export function getResolvedSegment(
 		// create local deep copies of the studio outputLayers and sourceLayers so that we can store
 		// pieces present on those layers inside and also figure out which layers are used when inside the rundown
 		const outputLayers: Record<string, IOutputLayerExtended> = {}
-		for (const [id, layer] of Object.entries<IOutputLayer | undefined>(resolvedOutputLayers)) {
+		for (const [id, layer] of Object.entries<IOutputLayer | undefined>(showStyleBase.outputLayers)) {
 			if (layer) {
 				outputLayers[id] = {
 					...layer,
@@ -230,7 +236,7 @@ export function getResolvedSegment(
 			}
 		}
 		const sourceLayers: Record<string, ISourceLayerExtended> = {}
-		for (const [id, layer] of Object.entries<ISourceLayer | undefined>(resolvedSourceLayers)) {
+		for (const [id, layer] of Object.entries<ISourceLayer | undefined>(showStyleBase.sourceLayers)) {
 			if (layer) {
 				sourceLayers[id] = {
 					...layer,
@@ -364,7 +370,7 @@ export function getResolvedSegment(
 
 			const partTimes = createPartCurrentTimes(getCurrentTime(), partE.instance.timings?.plannedStartedPlayback)
 			const preprocessedPieces = processAndPrunePieceInstanceTimings(
-				resolvedSourceLayers,
+				showStyleBase.sourceLayers,
 				rawPieceInstances,
 				partTimes,
 				includeDisabledPieces
@@ -926,4 +932,28 @@ export function wrapPartToTemporaryInstance(
 		rehearsal: false,
 		part: part as DBPart,
 	}
+}
+
+export function convertToUIShowStyleBase(showStyleBase: DBShowStyleBase): UIShowStyleBase {
+	return literal<Complete<UIShowStyleBase>>({
+		_id: showStyleBase._id,
+		name: showStyleBase.name,
+		hotkeyLegend: showStyleBase.hotkeyLegend,
+		sourceLayers: applyAndValidateOverrides(showStyleBase.sourceLayersWithOverrides).obj,
+		outputLayers: applyAndValidateOverrides(showStyleBase.outputLayersWithOverrides).obj,
+		abChannelDisplay: showStyleBase.abChannelDisplay,
+	})
+}
+
+export function isUIShowStyleBase(value: unknown): value is UIShowStyleBase {
+	if (!value || typeof value !== 'object') return false
+
+	const v = value as Partial<UIShowStyleBase>
+
+	return (
+		typeof v.sourceLayers === 'object' &&
+		v.sourceLayers !== null &&
+		typeof v.outputLayers === 'object' &&
+		v.outputLayers !== null
+	)
 }
