@@ -17,7 +17,7 @@ import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { CountdownType } from '@sofie-automation/blueprints-integration'
 import {
 	ActivePlaylistEvent,
-	RundownPlaylistTimingMode,
+	ActivePlaylistTimingMode,
 	SegmentCountdownType,
 } from '@sofie-automation/live-status-gateway-api'
 
@@ -60,7 +60,7 @@ describe('ActivePlaylistTopic', () => {
 			rundownIds: unprotectStringArray(playlist.rundownIdsInOrder),
 			publicData: undefined,
 			timing: {
-				timingMode: RundownPlaylistTimingMode.NONE,
+				timingMode: ActivePlaylistTimingMode.NONE,
 			},
 			quickLoop: undefined,
 		}
@@ -161,7 +161,7 @@ describe('ActivePlaylistTopic', () => {
 			rundownIds: unprotectStringArray(playlist.rundownIdsInOrder),
 			publicData: { a: 'b' },
 			timing: {
-				timingMode: RundownPlaylistTimingMode.NONE,
+				timingMode: ActivePlaylistTimingMode.NONE,
 			},
 			quickLoop: undefined,
 		}
@@ -267,7 +267,7 @@ describe('ActivePlaylistTopic', () => {
 			rundownIds: unprotectStringArray(playlist.rundownIdsInOrder),
 			publicData: { a: 'b' },
 			timing: {
-				timingMode: RundownPlaylistTimingMode.NONE,
+				timingMode: ActivePlaylistTimingMode.NONE,
 			},
 			quickLoop: undefined,
 		}
