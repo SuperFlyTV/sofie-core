@@ -2,6 +2,7 @@ import {
 	getResolvedSegment as getResolvedSegmentBase,
 	isAdlibActionContent as isAdlibActionContentBase,
 	getSegmentsWithPartInstances as getSegmentsWithPartInstancesBase,
+	getPieceInstancesForPartInstance as getPieceInstancesForPartInstanceBase,
 	Timecode,
 } from '@sofie-automation/corelib/dist/index'
 import { Settings } from '../lib/Settings.js'
@@ -22,6 +23,7 @@ import {
 	PieceId,
 	PieceInstanceId,
 	RundownId,
+	RundownPlaylistActivationId,
 	SegmentId,
 	ShowStyleBaseId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
@@ -29,7 +31,7 @@ import { Piece, PieceUi } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { FindOneOptions, FindOptions, MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { DBPart, PartExtended } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { RundownPlaylistClientUtil } from './rundownPlaylistUtil.js'
-import { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
+import { PartInstance, PartInstanceLimited } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import { PartUi } from '../ui/SegmentContainer/withResolvedSegment.js'
 import { Rundown } from '@sofie-automation/corelib/src/dataModel/Rundown.js'
 import { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/src/dataModel/ShowStyleBase.js'
@@ -39,6 +41,7 @@ import { getCurrentTime } from './systemTime.js'
 import { getShowHiddenSourceLayers } from './localStorage.js'
 import { assertNever } from '@sofie-automation/corelib/src/lib.js'
 import { TFunction } from 'react-i18next'
+import { invalidateAfter } from './invalidatingTime.js'
 
 const segmentsFindOne = (selector: SegmentId | MongoQuery<DBSegment>, options: FindOneOptions<DBSegment>) =>
 	Segments.findOne(selector, options)
@@ -369,7 +372,7 @@ export namespace RundownUtils {
 			piecesFind,
 			pieceInstancesFind,
 			getCurrentTime,
-			pieceInstanceSimulation,
+			pieceInstanceSimulation ? invalidateAfter : undefined,
 			includeDisabledPieces,
 			getShowHiddenSourceLayers(),
 			Settings.defaultDisplayDuration
@@ -455,6 +458,68 @@ export namespace RundownUtils {
 			segmentsOptions,
 			partsOptions,
 			partInstancesOptions
+		)
+	}
+	/**
+	 * Get the PieceInstances for a given PartInstance. Will create temporary PieceInstances, based on the Pieces collection
+	 * if the partInstance is temporary.
+	 *
+	 * @export
+	 * @param {PartInstanceLimited} partInstance
+	 * @param {Set<PartId>} partsToReceiveOnSegmentEndFromSet
+	 * @param {Set<SegmentId>} segmentsToReceiveOnRundownEndFromSet
+	 * @param {PartId[]} orderedAllParts
+	 * @param {boolean} nextPartIsAfterCurrentPart
+	 * @param {(PartInstance | undefined)} currentPartInstance
+	 * @param {(PieceInstance[] | undefined)} currentPartInstancePieceInstances
+	 * @param {boolean} allowTestingAdlibsToPersist Studio config parameter to allow infinite adlibs from adlib testing to persist in the rundown
+	 * @param {FindOptions<PieceInstance>} [options]
+	 * @param {boolean} [pieceInstanceSimulation] If there are no PieceInstances in the PartInstance, create temporary
+	 * 		PieceInstances based on the Pieces collection and register a reactive dependency to recalculate the current
+	 * 		computation after some time to return the actual PieceInstances for the PartInstance.
+	 * @return {*}
+	 */
+	export function getPieceInstancesForPartInstance(
+		playlistActivationId: RundownPlaylistActivationId | undefined,
+		rundown: Pick<Rundown, '_id' | 'showStyleBaseId'>,
+		segment: Pick<DBSegment, '_id' | 'orphaned'>,
+		partInstance: PartInstanceLimited,
+		partsToReceiveOnSegmentEndFromSet: Set<PartId>,
+		segmentsToReceiveOnRundownEndFromSet: Set<SegmentId>,
+		rundownsToReceiveOnShowStyleEndFrom: RundownId[],
+		rundownsToShowstyles: ReadonlyMap<RundownId, ShowStyleBaseId>,
+		orderedAllParts: PartId[],
+		nextPartIsAfterCurrentPart: boolean,
+		currentPartInstance: PartInstance | undefined,
+		currentSegment: Pick<DBSegment, '_id' | 'orphaned'> | undefined,
+		currentPartInstancePieceInstances: PieceInstance[] | undefined,
+		allowTestingAdlibsToPersist: boolean,
+		/** Map of Pieces on Parts, passed through for performance */
+		allPiecesCache?: Map<PartId | null, Piece[]>,
+		options?: FindOptions<PieceInstance>,
+		pieceInstanceSimulation?: boolean
+	): PieceInstance[] {
+		return getPieceInstancesForPartInstanceBase(
+			playlistActivationId,
+			rundown,
+			segment,
+			partInstance,
+			partsToReceiveOnSegmentEndFromSet,
+			segmentsToReceiveOnRundownEndFromSet,
+			rundownsToReceiveOnShowStyleEndFrom,
+			rundownsToShowstyles,
+			orderedAllParts,
+			nextPartIsAfterCurrentPart,
+			currentPartInstance,
+			currentSegment,
+			currentPartInstancePieceInstances,
+			allowTestingAdlibsToPersist,
+			piecesFind,
+			pieceInstancesFind,
+			getCurrentTime,
+			allPiecesCache,
+			options,
+			pieceInstanceSimulation ? invalidateAfter : undefined
 		)
 	}
 }

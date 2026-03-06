@@ -110,24 +110,34 @@ export function getPieceStatusClassName(status: PieceStatusCode | undefined): st
  * It simulates the operations done by the playout operations in core and playout-gateway
  * and produces a list of Pieces across Parts timed relatively.
  *
- * This method is primarily used by the GUI to visualize segments, but other functions
+ * This method is primarily used by the GUI and the LSG to visualize/resolve segments, but other functions
  * utilize it as well when information about timing & time placement is needed.
  *
  * @export
- * @param {ShowStyleBase} showStyleBase
- * @param {UIStudio} studio
+ * @param {DBShowStyleBase | UIShowStyleBase} showStyleBase
+ * @param {UIStudio | undefined} studio
  * @param {DBRundownPlaylist} playlist
+ * @param {Pick<Rundown, '_id' | 'showStyleBaseId'>} rundown
  * @param {DBSegment} segment
  * @param {Set<SegmentId>} segmentsToReceiveOnRundownEndFromSet
+ * @param {RundownId[]} rundownsToReceiveOnShowStyleEndFrom
+ * @param {ReadonlyMap<RundownId, ShowStyleBaseId>} rundownsToShowStyles
  * @param {PartId[]} orderedAllPartIds
- * @param {PartInstance | undefined } currentPartInstance
- * @param {PartInstance | undefined } nextPartInstance
- * @param {boolean} [pieceInstanceSimulation=false] Can be used client-side to simulate the contents of a
- * 		PartInstance, whose contents are being streamed in. When ran in a reactive context, the computation will
- * 		be eventually invalidated so that the actual data can be streamed in (to show that the part is actually empty)
+ * @param {PartInstance | undefined} nextPartInstance
+ * @param {SegmentsFindOne} segmentsFindOne
+ * @param {GetSegmentsAndPartsSync} getSegmentsAndPartsSync
+ * @param {GetActivePartInstances} getActivePartInstances
+ * @param {PiecesFind} piecesFind
+ * @param {PieceInstancesFind} pieceInstancesFind
+ * @param {GetCurrentTime} getCurrentTime
+ * @param {((timeoutMs: number) => void) | undefined} [invalidateAfter] Optional callback triggered if the function returns simulated PieceInstances (fallback).
+ * 		If provided, it will be executed with a timeout (ms) indicating when the simulation should be considered stale and the data should be re-evaluated.
+ * 		Used to handle the data-sync gap during "Take" or "Next" operations.
  * @param {boolean} [includeDisabledPieces=false] In some uses (like when previewing a Segment in the GUI) it's needed
  * 		to consider disabled Piecess as where they are, instead of stripping them out. When enabled, the method will
  * 		keep them in the result set.
+ * @param {boolean} [showHiddenSourceLayers=false]
+ * @param {number} [defaultDisplayDuration=0]
  * @return {*}  {({
  */
 export function getResolvedSegment(
@@ -138,18 +148,17 @@ export function getResolvedSegment(
 	segment: DBSegment,
 	segmentsToReceiveOnRundownEndFromSet: Set<SegmentId>,
 	rundownsToReceiveOnShowStyleEndFrom: RundownId[],
-	rundownsToShowstyles: ReadonlyMap<RundownId, ShowStyleBaseId>,
+	rundownsToShowStyles: ReadonlyMap<RundownId, ShowStyleBaseId>,
 	orderedAllPartIds: PartId[],
 	currentPartInstance: PartInstance | undefined,
 	nextPartInstance: PartInstance | undefined,
-	// TODO: Add new parameters to JSDOC
 	segmentsFindOne: SegmentsFindOne,
 	getSegmentsAndPartsSync: GetSegmentsAndPartsSync,
 	getActivePartInstances: GetActivePartInstances,
 	piecesFind: PiecesFind,
 	pieceInstancesFind: PieceInstancesFind,
 	getCurrentTime: GetCurrentTime = () => Date.now(),
-	pieceInstanceSimulation: boolean = false,
+	invalidateAfter: ((timeoutMs: number) => void) | undefined,
 	includeDisabledPieces: boolean = false,
 	showHiddenSourceLayers: boolean = false,
 	defaultDisplayDuration: number = 0 // I think 0 here is reasonable, and should be overridden by an actual value when used in a UI.
@@ -339,7 +348,7 @@ export function getResolvedSegment(
 				new Set(partIds.slice(0, itIndex)),
 				segmentsToReceiveOnRundownEndFromSet,
 				rundownsToReceiveOnShowStyleEndFrom,
-				rundownsToShowstyles,
+				rundownsToShowStyles,
 				orderedAllPartIds,
 				nextPartIsAfterCurrentPart,
 				currentPartInstance,
@@ -365,7 +374,7 @@ export function getResolvedSegment(
 				getCurrentTime,
 				undefined,
 				pieceInstanceFieldOptions,
-				pieceInstanceSimulation
+				invalidateAfter
 			)
 
 			const partTimes = createPartCurrentTimes(getCurrentTime(), partE.instance.timings?.plannedStartedPlayback)
@@ -598,7 +607,6 @@ export function getResolvedSegment(
 	// get the part immediately after the last segment
 }
 
-// TODO: this can stay here
 export function isAdlibActionContent(
 	display: IBlueprintActionManifestDisplay | IBlueprintActionManifestDisplayContent
 ): display is IBlueprintActionManifestDisplayContent {
@@ -626,6 +634,8 @@ export function deduplicatePartInstancesForQuickLoop<T extends Pick<PartInstance
  * @export
  * @param {DBRundownPlaylist} playlist
  * @param {(MongoQuery<DBSegment>)} [segmentsQuery]
+ * @param {GetSegmentsAndPartsSync} [getSegmentsAndPartsSync]
+ * @param {GetActivePartInstances} [getActivePartInstances]
  * @param {(MongoQuery<DBPart>)} [partsQuery]
  * @param {MongoQuery<PartInstance>} [partInstancesQuery]
  * @param {FindOptions<DBSegment>} [segmentsOptions]
@@ -635,10 +645,8 @@ export function deduplicatePartInstancesForQuickLoop<T extends Pick<PartInstance
  */
 export function getSegmentsWithPartInstances(
 	playlist: DBRundownPlaylist,
-	// TODO: Add these to the JSDOC
 	getSegmentsAndPartsSync: GetSegmentsAndPartsSync,
 	getActivePartInstances: GetActivePartInstances,
-	// Old optional parameters continue below:
 	segmentsQuery?: MongoQuery<DBSegment>,
 	partsQuery?: MongoQuery<DBPart>,
 	partInstancesQuery?: MongoQuery<PartInstance>,
@@ -750,10 +758,14 @@ const SIMULATION_INVALIDATION = 3000
  * @param {(PartInstance | undefined)} currentPartInstance
  * @param {(PieceInstance[] | undefined)} currentPartInstancePieceInstances
  * @param {boolean} allowTestingAdlibsToPersist Studio config parameter to allow infinite adlibs from adlib testing to persist in the rundown
+ * @param {PiecesFind} [piecesFind]
+ * @param {PieceInstancesFind} [pieceInstancesFind]
+ * @param {GetCurrentTime} [getCurrentTime]
+ * @param {Map<PartId | null, Piece[]>} [allPiecesCache]
  * @param {FindOptions<PieceInstance>} [options]
- * @param {boolean} [pieceInstanceSimulation] If there are no PieceInstances in the PartInstance, create temporary
- * 		PieceInstances based on the Pieces collection and register a reactive dependency to recalculate the current
- * 		computation after some time to return the actual PieceInstances for the PartInstance.
+ * @param {((timeoutMs: number) => void)} [invalidateAfter] Optional callback triggered if the function returns simulated PieceInstances (fallback).
+ * 		If provided, it will be executed with a timeout (ms) indicating when the simulation should be considered stale and the data should be re-evaluated.
+ * 		Used to handle the data-sync gap during "Take" or "Next" operations.
  * @return {*}
  */
 export function getPieceInstancesForPartInstance(
@@ -771,14 +783,12 @@ export function getPieceInstancesForPartInstance(
 	currentSegment: Pick<DBSegment, '_id' | 'orphaned'> | undefined,
 	currentPartInstancePieceInstances: PieceInstance[] | undefined,
 	allowTestingAdlibsToPersist: boolean,
-	// TODO: Add JSDOC for new parameters:
 	piecesFind: PiecesFind,
 	pieceInstancesFind: PieceInstancesFind,
 	getCurrentTime: GetCurrentTime = () => Date.now(),
-	/** Map of Pieces on Parts, passed through for performance */
 	allPiecesCache?: Map<PartId | null, Piece[]>,
 	options?: FindOptions<PieceInstance>,
-	pieceInstanceSimulation?: boolean
+	invalidateAfter?: (timeoutMs: number) => void
 ): PieceInstance[] {
 	if (segment.orphaned === SegmentOrphanedReason.ADLIB_TESTING) {
 		// When in the AdlibTesting segment, don't allow searching other segments/rundowns for infinites to continue
@@ -821,21 +831,19 @@ export function getPieceInstancesForPartInstance(
 				? currentPartInstancePieceInstances
 				: pieceInstancesFind({ partInstanceId: partInstance._id }, options)
 		// check if we can return the results immediately
-		if (results.length > 0 || !pieceInstanceSimulation) return results
+		if (results.length > 0 || !invalidateAfter) return results
 
 		// if a simulation has been requested and less than SIMULATION_INVALIDATION time has passed
 		// since the PartInstance has been nexted or taken, simulate the PieceInstances using the Piece collection.
 		const now = getCurrentTime()
 		if (
-			pieceInstanceSimulation &&
 			results.length === 0 &&
 			(!partInstance.timings ||
 				(partInstance.timings.setAsNext || 0) > now - SIMULATION_INVALIDATION ||
 				(partInstance.timings.take || 0) > now - SIMULATION_INVALIDATION)
 		) {
-			// TODO: figure out invalidation here
 			// make sure to invalidate the current computation after SIMULATION_INVALIDATION has passed
-			// invalidateAfter(SIMULATION_INVALIDATION)
+			invalidateAfter(SIMULATION_INVALIDATION)
 
 			return getPieceInstancesForPart(
 				playlistActivationId || protectString(''),
