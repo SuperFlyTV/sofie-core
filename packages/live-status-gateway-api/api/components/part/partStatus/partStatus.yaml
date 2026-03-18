@@ -15,9 +15,6 @@ $defs:
             type: array
             items:
               $ref: '../../piece/pieceStatus/pieceStatus.yaml#/$defs/pieceStatus'
-          expectedDuration:
-            description: Expected duration of the part, in milliseconds
-            type: number
           publicData:
             description: Optional arbitrary data
         required: [id, name, segmentId, pieces]

@@ -30,13 +30,10 @@ import { BucketsHandler } from './collections/bucketsHandler.js'
 import { BucketAdLibsHandler } from './collections/bucketAdLibsHandler.js'
 import { BucketAdLibActionsHandler } from './collections/bucketAdLibActionsHandler.js'
 import { BucketsTopic } from './topics/bucketsTopic.js'
-import { ExtendedActivePlaylistTopic } from './topics/extendedActivePlaylistTopic.js'
 import { NotificationsHandler } from './collections/notifications/notificationsHandler.js'
 import { NotificationsTopic } from './topics/notificationsTopic.js'
 import { PlaylistNotificationsHandler } from './collections/notifications/playlistNotificationsHandler.js'
 import { RundownNotificationsHandler } from './collections/notifications/rundownNotificationsHandler.js'
-import { PiecesHandler } from './collections/piecesHandler.js'
-import { RundownsHandler } from './collections/rundownsHandler.js'
 
 export interface CollectionHandlers {
 	studioHandler: StudioHandler
@@ -44,14 +41,12 @@ export interface CollectionHandlers {
 	playlistHandler: PlaylistHandler
 	playlistsHandler: PlaylistsHandler
 	rundownHandler: RundownHandler
-	rundownsHandler: RundownsHandler
 	segmentsHandler: SegmentsHandler
 	segmentHandler: SegmentHandler
 	partsHandler: PartsHandler
 	partHandler: PartHandler
 	partInstancesHandler: PartInstancesHandler
 	pieceInstancesHandler: PieceInstancesHandler
-	piecesHandler: PiecesHandler
 	adLibActionsHandler: AdLibActionsHandler
 	adLibsHandler: AdLibsHandler
 	globalAdLibActionsHandler: GlobalAdLibActionsHandler
@@ -85,14 +80,12 @@ export class LiveStatusServer {
 		const playlistHandler = new PlaylistHandler(this._logger, this._coreHandler)
 		const playlistsHandler = playlistHandler.playlistsHandler
 		const rundownHandler = new RundownHandler(this._logger, this._coreHandler)
-		const rundownsHandler = new RundownsHandler(this._logger, this._coreHandler)
 		const segmentsHandler = new SegmentsHandler(this._logger, this._coreHandler)
 		const segmentHandler = new SegmentHandler(this._logger, this._coreHandler, segmentsHandler)
 		const partsHandler = new PartsHandler(this._logger, this._coreHandler)
 		const partHandler = new PartHandler(this._logger, this._coreHandler, partsHandler)
 		const partInstancesHandler = new PartInstancesHandler(this._logger, this._coreHandler)
 		const pieceInstancesHandler = new PieceInstancesHandler(this._logger, this._coreHandler)
-		const piecesHandler = new PiecesHandler(this._logger, this._coreHandler)
 		const adLibActionsHandler = new AdLibActionsHandler(this._logger, this._coreHandler)
 		const adLibsHandler = new AdLibsHandler(this._logger, this._coreHandler)
 		const globalAdLibActionsHandler = new GlobalAdLibActionsHandler(this._logger, this._coreHandler)
@@ -111,14 +104,12 @@ export class LiveStatusServer {
 			playlistHandler,
 			playlistsHandler,
 			rundownHandler,
-			rundownsHandler,
 			segmentsHandler,
 			segmentHandler,
 			partsHandler,
 			partHandler,
 			partInstancesHandler,
 			pieceInstancesHandler,
-			piecesHandler,
 			adLibActionsHandler,
 			adLibsHandler,
 			globalAdLibActionsHandler,
@@ -139,7 +130,6 @@ export class LiveStatusServer {
 		const studioTopic = new StudioTopic(this._logger, handlers)
 		const activePiecesTopic = new ActivePiecesTopic(this._logger, handlers)
 		const activePlaylistTopic = new ActivePlaylistTopic(this._logger, handlers)
-		const extendedActivePlaylistTopic = new ExtendedActivePlaylistTopic(this._logger, handlers)
 		const segmentsTopic = new SegmentsTopic(this._logger, handlers)
 		const adLibsTopic = new AdLibsTopic(this._logger, handlers)
 		const notificationsTopic = new NotificationsTopic(this._logger, handlers)
@@ -148,7 +138,6 @@ export class LiveStatusServer {
 
 		rootChannel.addTopic(SubscriptionName.STUDIO, studioTopic)
 		rootChannel.addTopic(SubscriptionName.ACTIVE_PLAYLIST, activePlaylistTopic)
-		rootChannel.addTopic(SubscriptionName.EXTENDED_ACTIVE_PLAYLIST, extendedActivePlaylistTopic)
 		rootChannel.addTopic(SubscriptionName.ACTIVE_PIECES, activePiecesTopic)
 		rootChannel.addTopic(SubscriptionName.SEGMENTS, segmentsTopic)
 		rootChannel.addTopic(SubscriptionName.AD_LIBS, adLibsTopic)

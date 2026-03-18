@@ -346,9 +346,8 @@ export class CoreHandler {
 	private _getVersions() {
 		const versions: { [packageName: string]: string } = {}
 
-		if (process.env.npm_package_version) {
-			versions['_process'] = process.env.npm_package_version
-		}
+		const pkg = require('../package.json')
+		if (pkg?.version) versions['_process'] = pkg.version
 
 		return versions
 	}

@@ -60,7 +60,6 @@ interface SubscriptionRequestDetails {
 enum SubscriptionName {
 	STUDIO = 'studio',
 	ACTIVE_PLAYLIST = 'activePlaylist',
-	EXTENDED_ACTIVE_PLAYLIST = 'extendedActivePlaylist',
 	ACTIVE_PIECES = 'activePieces',
 	SEGMENTS = 'segments',
 	AD_LIBS = 'adLibs',
@@ -134,7 +133,7 @@ interface PlaylistStatus {
 	/**
 	 * Id normally sourced from the ingest system
 	 */
-	externalId: string | null
+	externalId: string
 	/**
 	 * The user defined playlist name
 	 */
@@ -180,6 +179,10 @@ interface ActivePlaylistEvent {
 	 */
 	publicData?: any
 	/**
+	 * Blueprint-defined playout state, used to expose arbitrary information about playout
+	 */
+	playoutState?: any
+	/**
 	 * Timing information about the active playlist
 	 */
 	timing: ActivePlaylistTiming
@@ -210,10 +213,6 @@ interface CurrentPartStatus {
 	 * All pieces in this part
 	 */
 	pieces: PieceStatus[]
-	/**
-	 * Expected duration of the part, in milliseconds
-	 */
-	expectedDuration?: number
 	/**
 	 * Optional arbitrary data
 	 */
@@ -250,6 +249,25 @@ interface PieceStatus {
 	 * Optional arbitrary data
 	 */
 	publicData?: any
+	/**
+	 * AB playback session assignments for this Piece
+	 */
+	abSessions?: AbSessionAssignment[]
+}
+
+interface AbSessionAssignment {
+	/**
+	 * The name of the AB Pool this session is for
+	 */
+	poolName: string
+	/**
+	 * Name of the session
+	 */
+	sessionName: string
+	/**
+	 * The assigned player ID
+	 */
+	playerId: string | number
 }
 
 /**
@@ -362,10 +380,6 @@ interface PartStatus {
 	 */
 	pieces: PieceStatus[]
 	/**
-	 * Expected duration of the part, in milliseconds
-	 */
-	expectedDuration?: number
-	/**
 	 * Optional arbitrary data
 	 */
 	publicData?: any
@@ -463,290 +477,6 @@ enum QuickLoopMarkerType {
 	PART = 'part',
 }
 
-interface ExtendedActivePlaylistEvent {
-	event: 'extendedActivePlaylist'
-	/**
-	 * Unique id of the active playlist
-	 */
-	id: string | null
-	/**
-	 * Id normally sourced from the ingest system
-	 */
-	externalId: string | null
-	/**
-	 * User-presentable name for the active playlist
-	 */
-	name: string
-	/**
-	 * Last modified timestamp
-	 */
-	modified?: number
-	/**
-	 * The set of rundowns in the active playlist, in order
-	 */
-	rundowns: Rundown[]
-	currentPart: CurrentPartStatus | null
-	currentSegment: CurrentSegment | null
-	nextPart: PartStatus | null
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * Timing information about the active playlist
-	 */
-	timing: ActivePlaylistTiming
-	/**
-	 * Information about the current quickLoop, if any
-	 */
-	quickLoop?: ActivePlaylistQuickLoop
-}
-
-interface Rundown {
-	/**
-	 * Unique id of the rundown
-	 */
-	id: string
-	/**
-	 * Id normally sourced from the ingest system
-	 */
-	externalId?: string | null
-	/**
-	 * Name of the rundown
-	 */
-	name: string
-	/**
-	 * Longer user-presentable description of the rundown
-	 */
-	description?: string
-	/**
-	 * Timing information about the active playlist
-	 */
-	timing?: ActivePlaylistTiming
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * The segments that in the rundown
-	 */
-	segments: ExtendedSegment[]
-}
-
-interface ExtendedSegment {
-	/**
-	 * Unique id of the segment
-	 */
-	id: string
-	/**
-	 * User-facing identifier that can be used to identify the contents of a segment in the Rundown source system
-	 */
-	identifier?: string
-	/**
-	 * Unique id of the rundown this segment belongs to
-	 */
-	rundownId: string
-	/**
-	 * Name of the segment
-	 */
-	name: string
-	timing: SegmentTiming
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * Id normally sourced from the ingest system
-	 */
-	externalId?: string | null
-	/**
-	 * Hide the Segment in the UI
-	 */
-	isHidden?: boolean
-	/**
-	 * Parts belonging to a segment
-	 */
-	parts?: (ExtendedPartStatus | any)[]
-	additionalProperties?: Record<string, any>
-}
-
-interface SegmentTiming {
-	/**
-	 * Expected duration of the segment (milliseconds)
-	 */
-	expectedDurationMs: number
-	/**
-	 * Budget duration of the segment (milliseconds)
-	 */
-	budgetDurationMs?: number
-	/**
-	 * Countdown type within the segment. Default: `part_expected_duration`
-	 */
-	countdownType?: SegmentCountdownType
-	additionalProperties?: Record<string, any>
-}
-
-interface ExtendedPartStatus {
-	/**
-	 * Unique id of the part
-	 */
-	id: string
-	/**
-	 * User-presentable name of the part
-	 */
-	name: string
-	/**
-	 * If this part will progress to the next automatically
-	 */
-	autoNext?: boolean
-	/**
-	 * Unique id of the instance if the current part has one
-	 */
-	instanceId?: string
-	/**
-	 * Unique id of the segment this part belongs to
-	 */
-	segmentId: string
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * User-facing identifier that can be used by the User to identify the contents of a segment in the Rundown source system
-	 */
-	identifier?: string
-	/**
-	 * Id normally sourced from the ingest system
-	 */
-	externalId?: string | null
-	/**
-	 * The story title to show in the prompter If unset, `title` is used instead
-	 */
-	prompterTitle?: string
-	/**
-	 * When this part is just a filler to fill space in a segment. Generally, used with invalid being also true
-	 */
-	gap?: boolean
-	/**
-	 * Something went wrong or the part is being processed
-	 */
-	invalid?: boolean
-	/**
-	 * When something bad has happened, we can mark the part as invalid, which will prevent the user from TAKEing it.
-	 */
-	invalidReason?: InvalidReason
-	/**
-	 * When the NRCS informs us that the producer marked the part as floated, we can prevent the user from TAKE'ing and NEXT'ing it, but still have it visible and allow manipulation
-	 */
-	floated?: boolean
-	/**
-	 * Expected duration of the part, in milliseconds
-	 */
-	expectedDuration?: number
-	/**
-	 * All pieces in this part
-	 */
-	pieces: (ExtendedPieceStatus | any)[]
-	additionalProperties?: Record<string, any>
-}
-
-/**
- * When something bad has happened, we can mark the part as invalid, which will prevent the user from TAKEing it.
- */
-interface InvalidReason {
-	message: string
-	/**
-	 * Severity level of the notification.
-	 */
-	severity?: NotificationSeverity
-	color?: string
-	additionalProperties?: Record<string, any>
-}
-
-/**
- * Severity level of the notification.
- */
-enum NotificationSeverity {
-	WARNING = 'warning',
-	ERROR = 'error',
-	INFO = 'info',
-}
-
-interface ExtendedPieceStatus {
-	/**
-	 * Unique id of the Piece
-	 */
-	id: string
-	/**
-	 * User-facing name of the Piece
-	 */
-	name: string
-	/**
-	 * The source layer name for this Piece
-	 */
-	sourceLayer: string
-	/**
-	 * The output layer name for this Piece
-	 */
-	outputLayer: string
-	/**
-	 * Tags attached to this Piece
-	 */
-	tags?: string[]
-	/**
-	 * Optional arbitrary data
-	 */
-	publicData?: any
-	/**
-	 * Whether the piece affects the output of the Studio or is describing an invisible state within the Studio
-	 */
-	notInVision?: boolean
-	/**
-	 * Whether this piece is a special piece
-	 */
-	pieceType?: string
-	/**
-	 * Timing information about a piece
-	 */
-	timing?: PieceTiming
-	additionalProperties?: Record<string, any>
-}
-
-/**
- * Timing information about a piece
- */
-interface PieceTiming {
-	/**
-	 * Relative value to the part's start (milliseconds)
-	 */
-	startMs: number
-	/**
-	 * The duration of the piece (milliseconds).
-	 */
-	durationMs?: number
-	/**
-	 * Some pieces can be timed to be absolute (using wall time) rather than relative to the part
-	 */
-	isAbsolute?: boolean
-	/**
-	 * Whether and how the piece is infinite
-	 */
-	lifespan: PieceLifespan
-	additionalProperties?: Record<string, any>
-}
-
-/**
- * Whether and how the piece is infinite
- */
-enum PieceLifespan {
-	PART_MINUS_ONLY = 'part-only',
-	SEGMENT_MINUS_CHANGE = 'segment-change',
-	SEGMENT_MINUS_END = 'segment-end',
-	RUNDOWN_MINUS_CHANGE = 'rundown-change',
-	RUNDOWN_MINUS_END = 'rundown-end',
-	SHOWSTYLE_MINUS_END = 'showstyle-end',
-}
-
 interface ActivePiecesEvent {
 	event: 'activePieces'
 	/**
@@ -794,6 +524,22 @@ interface Segment {
 	 * Optional arbitrary data
 	 */
 	publicData?: any
+	additionalProperties?: Record<string, any>
+}
+
+interface SegmentTiming {
+	/**
+	 * Expected duration of the segment (milliseconds)
+	 */
+	expectedDurationMs: number
+	/**
+	 * Budget duration of the segment (milliseconds)
+	 */
+	budgetDurationMs?: number
+	/**
+	 * Countdown type within the segment. Default: `part_expected_duration`
+	 */
+	countdownType?: SegmentCountdownType
 	additionalProperties?: Record<string, any>
 }
 
@@ -1090,6 +836,15 @@ interface NotificationObj {
 	modified?: number
 }
 
+/**
+ * Severity level of the notification.
+ */
+enum NotificationSeverity {
+	WARNING = 'warning',
+	ERROR = 'error',
+	INFO = 'info',
+}
+
 interface NotificationTargetRundown {
 	/**
 	 * Possible NotificationTarget types
@@ -1152,7 +907,6 @@ export type Slash =
 	| ActivePlaylistEvent
 	| AdLibsEvent
 	| BucketsEvent
-	| ExtendedActivePlaylistEvent
 	| HeartbeatEvent
 	| NotificationsEvent
 	| PackagesEvent
@@ -1181,6 +935,7 @@ export {
 	ActivePlaylistEvent,
 	CurrentPartStatus,
 	PieceStatus,
+	AbSessionAssignment,
 	CurrentPartTiming,
 	CurrentSegment,
 	CurrentSegmentTiming,
@@ -1193,19 +948,10 @@ export {
 	ActivePlaylistQuickLoop,
 	QuickLoopMarker,
 	QuickLoopMarkerType,
-	ExtendedActivePlaylistEvent,
-	Rundown,
-	ExtendedSegment,
-	SegmentTiming,
-	ExtendedPartStatus,
-	InvalidReason,
-	NotificationSeverity,
-	ExtendedPieceStatus,
-	PieceTiming,
-	PieceLifespan,
 	ActivePiecesEvent,
 	SegmentsEvent,
 	Segment,
+	SegmentTiming,
 	AdLibsEvent,
 	AdLibStatus,
 	AdLibActionType,
@@ -1218,6 +964,7 @@ export {
 	BucketAdLibStatus,
 	NotificationsEvent,
 	NotificationObj,
+	NotificationSeverity,
 	NotificationTargetRundown,
 	NotificationTargetType,
 	NotificationTargetRundownPlaylist,

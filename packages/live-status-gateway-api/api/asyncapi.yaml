@@ -37,8 +37,6 @@ channels:
     $ref: './topics/studio/studioTopic.yaml'
   activePlaylist:
     $ref: './topics/activePlaylist/activePlaylistTopic.yaml'
-  extendedActivePlaylist:
-    $ref: './topics/extendedActivePlaylist/extendedActivePlaylistTopic.yaml'
   activePieces:
     $ref: './topics/activePieces/activePiecesTopic.yaml'
   segments:

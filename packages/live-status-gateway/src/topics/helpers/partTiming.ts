@@ -1,7 +1,7 @@
 import type { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import type { CurrentPartTiming } from '@sofie-automation/live-status-gateway-api'
 
-export function calculateCurrentPartInstanceTiming(
+export function calculateCurrentPartTiming(
 	currentPartInstance: DBPartInstance,
 	segmentPartInstances: DBPartInstance[]
 ): CurrentPartTiming {

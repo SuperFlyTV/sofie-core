@@ -16,7 +16,7 @@ export function toNotificationStatus(dbNotification: DBNotificationObj): Notific
 	})
 }
 
-export function toNotificationSeverity(severity: NoteSeverity): NotificationSeverity {
+function toNotificationSeverity(severity: NoteSeverity): NotificationSeverity {
 	switch (severity) {
 		case NoteSeverity.WARNING:
 			return NotificationSeverity.WARNING

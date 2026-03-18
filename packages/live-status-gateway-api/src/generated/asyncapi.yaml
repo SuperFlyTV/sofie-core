@@ -155,7 +155,6 @@ channels:
                           enum:
                             - studio
                             - activePlaylist
-                            - extendedActivePlaylist
                             - activePieces
                             - segments
                             - adLibs
@@ -285,9 +284,7 @@ channels:
                             type: string
                           externalId:
                             description: Id normally sourced from the ingest system
-                            oneOf:
-                              - type: string
-                              - type: "null"
+                            type: string
                           name:
                             description: The user defined playlist name
                             type: string
@@ -368,8 +365,7 @@ channels:
                     type: string
                 currentPart:
                   oneOf:
-                    - &a42
-                      title: CurrentPartStatus
+                    - title: CurrentPartStatus
                       allOf:
                         - &a21
                           type: object
@@ -405,7 +401,7 @@ channels:
                                 pieces:
                                   description: All pieces in this part
                                   type: array
-                                  items: &a48
+                                  items: &a30
                                     type: object
                                     title: PieceStatus
                                     properties:
@@ -428,6 +424,29 @@ channels:
                                           type: string
                                       publicData:
                                         description: Optional arbitrary data
+                                      abSessions:
+                                        description: AB playback session assignments for this Piece
+                                        type: array
+                                        items:
+                                          type: object
+                                          title: AbSessionAssignment
+                                          properties:
+                                            poolName:
+                                              description: The name of the AB Pool this session is for
+                                              type: string
+                                            sessionName:
+                                              description: Name of the session
+                                              type: string
+                                            playerId:
+                                              description: The assigned player ID
+                                              oneOf:
+                                                - type: string
+                                                - type: number
+                                          required:
+                                            - poolName
+                                            - sessionName
+                                            - playerId
+                                          additionalProperties: false
                                     required:
                                       - id
                                       - name
@@ -444,9 +463,10 @@ channels:
                                           - camera
                                         publicData:
                                           switcherSource: 1
-                                expectedDuration:
-                                  description: Expected duration of the part, in milliseconds
-                                  type: number
+                                        abSessions:
+                                          - poolName: VTR
+                                            sessionName: clip_intro
+                                            playerId: 1
                                 publicData:
                                   description: Optional arbitrary data
                               required:
@@ -461,7 +481,6 @@ channels:
                                 - *a13
                               publicData: &a16
                                 partType: intro
-                              expectedDuration: 200
                               id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
                               name: Intro
                               autoNext: false
@@ -509,18 +528,16 @@ channels:
                           segmentId: n1mOVd5_K5tt4sfk6HYfTuwumGQ_
                           pieces: *a15
                           publicData: *a16
-                          expectedDuration: 200
                           id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
                           name: Intro
                           autoNext: false
                     - type: "null"
                 currentSegment:
                   oneOf:
-                    - &a43
-                      type: object
+                    - type: object
                       title: CurrentSegment
                       allOf:
-                        - &a33
+                        - &a32
                           title: SegmentBase
                           type: object
                           properties:
@@ -539,7 +556,7 @@ channels:
                               title: CurrentSegmentTiming
                               description: Timing information about the current segment
                               allOf:
-                                - &a34
+                                - &a33
                                   type: object
                                   title: SegmentTiming
                                   properties:
@@ -627,11 +644,14 @@ channels:
                     - type: "null"
                 publicData:
                   description: Optional arbitrary data
-                timing: &a44
+                playoutState:
+                  description: Blueprint-defined playout state, used to expose arbitrary
+                    information about playout
+                timing:
                   type: object
                   title: ActivePlaylistTiming
                   description: Timing information about the active playlist
-                  properties: &a30
+                  properties:
                     timingMode:
                       type: string
                       title: ActivePlaylistTimingMode
@@ -656,15 +676,15 @@ channels:
                         (milliseconds) Required when the timingMode is set to
                         back-time.
                       type: number
-                  required: &a31
+                  required:
                     - timingMode
                   additionalProperties: false
-                  examples: &a32
+                  examples:
                     - &a27
                       timingMode: forward-time
                       expectedStart: 1728895750727
                       expectedDurationMs: 180000
-                quickLoop: &a45
+                quickLoop:
                   description: Information about the current quickLoop, if any
                   type: object
                   title: ActivePlaylistQuickLoop
@@ -747,406 +767,6 @@ channels:
                   quickLoop: *a28
             examples:
               - payload: *a29
-  extendedActivePlaylist:
-    description: Topic for active playlist updates
-    subscribe:
-      operationId: receiveExtendedActivePlaylist
-      description: Server sends active playlist events
-      message:
-        oneOf:
-          - name: extendedActivePlaylist
-            messageId: extendedActivePlaylistUpdate
-            description: Extended Active Playlist status
-            payload:
-              type: object
-              title: ExtendedActivePlaylistEvent
-              properties:
-                event:
-                  type: string
-                  const: extendedActivePlaylist
-                id:
-                  description: Unique id of the active playlist
-                  oneOf:
-                    - type: string
-                    - type: "null"
-                externalId:
-                  description: Id normally sourced from the ingest system
-                  oneOf:
-                    - type: string
-                    - type: "null"
-                name:
-                  description: User-presentable name for the active playlist
-                  type: string
-                modified:
-                  description: Last modified timestamp
-                  type: number
-                rundowns:
-                  description: The set of rundowns in the active playlist, in order
-                  type: array
-                  items:
-                    type: object
-                    title: Rundown
-                    properties:
-                      id:
-                        description: Unique id of the rundown
-                        type: string
-                      externalId:
-                        description: Id normally sourced from the ingest system
-                        oneOf:
-                          - type: string
-                          - type: "null"
-                      name:
-                        description: Name of the rundown
-                        type: string
-                      description:
-                        description: Longer user-presentable description of the rundown
-                        type: string
-                      timing:
-                        type: object
-                        title: ActivePlaylistTiming
-                        description: Timing information about the active playlist
-                        properties: *a30
-                        required: *a31
-                        additionalProperties: false
-                        examples: *a32
-                      publicData:
-                        description: Optional arbitrary data
-                      segments:
-                        description: The segments that in the rundown
-                        type: array
-                        items:
-                          type: object
-                          title: ExtendedSegment
-                          allOf:
-                            - &a50
-                              type: object
-                              title: Segment
-                              allOf:
-                                - *a33
-                                - type: object
-                                  title: Segment
-                                  properties:
-                                    identifier:
-                                      description: User-facing identifier that can be used to identify the contents of
-                                        a segment in the Rundown source system
-                                      type: string
-                                    rundownId:
-                                      description: Unique id of the rundown this segment belongs to
-                                      type: string
-                                    name:
-                                      description: Name of the segment
-                                      type: string
-                                    timing: *a34
-                                    publicData:
-                                      description: Optional arbitrary data
-                                  required:
-                                    - rundownId
-                                    - name
-                                    - timing
-                              required:
-                                - id
-                                - rundownId
-                                - name
-                                - timing
-                              examples:
-                                - &a51
-                                  identifier: Segment 0 identifier
-                                  rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
-                                  name: Segment 0
-                                  timing: &a39
-                                    expectedDurationMs: 15000
-                                    budgetDurationMs: 20000
-                                    countdownType: segment_budget_duration
-                                  publicData: &a40
-                                    containsLiveSource: true
-                                  id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
-                            - type: object
-                              title: ExtendedSegment
-                              properties:
-                                externalId:
-                                  description: Id normally sourced from the ingest system
-                                  oneOf:
-                                    - type: string
-                                    - type: "null"
-                                isHidden:
-                                  description: Hide the Segment in the UI
-                                  type: boolean
-                                parts:
-                                  description: Parts belonging to a segment
-                                  type: array
-                                  items:
-                                    - type: object
-                                      title: ExtendedPartStatus
-                                      allOf:
-                                        - *a17
-                                        - type: object
-                                          title: ExtendedPartStatus
-                                          properties:
-                                            instanceId:
-                                              description: Unique id of the instance if the current part has one
-                                              type: string
-                                            segmentId:
-                                              description: Unique id of the segment this part belongs to
-                                              type: string
-                                            publicData:
-                                              description: Optional arbitrary data
-                                            identifier:
-                                              description: User-facing identifier that can be used by the User to identify the
-                                                contents of a segment in the
-                                                Rundown source system
-                                              type: string
-                                            externalId:
-                                              description: Id normally sourced from the ingest system
-                                              oneOf:
-                                                - type: string
-                                                - type: "null"
-                                            prompterTitle:
-                                              description: The story title to show in the prompter If unset, `title` is used
-                                                instead
-                                              type: string
-                                            gap:
-                                              description: When this part is just a filler to fill space in a segment.
-                                                Generally, used with invalid
-                                                being also true
-                                              type: boolean
-                                            invalid:
-                                              description: Something went wrong or the part is being processed
-                                              type: boolean
-                                            invalidReason:
-                                              type: object
-                                              title: InvalidReason
-                                              description: When something bad has happened, we can mark the part as invalid,
-                                                which will prevent the user from
-                                                TAKEing it.
-                                              properties:
-                                                message:
-                                                  type: string
-                                                severity: &a65
-                                                  type: string
-                                                  title: NotificationSeverity
-                                                  description: Severity level of the notification.
-                                                  enum:
-                                                    - warning
-                                                    - error
-                                                    - info
-                                                color:
-                                                  type: string
-                                              required:
-                                                - message
-                                              examples:
-                                                - &a36
-                                                  message: Missing clip information
-                                                  severity: error
-                                                  color: "#FF0000"
-                                            floated:
-                                              description: When the NRCS informs us that the producer marked the part as
-                                                floated, we can prevent the user
-                                                from TAKE'ing and NEXT'ing it,
-                                                but still have it visible and
-                                                allow manipulation
-                                              type: boolean
-                                            expectedDuration:
-                                              description: Expected duration of the part, in milliseconds
-                                              type: number
-                                            pieces:
-                                              description: All pieces in this part
-                                              type: array
-                                              items:
-                                                - type: object
-                                                  title: ExtendedPieceStatus
-                                                  properties:
-                                                    id:
-                                                      description: Unique id of the Piece
-                                                      type: string
-                                                    name:
-                                                      description: User-facing name of the Piece
-                                                      type: string
-                                                    sourceLayer:
-                                                      description: The source layer name for this Piece
-                                                      type: string
-                                                    outputLayer:
-                                                      description: The output layer name for this Piece
-                                                      type: string
-                                                    tags:
-                                                      description: Tags attached to this Piece
-                                                      type: array
-                                                      items:
-                                                        type: string
-                                                    publicData:
-                                                      description: Optional arbitrary data
-                                                      externalId:
-                                                        description: Id normally sourced from the ingest system
-                                                        oneOf:
-                                                          - type: string
-                                                          - type: "null"
-                                                    notInVision:
-                                                      description: Whether the piece affects the output of the Studio or is describing
-                                                        an invisible state
-                                                        within the Studio
-                                                      type: boolean
-                                                    pieceType:
-                                                      description: Whether this piece is a special piece
-                                                      type: string
-                                                    timing:
-                                                      type: object
-                                                      title: PieceTiming
-                                                      description: Timing information about a piece
-                                                      properties:
-                                                        startMs:
-                                                          description: Relative value to the part's start (milliseconds)
-                                                          type: number
-                                                        durationMs:
-                                                          description: The duration of the piece (milliseconds).
-                                                          type: number
-                                                        isAbsolute:
-                                                          description: Some pieces can be timed to be absolute (using wall time) rather
-                                                            than relative to the
-                                                            part
-                                                          type: boolean
-                                                        lifespan:
-                                                          type: string
-                                                          title: PieceLifespan
-                                                          description: Whether and how the piece is infinite
-                                                          enum:
-                                                            - part-only
-                                                            - segment-change
-                                                            - segment-end
-                                                            - rundown-change
-                                                            - rundown-end
-                                                            - showstyle-end
-                                                      required:
-                                                        - startMs
-                                                        - lifespan
-                                                      examples:
-                                                        - &a35
-                                                          startMs: 1600000060000
-                                                          durationMs: 1600000075000
-                                                          lifespan: part-only
-                                                          isAbsolute: true
-                                                  required:
-                                                    - id
-                                                    - name
-                                                    - sourceLayer
-                                                    - outputLayer
-                                                    - externalId
-                                                  examples:
-                                                    - &a37
-                                                      id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
-                                                      name: Camera 1
-                                                      sourceLayer: Camera
-                                                      outputLayer: PGM
-                                                      tags:
-                                                        - camera
-                                                      publicData:
-                                                        switcherSource: 1
-                                                      externalId: Intro
-                                                      notInVision: false
-                                                      pieceType: VT
-                                                      timing: *a35
-                                          required:
-                                            - id
-                                            - name
-                                            - segmentId
-                                            - pieces
-                                      examples:
-                                        - &a38
-                                          segmentId: n1mOVd5_K5tt4sfk6HYfTuwumGQ_
-                                          publicData:
-                                            partType: intro
-                                          identifier: Intro
-                                          instanceId: 156z23fg3fds_1mOVd5_K5tt4sfk6HYfTuwumGQ_
-                                          externalId: 1ZIYVYL1aEkNEJbeGsmRXr5s8wtkyxfPRjNSTxZfcoEI
-                                          prompterTitle: Intro
-                                          gap: false
-                                          invalid: true
-                                          invalidReason: *a36
-                                          pieces:
-                                            - *a37
-                                          floated: false
-                                          expectedDuration: 200
-                                          id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
-                                          name: Intro
-                                          autoNext: false
-                              required:
-                                - id
-                                - rundownId
-                                - name
-                                - timing
-                          required:
-                            - id
-                            - rundownId
-                            - name
-                            - timing
-                          examples:
-                            - &a41
-                              parts:
-                                - *a38
-                              identifier: Segment 0 identifier
-                              rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
-                              name: Segment 0
-                              timing: *a39
-                              publicData: *a40
-                              id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
-                    required:
-                      - id
-                      - name
-                      - segments
-                    additionalProperties: false
-                    examples:
-                      - &a46
-                        id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
-                        name: Example Rundown
-                        description: "Rundown description: Longer user-presentable description of the
-                          rundown"
-                        timing: *a27
-                        publicData:
-                          containsLiveSource: true
-                        segments:
-                          - *a41
-                currentPart:
-                  oneOf:
-                    - *a42
-                    - type: "null"
-                currentSegment:
-                  oneOf:
-                    - *a43
-                    - type: "null"
-                nextPart:
-                  oneOf:
-                    - *a21
-                    - type: "null"
-                publicData:
-                  description: Optional arbitrary data
-                timing: *a44
-                quickLoop: *a45
-              required:
-                - event
-                - id
-                - externalId
-                - name
-                - rundowns
-                - currentPart
-                - currentSegment
-                - nextPart
-                - timing
-              additionalProperties: false
-              examples:
-                - &a47
-                  event: extendedActivePlaylist
-                  id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
-                  externalId: 1ZIYVYL1aEkNEJbeGsmRXr5s8wtkyxfPRjNSTxZfcoEI
-                  name: Playlist 0
-                  rundowns:
-                    - *a46
-                  currentPart: *a24
-                  currentSegment: *a25
-                  nextPart: *a26
-                  publicData:
-                    category: Evening News
-                  timing: *a27
-                  quickLoop: *a28
-            examples:
-              - payload: *a47
   activePieces:
     description: Topic for active pieces updates
     subscribe:
@@ -1171,20 +791,20 @@ channels:
                 activePieces:
                   description: Pieces that are currently active (on air)
                   type: array
-                  items: *a48
+                  items: *a30
               required:
                 - event
                 - rundownPlaylistId
                 - activePieces
               additionalProperties: false
               examples:
-                - &a49
+                - &a31
                   event: activePieces
                   rundownPlaylistId: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
                   activePieces:
                     - *a13
             examples:
-              - payload: *a49
+              - payload: *a31
   segments:
     description: Topic for Segment updates
     subscribe:
@@ -1209,19 +829,60 @@ channels:
               description: The segments that are in the currently active rundown playlist, in
                 order
               type: array
-              items: *a50
+              items:
+                type: object
+                title: Segment
+                allOf:
+                  - *a32
+                  - type: object
+                    title: Segment
+                    properties:
+                      identifier:
+                        description: User-facing identifier that can be used to identify the contents of
+                          a segment in the Rundown source system
+                        type: string
+                      rundownId:
+                        description: Unique id of the rundown this segment belongs to
+                        type: string
+                      name:
+                        description: Name of the segment
+                        type: string
+                      timing: *a33
+                      publicData:
+                        description: Optional arbitrary data
+                    required:
+                      - rundownId
+                      - name
+                      - timing
+                required:
+                  - id
+                  - rundownId
+                  - name
+                  - timing
+                examples:
+                  - &a34
+                    identifier: Segment 0 identifier
+                    rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
+                    name: Segment 0
+                    timing:
+                      expectedDurationMs: 15000
+                      budgetDurationMs: 20000
+                      countdownType: segment_budget_duration
+                    publicData:
+                      containsLiveSource: true
+                    id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
           required:
             - event
             - rundownPlaylistId
             - segments
           examples:
-            - &a52
+            - &a35
               event: segments
               rundownPlaylistId: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
               segments:
-                - *a51
+                - *a34
         examples:
-          - payload: *a52
+          - payload: *a35
   adLibs:
     description: Topic for AdLibs updates
     subscribe:
@@ -1251,7 +912,7 @@ channels:
                   items:
                     title: AdLibStatus
                     allOf:
-                      - &a57
+                      - &a40
                         title: AdLibBase
                         type: object
                         properties:
@@ -1286,7 +947,7 @@ channels:
                                 - label
                               additionalProperties: false
                               examples:
-                                - &a53
+                                - &a36
                                   name: pvw
                                   label: Preview
                           tags:
@@ -1306,15 +967,15 @@ channels:
                           - sourceLayer
                           - actionType
                         examples:
-                          - &a58
+                          - &a41
                             id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                             name: Music video clip
                             sourceLayer: Video Clip
-                            actionType: &a54
-                              - *a53
-                            tags: &a55
+                            actionType: &a37
+                              - *a36
+                            tags: &a38
                               - music_video
-                            publicData: &a56
+                            publicData: &a39
                               fileName: MV000123.mxf
                             optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                               Video
@@ -1346,15 +1007,15 @@ channels:
                           - segmentId
                           - partId
                     examples:
-                      - &a59
+                      - &a42
                         segmentId: HsD8_QwE1ZmR5vN3XcK_Ab7y
                         partId: JkL3_OpR6WxT1bF8Vq2_Zy9u
                         id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                         name: Music video clip
                         sourceLayer: Video Clip
-                        actionType: *a54
-                        tags: *a55
-                        publicData: *a56
+                        actionType: *a37
+                        tags: *a38
+                        publicData: *a39
                         optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                           Video
                           Clip","type":"object","properties":{"type":"adlib_action_video_clip","label":{"type":"string"},"clipId":{"type":"string"},"vo":{"type":"boolean"},"target":{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Object
@@ -1378,9 +1039,9 @@ channels:
                   items:
                     title: GlobalAdLibStatus
                     allOf:
-                      - *a57
+                      - *a40
                     examples:
-                      - *a58
+                      - *a41
               required:
                 - event
                 - rundownPlaylistId
@@ -1388,15 +1049,15 @@ channels:
                 - globalAdLibs
               additionalProperties: false
               examples:
-                - &a60
+                - &a43
                   event: adLibs
                   rundownPlaylistId: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
                   adLibs:
-                    - *a59
+                    - *a42
                   globalAdLibs:
-                    - *a58
+                    - *a41
             examples:
-              - payload: *a60
+              - payload: *a43
   packages:
     description: Packages topic for websocket subscriptions. Packages are assets
       that need to be prepared by Sofie Package Manager or third-party systems
@@ -1504,7 +1165,7 @@ channels:
                       - pieceOrAdLibId
                     additionalProperties: false
                     examples:
-                      - &a61
+                      - &a44
                         packageName: MV000123.mxf
                         status: ok
                         rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
@@ -1522,7 +1183,7 @@ channels:
                 - event: packages
                   rundownPlaylistId: y9HauyWkcxQS3XaAOsW40BRLLsI_
                   packages:
-                    - *a61
+                    - *a44
   buckets:
     description: Buckets schema for websocket subscriptions
     subscribe:
@@ -1558,7 +1219,7 @@ channels:
                         items:
                           title: BucketAdLibStatus
                           allOf:
-                            - *a57
+                            - *a40
                             - type: object
                               title: BucketAdLibStatus
                               properties:
@@ -1569,14 +1230,14 @@ channels:
                               required:
                                 - externalId
                           examples:
-                            - &a62
+                            - &a45
                               externalId: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                               id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                               name: Music video clip
                               sourceLayer: Video Clip
-                              actionType: *a54
-                              tags: *a55
-                              publicData: *a56
+                              actionType: *a37
+                              tags: *a38
+                              publicData: *a39
                               optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                                 Video
                                 Clip","type":"object","properties":{"type":"adlib_action_video_clip","label":{"type":"string"},"clipId":{"type":"string"},"vo":{"type":"boolean"},"target":{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Object
@@ -1600,22 +1261,22 @@ channels:
                       - adLibs
                     additionalProperties: false
                     examples:
-                      - &a63
+                      - &a46
                         id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                         name: My Bucket
                         adLibs:
-                          - *a62
+                          - *a45
               required:
                 - event
                 - buckets
               additionalProperties: false
               examples:
-                - &a64
+                - &a47
                   event: buckets
                   buckets:
-                    - *a63
+                    - *a46
             examples:
-              - payload: *a64
+              - payload: *a47
   notifications:
     description: Notifications topic for websocket subscriptions.
     subscribe:
@@ -1652,7 +1313,14 @@ channels:
                       _id:
                         type: string
                         description: Unique identifier for the notification
-                      severity: *a65
+                      severity:
+                        type: string
+                        title: NotificationSeverity
+                        description: Severity level of the notification.
+                        enum:
+                          - warning
+                          - error
+                          - info
                       message:
                         type: string
                         description: The message of the notification
@@ -1672,7 +1340,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: &a66
+                                enum: &a48
                                   - rundown
                                   - playlist
                                   - partInstance
@@ -1684,7 +1352,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a67
+                              - &a49
                                 type: rundown
                                 studioId: studio01
                                 rundownId: rd123
@@ -1700,14 +1368,14 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a66
+                                enum: *a48
                               studioId:
                                 type: string
                               playlistId:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a68
+                              - &a50
                                 type: playlist
                                 studioId: studio01
                                 playlistId: pl456
@@ -1724,7 +1392,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a66
+                                enum: *a48
                               studioId:
                                 type: string
                               rundownId:
@@ -1733,7 +1401,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a69
+                              - &a51
                                 type: partInstance
                                 studioId: studio01
                                 rundownId: rd123
@@ -1752,7 +1420,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a66
+                                enum: *a48
                               studioId:
                                 type: string
                               rundownId:
@@ -1763,7 +1431,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a70
+                              - &a52
                                 type: pieceInstance
                                 studioId: studio01
                                 rundownId: rd123
@@ -1779,17 +1447,17 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a66
+                                enum: *a48
                             additionalProperties: false
                             examples:
-                              - &a71
+                              - &a53
                                 type: unknown
                         examples:
-                          - *a67
-                          - *a68
-                          - *a69
-                          - *a70
-                          - *a71
+                          - *a49
+                          - *a50
+                          - *a51
+                          - *a52
+                          - *a53
                       created:
                         type: integer
                         format: int64
@@ -1800,11 +1468,11 @@ channels:
                         description: Unix timestamp of last modification
                     additionalProperties: false
                     examples:
-                      - &a72
+                      - &a54
                         _id: notif123
                         severity: error
                         message: disk.space.low
-                        relatedTo: *a70
+                        relatedTo: *a52
                         created: 1694784932
                         modified: 1694784950
               required:
@@ -1812,9 +1480,9 @@ channels:
                 - activeNotifications
               additionalProperties: false
               examples:
-                - &a73
+                - &a55
                   event: notifications
                   activeNotifications:
-                    - *a72
+                    - *a54
             examples:
-              - payload: *a73
+              - payload: *a55
