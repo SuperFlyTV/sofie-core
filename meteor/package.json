@@ -32,7 +32,11 @@
 		"prepareChangelog": "run release --prerelease --release-as patch",
 		"validate:all-dependencies": "run validate:prod-dependencies && run validate:dev-dependencies && run license-validate",
 		"validate:prod-dependencies": "yarn npm audit --environment production",
-		"validate:dev-dependencies": "yarn npm audit --environment development --severity moderate"
+		"validate:dev-dependencies": "yarn npm audit --environment development --severity moderate",
+		"lint:eslint": "eslint .",
+		"lint:prettier": "prettier --check .",
+		"lint:fix": "yarn lint:eslint --fix && yarn lint:prettier --write",
+		"prepare": "husky"
 	},
 	"dependencies": {
 		"@babel/runtime": "^7.29.7",
@@ -92,20 +96,23 @@
 		"babel-jest": "^30.4.1",
 		"commit-and-tag-version": "^12.7.3",
 		"ejson": "^2.2.3",
-		"eslint": "^9.39.4",
+		"eslint": "^10.3.0",
 		"fast-clone": "^1.5.13",
 		"glob": "^13.0.6",
+		"husky": "^9.1.7",
 		"i18next-cli": "^1.64.1",
 		"i18next-conv": "^16.0.0",
 		"jest": "^30.4.2",
 		"jest-util": "^30.4.1",
 		"legally": "^3.5.10",
+		"lint-staged": "^17.0.2",
 		"open-cli": "^9.0.0",
 		"prettier": "^3.8.4",
 		"ts-jest": "29.4.9",
-		"typescript": "~5.9.3"
+		"typescript": "~5.9.3",
+		"yargs": "^17.7.2"
 	},
-	"prettier": "@sofie-automation/code-standard-preset/.prettierrc.json",
+	"prettier": "@sofie-automation/code-standard-preset/prettier.config.mjs",
 	"lint-staged": {
 		"*.{css,json,md,scss}": [
 			"yarn prettier"

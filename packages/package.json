@@ -38,7 +38,10 @@
 		"watch-for-worker-changes": "nodemon --delay 2.5 --watch job-worker/dist --watch corelib/dist --watch shared-lib/dist --watch blueprints-integration/dist --watch server-core-integration/dist ../scripts/meteor-force-restart.js",
 		"generate-schema-types": "node scripts/schema-types.mjs",
 		"prettier": "cd $INIT_CWD && \"$PROJECT_CWD/node_modules/.bin/prettier\"",
-		"eslint": "cd $INIT_CWD && \"$PROJECT_CWD/node_modules/.bin/eslint\""
+		"eslint": "cd $INIT_CWD && \"$PROJECT_CWD/node_modules/.bin/eslint\"",
+		"lint:eslint": "eslint .",
+		"lint:prettier": "prettier --check .",
+		"lint:fix": "yarn lint:eslint --fix && yarn lint:prettier --write"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.29.7",
@@ -55,11 +58,13 @@
 		"eslint": "^9.39.4",
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-yml": "^3.4.0",
+		"husky": "^9.1.7",
 		"jest": "^30.4.2",
 		"jest-environment-jsdom": "^30.4.1",
 		"jest-mock-extended": "^4.0.1",
 		"json-schema-to-typescript": "^15.0.4",
 		"lerna": "^9.0.7",
+		"lint-staged": "^17.0.2",
 		"nodemon": "^3.1.14",
 		"open-cli": "^9.0.0",
 		"pinst": "^3.0.0",
@@ -95,5 +100,6 @@
 		"*.{ts,tsx,js,jsx}": [
 			"yarn lint"
 		]
-	}
+	},
+	"prettier": "@sofie-automation/code-standard-preset/prettier.config.mjs"
 }
