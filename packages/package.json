@@ -43,7 +43,7 @@
 	"devDependencies": {
 		"@babel/core": "^7.29.7",
 		"@babel/plugin-transform-modules-commonjs": "^7.29.7",
-		"@sofie-automation/code-standard-preset": "^3.2.2",
+		"@sofie-automation/code-standard-preset": "3.2.2-nightly-rjmunro-setup-script-20260507-133943-232a96d",
 		"@types/amqplib": "0.10.6",
 		"@types/debug": "^4.1.13",
 		"@types/ejson": "^2.2.2",

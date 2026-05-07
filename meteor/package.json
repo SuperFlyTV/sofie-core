@@ -78,7 +78,7 @@
 		"@rspack/cli": "1.7.1",
 		"@rspack/core": "1.7.1",
 		"@shopify/jest-koa-mocks": "^5.3.1",
-		"@sofie-automation/code-standard-preset": "^3.2.2",
+		"@sofie-automation/code-standard-preset": "3.2.2-nightly-rjmunro-setup-script-20260507-133943-232a96d",
 		"@types/deep-extend": "^0.6.2",
 		"@types/jest": "^30.0.0",
 		"@types/koa": "^3.0.3",
