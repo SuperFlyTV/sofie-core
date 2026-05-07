@@ -115,10 +115,10 @@
 	"prettier": "@sofie-automation/code-standard-preset/prettier.config.mjs",
 	"lint-staged": {
 		"*.{css,json,md,scss}": [
-			"prettier --write"
+			"prettier --check"
 		],
 		"*.{ts,tsx,js,jsx,mjs,cjs}": [
-			"eslint --fix"
+			"eslint"
 		]
 	},
 	"meteor": {
