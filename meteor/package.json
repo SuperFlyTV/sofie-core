@@ -20,8 +20,8 @@
 		"ci:lint": "yarn lint",
 		"cov-open": "open-cli coverage/lcov-report/index.html",
 		"cov": "yarn unitcov && yarn cov-open",
-		"license-validate": "node ../scripts/checkLicenses.js --allowed=\"MIT,BSD,ISC,Apache,Unlicense,CC0,LGPL,CC BY 3.0,CC BY 4.0,MPL 2.0,Python 2.0\" --excludePackages=timecode,rxjs/ajax,rxjs/fetch,rxjs/internal-compatibility,nw-pre-gyp-module-test,rxjs/operators,rxjs/testing,rxjs/webSocket,undefined,i18next-conv,@fortawesome/fontawesome-common-types,argv,indexof,custom-license,private,public-domain-module,@sofie-automation/corelib,@sofie-automation/shared-lib,@sofie-automation/job-worker",
-		"lint": "run lint:raw .",
+		"license-validate": "sofie-licensecheck",
+		"lint": "yarn lint:eslint && yarn lint:prettier",
 		"lint:raw": "eslint",
 		"lintfix": "run lint --fix",
 		"quickformat": "prettier \"__mocks__/**\" --write ; prettier \"lib/**\" --write ; prettier \"server/**\" --write ; prettier \"client/**\" --write ; prettier \"*.json\" --write ; prettier \"*.js\" --write ; prettier \"*.md\" --write",
@@ -115,10 +115,10 @@
 	"prettier": "@sofie-automation/code-standard-preset/prettier.config.mjs",
 	"lint-staged": {
 		"*.{css,json,md,scss}": [
-			"yarn prettier"
+			"prettier --write"
 		],
-		"*.{ts,tsx,js,jsx}": [
-			"yarn lint:raw"
+		"*.{ts,tsx,js,jsx,mjs,cjs}": [
+			"eslint --fix"
 		]
 	},
 	"meteor": {
