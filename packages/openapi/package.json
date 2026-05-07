@@ -25,7 +25,6 @@
 		"test": "run lint && run genclient:ts && run unit",
 		"unit:no-server": "node --experimental-fetch ../node_modules/jest/bin/jest.js --detectOpenHandles --forceExit"
 	},
-	"prettier": "@sofie-automation/code-standard-preset/.prettierrc.json",
 	"engines": {
 		"node": ">=22.20.0"
 	},

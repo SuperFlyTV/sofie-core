@@ -52,7 +52,6 @@
 		"type-fest": "^4.41.0",
 		"underscore": "^1.13.8"
 	},
-	"prettier": "@sofie-automation/code-standard-preset/.prettierrc.json",
 	"packageManager": "yarn@4.17.0",
 	"devDependencies": {
 		"jest": "^30.4.2",

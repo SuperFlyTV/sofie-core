@@ -53,6 +53,5 @@
 		"prettier": "^3.8.4",
 		"yaml": "^2.9.0"
 	},
-	"prettier": "@sofie-automation/code-standard-preset/.prettierrc.json",
 	"packageManager": "yarn@4.17.0"
 }

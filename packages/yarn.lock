@@ -14855,7 +14855,7 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"eslint@npm:^9.39.4":
+"eslint@npm:^9, eslint@npm:^9.39.4":
   version: 9.39.4
   resolution: "eslint@npm:9.39.4"
   dependencies:
@@ -23364,7 +23364,7 @@ asn1@evs-broadcast/node-asn1:
     "@types/object-path": "npm:^0.11.4"
     "@types/underscore": "npm:^1.13.0"
     babel-jest: "npm:^30.4.1"
-    eslint: "npm:^9.39.4"
+    eslint: "npm:^9"
     eslint-plugin-react: "npm:^7.37.5"
     eslint-plugin-yml: "npm:^3.4.0"
     husky: "npm:^9.1.7"
@@ -23377,13 +23377,13 @@ asn1@evs-broadcast/node-asn1:
     nodemon: "npm:^3.1.14"
     open-cli: "npm:^9.0.0"
     pinst: "npm:^3.0.0"
-    prettier: "npm:^3.8.4"
+    prettier: "npm:^3"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.4"
     ts-jest: "npm:29.4.9"
     ts-node: "npm:^10.9.2"
     typedoc: "npm:^0.27.9"
-    typescript: "npm:~5.9.3"
+    typescript: "npm:~6.0"
   dependenciesMeta:
     esbuild:
       built: true
@@ -24925,6 +24925,15 @@ asn1@evs-broadcast/node-asn1:
   dependencies:
     fast-diff: "npm:^1.1.2"
   checksum: 10/2dc35f5036a35f4c4f5e645887edda1436acb63687a7f12b2383e0a6f3c1f76b8a0a4709fe4d82e19157210feb5984b159bb714d43290022911ab53d606474ec
+  languageName: node
+  linkType: hard
+
+"prettier@npm:^3":
+  version: 3.9.5
+  resolution: "prettier@npm:3.9.5"
+  bin:
+    prettier: bin/prettier.cjs
+  checksum: 10/b6587f1582ba653ce5207ee227aff646500e5098646931088f176d1ab090b1f47d5a333f1facd634e9aa7dcb15c45940e2cec13a5962534cf0200617517b67b6
   languageName: node
   linkType: hard
 
@@ -29680,6 +29689,16 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
+"typescript@npm:~6.0":
+  version: 6.0.3
+  resolution: "typescript@npm:6.0.3"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10/0ef2357a4cffd916b52b683a021cdab0f81eea4e9aa35f2d254581c9a5106da02224e3392e1b0ed42b7a48f80c966e5f52b8e1a27941fa0523c1705a9c2e0330
+  languageName: node
+  linkType: hard
+
 "typescript@patch:typescript@npm%3A>=3 < 6#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.9.3#optional!builtin<compat/typescript>":
   version: 5.9.3
   resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
@@ -29697,6 +29716,16 @@ asn1@evs-broadcast/node-asn1:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 10/5659316360b5cc2d6f5931b346401fa534107b68b60179cf14970e27978f0936c1d5c46f4b5b8175f8cba0430f522b3ce355b4b724c0ea36ce6c0347fab25afd
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A~6.0#optional!builtin<compat/typescript>":
+  version: 6.0.3
+  resolution: "typescript@patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10/22b67a18dafedf9b1468b64ca20d9aa02ea61d449b65413d8aa6552aeb63f52ef369e86beb25b6b4c91a803d9726ee5c196f391a9b64201263263410a4223ee6
   languageName: node
   linkType: hard
 
