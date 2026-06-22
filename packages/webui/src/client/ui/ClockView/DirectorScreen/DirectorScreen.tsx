@@ -50,6 +50,7 @@ import { useTiming } from '../../RundownView/RundownTiming/withTiming.js'
 import type { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import { RundownStatusBar } from '../RundownStatusBar.js'
+import { ClipPlayerIcon } from './shared/ClipPlayerIcon.js'
 
 interface SegmentUi extends DBSegment {
 	items: Array<PartUi>
@@ -513,53 +514,6 @@ function DirectorScreenRender({
 			(currentSegmentIsFirst && currentPartInstance?.instance.part.untimed) ||
 			(currentSegment === undefined && nextPartInstance?.instance.part.untimed)
 
-		// Precompute player icon elements to avoid nested ternaries in JSX
-		let currentPlayerEl: JSX.Element | null = null
-		if (currentClipPlayer) {
-			const pid = String(currentClipPlayer).toUpperCase()
-			// Check if it's a single alphanumeric character (0-9, A-Z)
-			if (/^[A-Z0-9]$/.test(pid)) {
-				currentPlayerEl = (
-					<span className="director-screen__body__part__player">
-						<img
-							className="player-icon"
-							src={`/icons/channels/${pid}.svg`}
-							alt={t('Server {{id}}', { id: currentClipPlayer })}
-						/>
-					</span>
-				)
-			} else {
-				currentPlayerEl = (
-					<span className="director-screen__body__part__player">
-						{t('Server')}: {currentClipPlayer}
-					</span>
-				)
-			}
-		}
-
-		let nextPlayerEl: JSX.Element | null = null
-		if (nextClipPlayer) {
-			const pid = String(nextClipPlayer).toUpperCase()
-			// Check if it's a single alphanumeric character (0-9, A-Z)
-			if (/^[A-Z0-9]$/.test(pid)) {
-				nextPlayerEl = (
-					<span className="director-screen__body__part__player">
-						<img
-							className="player-icon"
-							src={`/icons/channels/${pid}.svg`}
-							alt={t('Server {{id}}', { id: nextClipPlayer })}
-						/>
-					</span>
-				)
-			} else {
-				nextPlayerEl = (
-					<span className="director-screen__body__part__player">
-						{t('Server')}: {nextClipPlayer}
-					</span>
-				)
-			}
-		}
-
 		return (
 			<div className="director-screen">
 				<DirectorScreenTop playlist={playlist} />
@@ -626,7 +580,7 @@ function DirectorScreenRender({
 														defaultOpticalSize: 100,
 													}}
 												/>
-												{currentPlayerEl}
+												{currentClipPlayer ? <ClipPlayerIcon clipPlayer={currentClipPlayer} /> : null}
 											</div>
 											<div className="director-screen__body__part__piece-countdown">
 												<CurrentPartOrSegmentRemaining
@@ -739,7 +693,7 @@ function DirectorScreenRender({
 										) : (
 											'_'
 										)}
-										{nextPlayerEl}
+										{nextClipPlayer ? <ClipPlayerIcon clipPlayer={nextClipPlayer} /> : null}
 									</div>
 								</div>
 							</>
