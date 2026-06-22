@@ -1,10 +1,7 @@
 import ClassNames from 'classnames'
 import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import type { PartUi } from '../../SegmentTimeline/SegmentTimelineContainer.js'
-import type {
-	DBRundownPlaylist,
-	ABSessionAssignment,
-} from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
+import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import type { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import {
 	useSubscription,
@@ -20,7 +17,6 @@ import { Timediff } from '../Timediff.js'
 import { RundownUtils } from '../../../lib/rundown.js'
 import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { PieceFreezeContainer } from '../ClockViewPieceIcons/ClockViewFreezeCount.js'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import type {
 	RundownId,
@@ -30,7 +26,6 @@ import type {
 	StudioId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import type { DBShowStyleVariant } from '@sofie-automation/corelib/dist/dataModel/ShowStyleVariant'
-import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { UIShowStyleBases, UIStudios } from '../../Collections.js'
 import { PieceInstances, RundownPlaylists, Rundowns, ShowStyleVariants } from '../../../collections/index.js'
 import { RundownPlaylistCollectionUtil } from '../../../collections/rundownPlaylistUtil.js'
@@ -41,7 +36,6 @@ import { RundownPlaylistClientUtil } from '../../../lib/rundownPlaylistUtil.js'
 import { CurrentPartOrSegmentRemaining } from '../../RundownView/RundownHeader/CurrentPartOrSegmentRemaining.js'
 
 import { AdjustLabelFit } from '../../util/AdjustLabelFit.js'
-import { AutoNextStatus } from '../../RundownView/RundownTiming/AutoNextStatus.js'
 import { useTranslation } from 'react-i18next'
 import type { UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DirectorScreenTop } from './DirectorScreenTop.js'
@@ -51,6 +45,7 @@ import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartI
 import { RundownStatusBar } from '../RundownStatusBar.js'
 import { ClipPlayerIcon } from './shared/ClipPlayerIcon.js'
 import { findClipPlayer } from './utils/findClipPlayer.js'
+import { PartCountdownRow } from './shared/PartCountdownRow.js'
 
 interface SegmentUi extends DBSegment {
 	items: Array<PartUi>
@@ -469,28 +464,12 @@ function DirectorScreenRender({
 												/>
 												{currentClipPlayer ? <ClipPlayerIcon clipPlayer={currentClipPlayer} /> : null}
 											</div>
-											<div className="director-screen__body__part__piece-countdown">
-												<CurrentPartOrSegmentRemaining
-													currentPartInstanceId={playlist.currentPartInfo?.partInstanceId ?? null}
-													heavyClassName="overtime"
-												/>
-												<span className="auto-next-status">
-													<AutoNextStatus />
-												</span>{' '}
-												<span className="freeze-counter">
-													<PieceFreezeContainer
-														partInstanceId={currentPartInstance.instance._id}
-														showStyleBaseId={currentShowStyleBaseId}
-														rundownIds={rundownIds}
-														partAutoNext={currentPartInstance.instance.part.autoNext || false}
-														partExpectedDuration={calculatePartInstanceExpectedDurationWithTransition(
-															currentPartInstance.instance
-														)}
-														partStartedPlayback={currentPartInstance.instance.timings?.plannedStartedPlayback}
-														playlistActivationId={playlist?.activationId}
-													/>
-												</span>
-											</div>
+											<PartCountdownRow
+												playlist={playlist}
+												partInstance={currentPartInstance}
+												showStyleBaseId={currentShowStyleBaseId}
+												rundownIds={rundownIds}
+											/>
 										</div>
 									</>
 								)}
