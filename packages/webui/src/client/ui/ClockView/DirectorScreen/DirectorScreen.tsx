@@ -18,7 +18,7 @@ import { PieceIconContainer } from '../ClockViewPieceIcons/ClockViewPieceIcon.js
 import { PieceNameContainer } from '../ClockViewPieceIcons/ClockViewPieceName.js'
 import { Timediff } from '../Timediff.js'
 import { RundownUtils } from '../../../lib/rundown.js'
-import { PieceLifespan, SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PieceFreezeContainer } from '../ClockViewPieceIcons/ClockViewFreezeCount.js'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
@@ -43,78 +43,17 @@ import { CurrentPartOrSegmentRemaining } from '../../RundownView/RundownHeader/C
 import { AdjustLabelFit } from '../../util/AdjustLabelFit.js'
 import { AutoNextStatus } from '../../RundownView/RundownTiming/AutoNextStatus.js'
 import { useTranslation } from 'react-i18next'
-import type { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
-import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance.js'
+import type { UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { DirectorScreenTop } from './DirectorScreenTop.js'
 import { useTiming } from '../../RundownView/RundownTiming/withTiming.js'
 import type { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import { RundownStatusBar } from '../RundownStatusBar.js'
 import { ClipPlayerIcon } from './shared/ClipPlayerIcon.js'
+import { findClipPlayer } from './utils/findClipPlayer.js'
 
 interface SegmentUi extends DBSegment {
 	items: Array<PartUi>
-}
-
-/**
- * Determines whether a piece instance should display its AB resolver channel assignment on the Director screen.
- * Checks piece-level override first, then falls back to show style configuration.
- * Note: Future screens (presenter, camera) will have their own showOn* flags when implemented.
- */
-function shouldDisplayAbChannel(
-	pieceInstance: PieceInstance,
-	showStyleBase: UIShowStyleBase,
-	config?: DBShowStyleBase['abChannelDisplay']
-): boolean {
-	// Check piece-level override first (from blueprint)
-	const piece = pieceInstance.piece as any
-	if (piece.displayAbChannel !== undefined) {
-		return piece.displayAbChannel
-	}
-
-	// If no config, use sensible defaults but don't show (screen flag defaults to false)
-	const effectiveConfig: NonNullable<DBShowStyleBase['abChannelDisplay']> = config ?? {
-		// Default: guess VT and LIVE_SPEAK types
-		sourceLayerIds: [],
-		sourceLayerTypes: [SourceLayerType.VT, SourceLayerType.LIVE_SPEAK],
-		outputLayerIds: [],
-
-		// But don't show by default
-		showOnDirectorScreen: false,
-	}
-
-	// Check if display is enabled for director screen
-	if (!effectiveConfig.showOnDirectorScreen) return false
-
-	const sourceLayer = showStyleBase.sourceLayers?.[pieceInstance.piece.sourceLayerId]
-
-	// Check if output layer filter is specified and doesn't match
-	if (effectiveConfig.outputLayerIds.length > 0) {
-		if (!effectiveConfig.outputLayerIds.includes(pieceInstance.piece.outputLayerId)) {
-			return false
-		}
-	}
-
-	// Check source layer filters (ID or Type)
-	// If both filters are empty, show all pieces (no filtering)
-	const hasSourceLayerIdFilter = effectiveConfig.sourceLayerIds.length > 0
-	const hasSourceLayerTypeFilter = effectiveConfig.sourceLayerTypes.length > 0
-
-	if (!hasSourceLayerIdFilter && !hasSourceLayerTypeFilter) {
-		return true
-	}
-
-	// Check if source layer ID is explicitly listed
-	if (hasSourceLayerIdFilter && effectiveConfig.sourceLayerIds.includes(pieceInstance.piece.sourceLayerId)) {
-		return true
-	}
-
-	// Check sourceLayer type match
-	if (hasSourceLayerTypeFilter && sourceLayer?.type && effectiveConfig.sourceLayerTypes.includes(sourceLayer.type)) {
-		return true
-	}
-
-	return false
 }
 
 interface TimeMap {
@@ -445,64 +384,12 @@ function DirectorScreenRender({
 
 	// Compute current and next clip player ids (for pieces with AB sessions)
 	const currentClipPlayer: string | undefined = useTracker(() => {
-		if (!currentPartInstance || !currentShowStyleBase || !playlist?.assignedAbSessions) return undefined
-		const config = currentShowStyleBase.abChannelDisplay
-		const instances = PieceInstances.find({
-			partInstanceId: currentPartInstance.instance._id,
-			reset: { $ne: true },
-		}).fetch()
-		for (const pi of instances) {
-			// Use configuration to determine if this piece should display AB channel
-			if (!shouldDisplayAbChannel(pi, currentShowStyleBase, config)) continue
-			const ab = pi.piece.abSessions
-			if (!ab || ab.length === 0) continue
-			for (const s of ab) {
-				const pool = playlist.assignedAbSessions?.[s.poolName]
-				if (!pool) continue
-				const matches: ABSessionAssignment[] = []
-				for (const key in pool) {
-					const a = pool[key]
-					if (a && a.sessionName === s.sessionName) matches.push(a)
-				}
-				const live = matches.find((m) => !m.lookahead)
-				const la = matches.find((m) => m.lookahead)
-				if (live) return String(live.playerId)
-				if (la) return String(la.playerId)
-			}
-		}
-		return undefined
+		return findClipPlayer(playlist, currentShowStyleBase, currentPartInstance, PieceInstances)
 	}, [currentPartInstance?.instance._id, currentShowStyleBase?._id, playlist?.assignedAbSessions])
 
+	const nextShowStyleBase = UIShowStyleBases.findOne(nextShowStyleBaseId)
 	const nextClipPlayer: string | undefined = useTracker(() => {
-		if (!nextPartInstance || !nextShowStyleBaseId || !playlist?.assignedAbSessions) return undefined
-		// We need the ShowStyleBase to resolve sourceLayer types
-		const ssb = UIShowStyleBases.findOne(nextShowStyleBaseId)
-		if (!ssb) return undefined
-		const config = ssb.abChannelDisplay
-		const instances = PieceInstances.find({
-			partInstanceId: nextPartInstance.instance._id,
-			reset: { $ne: true },
-		}).fetch()
-		for (const pi of instances) {
-			// Use configuration to determine if this piece should display AB channel
-			if (!shouldDisplayAbChannel(pi, ssb, config)) continue
-			const ab = pi.piece.abSessions
-			if (!ab || ab.length === 0) continue
-			for (const s of ab) {
-				const pool = playlist.assignedAbSessions?.[s.poolName]
-				if (!pool) continue
-				const matches: ABSessionAssignment[] = []
-				for (const key in pool) {
-					const a = pool[key]
-					if (a && a.sessionName === s.sessionName) matches.push(a)
-				}
-				const live = matches.find((m) => !m.lookahead)
-				const la = matches.find((m) => m.lookahead)
-				if (live) return String(live.playerId)
-				if (la) return String(la.playerId)
-			}
-		}
-		return undefined
+		return findClipPlayer(playlist, nextShowStyleBase, nextPartInstance, PieceInstances)
 	}, [nextPartInstance?.instance._id, nextShowStyleBaseId, playlist?.assignedAbSessions])
 
 	if (playlist && playlistId && segments) {
