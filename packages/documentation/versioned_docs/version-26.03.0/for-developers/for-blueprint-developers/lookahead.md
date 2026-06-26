@@ -94,3 +94,18 @@ It is possible to implement a 'next' AUX on your vision mixer by:
 - Setup this mapping with `lookaheadDepth: 1` and `lookahead: LookaheadMode.WHEN_CLEAR`
 - Each Part creates a TimelineObject on this mapping. Crucially, these have a priority of 0.
 - Lookahead will run and will insert its objects overriding your predefined ones (because of its higher priority). Resulting in the AUX always showing the lookahead object.
+
+### Switcher preview bus
+
+The 'next AUX' pattern above works when you can dedicate a vision mixer bus (e.g. an AUX or M/E) to previewing the next take, but typical vision mixers expose a separate **preview** bus alongside program. Transitions are performed between preview and program, so while a transition is still happening, you cannot change the preview layer — it would change what is being mixed to the output.
+
+You still use the same WHEN_CLEAR mapping and priority `0` preview objects, but each Part needs **two** TimelineObjects on that layer:
+
+- **Preview** (priority `0`, `{ while: '1' }`): loads the source on the preview bus only, without taking — e.g. background or PVW with `transition: null`. Lookahead clones this for the next Part.
+- **Take** (priority `1` or higher): cuts or mixes to program. Use `transition: null` on the base content so the preview bus can still update; perform the cut or mix in a short keyframe at Part start.
+
+If you only emit the take, lookahead will clone it and put the next source on program too early. If the take keeps an active transition for the whole Part, the preview bus often cannot update until the Part ends.
+
+For **mix** transitions, patch the next Part's preview lookahead in `onTimelineGenerate` so it starts after the crossfade — e.g. `#take.start + mixDurationMs`. WHEN_CLEAR does not know your mix length.
+
+With [AB Playback](./ab-playback.md), use `preserveForLookahead` on preview-side keyframes and a higher `lookaheadDepth` (usually your pool size).
