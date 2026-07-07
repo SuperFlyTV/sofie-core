@@ -85,7 +85,36 @@ Because the lookahead objects are included in the timeline to `onTimelineGenerat
 
 [AB Playback](./ab-playback.md) started out as being implemented inside of `onTimelineGenerate` and relies on lookahead objects being produced before reassigning them to other mappings.
 
-If any objects found by lookahead have a class `_lookahead_start_delay`, they will be given a short delay in their start time. This is a hack introduced to workaround a timing issue. At some point this will be removed once a proper solution is found.
+If a **piece timeline object** on a WHEN_CLEAR layer (the object lookahead chains after — not the generated lookahead clone itself) has class `_lookahead_start_delay`, the next lookahead object's `enable.start` is offset from that object's start:
+
+```ts
+// packages/job-worker/src/playout/lookahead/index.ts — calculateStartAfterPreviousObj
+enable: { start: `#${prevObj.id}.start + ${prevHasDelayFlag ? 2000 : 0}` }
+```
+
+This is a fixed **2000 ms** delay (originally 1000 ms). It does not read mix duration or device state.
+
+#### History and intended use
+
+Git history (`git log -S '_lookahead_start_delay' -- sofie-core`) shows:
+
+| When | Who | Change |
+|------|-----|--------|
+| 2019-03-26 | Julian Waller | Added the class: delay the next chained lookahead by **1000 ms** after the previous object on the layer ([`2c595fb77c`](https://github.com/Sofie-Automation/sofie-core/commit/2c595fb77c)) |
+| 2019-08-26 | Johan Nyman | Increased delay to **2000 ms** — commit message: *"because 2000 is better than 1000"* ([`f69c874687`](https://github.com/Sofie-Automation/sofie-core/commit/f69c874687)) |
+| 2023-06-29 | Docs PR #978 | Documented as a timing workaround to remove once a proper solution exists |
+
+The class is **not assigned anywhere in open-source Sofie or blueprints** — only consumed in core. It was almost certainly used in private NRK/TV2 blueprint code from the same era as early WHEN_CLEAR / next-AUX work.
+
+The problem it targets is the same one described under [Switcher preview bus](#using-the-switcher-preview-bus) below: **lookahead must not stage the next source until the current take or transition has finished**. Without an offset, WHEN_CLEAR chains the next preview lookahead to `#previousObject.start + 0`, which is too early when the previous object is a vision-mixer take or a clip whose output must settle before preview can change.
+
+Limitations of this hack:
+
+- Fixed duration — tuned empirically (1 s → 2 s), not per-Part mix length
+- No device feedback — actual transition time may differ
+- Superseded in practice by patching lookahead timing in `onTimelineGenerate` (see switcher preview bus section)
+
+At some point this class should be replaced by mix-length-aware chaining in core (see `productivity/tasks/proposals/sofie-switcher-preview-lookahead.md` in the Superfly workspace) or removed entirely.
 
 Sometimes it can be useful to have keyframes which are only applied when in lookahead. That can be achieved by setting `preserveForLookahead`, making the keyframe be disabled, and then re-enabling it inside `onTimelineGenerate` at the correct time.
 
@@ -95,7 +124,7 @@ It is possible to implement a 'next' AUX on your vision mixer by:
 - Each Part creates a TimelineObject on this mapping. Crucially, these have a priority of 0.
 - Lookahead will run and will insert its objects overriding your predefined ones (because of its higher priority). Resulting in the AUX always showing the lookahead object.
 
-### Switcher preview bus
+### Using the Switcher preview bus
 
 The 'next AUX' pattern above works when you can dedicate a vision mixer bus (e.g. an AUX or M/E) to previewing the next take, but typical vision mixers expose a separate **preview** bus alongside program. Transitions are performed between preview and program, so while a transition is still happening, you cannot change the preview layer — it would change what is being mixed to the output.
 
@@ -106,6 +135,6 @@ You still use the same WHEN_CLEAR mapping and priority `0` preview objects, but 
 
 If you only emit the take, lookahead will clone it and put the next source on program too early. If the take keeps an active transition for the whole Part, the preview bus often cannot update until the Part ends.
 
-For **mix** transitions, patch the next Part's preview lookahead in `onTimelineGenerate` so it starts after the crossfade — e.g. `#take.start + mixDurationMs`. WHEN_CLEAR does not know your mix length.
+For **mix** transitions, patch the next Part's preview lookahead in `onTimelineGenerate` so it starts after the crossfade — e.g. `#take.start + mixDurationMs`. WHEN_CLEAR does not know your mix length. Avoid `_lookahead_start_delay` for this: it only adds a fixed 2000 ms (see above).
 
 With [AB Playback](./ab-playback.md), use `preserveForLookahead` on preview-side keyframes and a higher `lookaheadDepth` (usually your pool size).
