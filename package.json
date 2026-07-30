@@ -26,6 +26,7 @@
 		"meteor:run": "cd meteor && yarn start",
 		"lint": "run lint:meteor && run lint:packages",
 		"lint:fix": "run lint:meteor --fix && run lint:packages --fix",
+		"lint-staged": "node ./node_modules/lint-staged/bin/lint-staged.js --cwd packages && node ./node_modules/lint-staged/bin/lint-staged.js --cwd meteor",
 		"unit": "run unit:meteor && run unit:packages",
 		"validate:release": "yarn install && run install-and-build && run validate:versions && run validate:release:packages && run validate:release:meteor",
 		"validate:release:meteor": "cd meteor && yarn validate:prod-dependencies && yarn license-validate && yarn lint && yarn test",
