@@ -12,5 +12,17 @@ export function setVideoElementPosition(
 	} else if (itemDuration > 0) {
 		targetTime = Math.max(0, Math.min(targetTime, itemDuration))
 	}
-	vEl.currentTime = targetTime / 1000
+	const currentTimeSeconds = targetTime / 1000
+	if (Number.isFinite(currentTimeSeconds)) {
+		vEl.currentTime = currentTimeSeconds
+	} else {
+		console.error('Invalid current time', currentTimeSeconds, 'for video ', vEl.src)
+		console.error('parameters: ', {
+			vEl: HTMLVideoElement,
+			timePosition,
+			itemDuration,
+			seek,
+			loop,
+		})
+	}
 }
