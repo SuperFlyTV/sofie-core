@@ -43,6 +43,13 @@ export const UIPieceContentStatuses = createSyncCorelibCustomPublicationMongoCol
 )
 
 /**
+ * Server-computed playlist timing values, expressed as TimerStates to be evaluated locally
+ */
+export const PlaylistTimingStates = createSyncCorelibCustomPublicationMongoCollection(
+	CustomCorelibCollectionName.PlaylistTimingState
+)
+
+/**
  * A playout UI version of Parts.
  */
 export const UIParts = createSyncCustomPublicationMongoCollection(CustomCollectionName.UIParts)

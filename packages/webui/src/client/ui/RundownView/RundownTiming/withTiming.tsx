@@ -240,7 +240,7 @@ function componentIsDirty(
 /**
  * Finds the Rundown Timing Event that corresponds to a given TimingTickResolution
  */
-function rundownTimingEventFromTickResolution(resolution: TimingTickResolution): RundownTiming.Events {
+export function rundownTimingEventFromTickResolution(resolution: TimingTickResolution): RundownTiming.Events {
 	switch (resolution) {
 		case TimingTickResolution.High:
 			return RundownTiming.Events.timeupdateHighResolution

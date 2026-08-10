@@ -1,9 +1,8 @@
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
-import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
+import { timerStateToZeroTime } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { useTranslation } from 'react-i18next'
 import { Countdown } from './Countdown'
-import { useTiming } from '../RundownTiming/withTiming'
-import { getCurrentTime } from '../../../lib/systemTime'
+import { usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
 
 export function RundownHeaderExpectedEnd({
 	playlist,
@@ -13,17 +12,11 @@ export function RundownHeaderExpectedEnd({
 	readonly simplified?: boolean
 }): JSX.Element | null {
 	const { t } = useTranslation()
-	const timingDurations = useTiming()
+	const { value: plannedEnd, now } = usePlaylistTimingValue(playlist._id, 'plannedEnd')
+	const { value: estimatedEnd } = usePlaylistTimingValue(playlist._id, 'estimatedEnd')
 
-	const now = timingDurations.currentTime ?? getCurrentTime()
-	const expectedEnd = PlaylistTiming.getExpectedEnd(playlist.timing)
-	const startedPlayback = playlist.activationId ? playlist.startedPlayback : undefined
-	const estEnd = PlaylistTiming.getEstimatedEnd(
-		playlist.timing,
-		now,
-		timingDurations.remainingPlaylistDuration,
-		startedPlayback
-	)
+	const expectedEnd = plannedEnd ? timerStateToZeroTime(plannedEnd, now) : undefined
+	const estEnd = estimatedEnd ? timerStateToZeroTime(estimatedEnd, now) : undefined
 
 	if (expectedEnd === undefined && estEnd === undefined) return null
 

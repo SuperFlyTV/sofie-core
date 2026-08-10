@@ -1,10 +1,9 @@
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
-import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
+import { timerStateToDuration, timerStateToZeroTime } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { useTranslation } from 'react-i18next'
 import { Countdown } from './Countdown'
-import { useTiming } from '../RundownTiming/withTiming'
+import { usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../../lib/rundown.js'
-import { getCurrentTime } from '../../../lib/systemTime'
 
 export function RundownHeaderPlannedStart({
 	playlist,
@@ -14,12 +13,13 @@ export function RundownHeaderPlannedStart({
 	simplified?: boolean
 }): JSX.Element | null {
 	const { t } = useTranslation()
-	const timingDurations = useTiming()
-	const expectedStart = PlaylistTiming.getExpectedStart(playlist.timing)
+	const { value: plannedStart, now } = usePlaylistTimingValue(playlist._id, 'plannedStart')
+	const { value: startedPlaybackState } = usePlaylistTimingValue(playlist._id, 'startedPlayback')
 
-	const now = timingDurations.currentTime ?? getCurrentTime()
-	const startsIn = now - (expectedStart ?? 0)
-	const startedPlayback = playlist.activationId ? playlist.startedPlayback : undefined
+	const expectedStart = plannedStart ? timerStateToZeroTime(plannedStart, now) : undefined
+	// the countdown read of plannedStart is (expectedStart - now); startsIn is its negation
+	const startsIn = plannedStart ? -timerStateToDuration(plannedStart, now) : 0
+	const startedPlayback = startedPlaybackState ? timerStateToZeroTime(startedPlaybackState, now) : undefined
 
 	return (
 		<div className="rundown-header__show-timers-endtimes">
