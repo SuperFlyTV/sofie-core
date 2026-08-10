@@ -43,6 +43,7 @@ exports[`PublicationRegistry the full set of registered publication names is sta
   "pieceInstancesSimple",
   "pieces",
   "piecesInfiniteStartingBefore",
+  "playlistTimingState",
   "rundownBaselineAdLibActions",
   "rundownBaselineAdLibPieces",
   "rundownLayouts",

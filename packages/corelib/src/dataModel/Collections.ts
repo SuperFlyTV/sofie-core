@@ -50,4 +50,5 @@ export enum CollectionName {
  */
 export enum CustomCollectionName {
 	UIPieceContentStatuses = 'uiPieceContentStatuses',
+	PlaylistTimingState = 'playlistTimingState',
 }

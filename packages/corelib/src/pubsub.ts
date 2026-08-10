@@ -37,6 +37,7 @@ import {
 import { BlueprintId, BucketId, RundownPlaylistActivationId, SegmentId, ShowStyleVariantId } from './dataModel/Ids.js'
 import { PackageInfoDB } from './dataModel/PackageInfos.js'
 import { UIPieceContentStatus } from './dataModel/PieceContentStatus.js'
+import { TimingStateDoc } from './dataModel/TimingState.js'
 import { Bucket } from './dataModel/Bucket.js'
 import { DBNotificationObj } from './dataModel/Notifications.js'
 
@@ -200,6 +201,13 @@ export enum CorelibPubSub {
 	 * If the id is null, nothing will be returned
 	 */
 	uiPieceContentStatuses = 'uiPieceContentStatuses',
+
+	/**
+	 * Fetch the timing state of the given RundownPlaylist: server-computed timing values expressed
+	 * as TimerStates (unix-timestamp based), which consumers evaluate locally against the clock.
+	 * If the id is null, nothing will be returned
+	 */
+	playlistTimingState = 'playlistTimingState',
 }
 
 /**
@@ -347,6 +355,10 @@ export interface CorelibPubSubTypes {
 	[CorelibPubSub.uiPieceContentStatuses]: (
 		rundownPlaylistId: RundownPlaylistId | null
 	) => CustomCollectionName.UIPieceContentStatuses
+
+	[CorelibPubSub.playlistTimingState]: (
+		rundownPlaylistId: RundownPlaylistId | null
+	) => CustomCollectionName.PlaylistTimingState
 }
 
 export type CorelibPubSubCollections = {
@@ -382,4 +394,5 @@ export type CorelibPubSubCollections = {
 
 export type CorelibPubSubCustomCollections = {
 	[CustomCollectionName.UIPieceContentStatuses]: UIPieceContentStatus
+	[CustomCollectionName.PlaylistTimingState]: TimingStateDoc
 }

@@ -1,7 +1,6 @@
 import React, { type PropsWithChildren } from 'react'
 import { Meteor } from 'meteor/meteor'
 import { withTracker } from '../../../lib/ReactMeteorData/react-meteor-data.js'
-import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { RundownTiming, type TimeEventArgs } from './RundownTiming.js'
 import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
@@ -10,19 +9,13 @@ import {
 	RundownTimingCalculator,
 	type RundownTimingContext,
 	type TimingId,
-	findPartInstancesInQuickLoop,
 } from '../../../lib/rundownTiming.js'
-import type { PartId, PartInstanceId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
-
-import { sortPartInstancesInSortedSegments } from '@sofie-automation/corelib/dist/playout/playlist'
+import type { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { prepareTimingPartInstances } from '@sofie-automation/meteor-lib/dist/rundownTiming/prepareTimingInputs'
 import { RundownPlaylistClientUtil } from '../../../lib/rundownPlaylistUtil.js'
 import { getCurrentTime } from '../../../lib/systemTime.js'
 import { type IRundownTimingProviderValues, RundownTimingProviderContext } from './withTiming.js'
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
-import {
-	deduplicatePartInstancesForQuickLoop,
-	wrapPartToTemporaryInstance,
-} from '@sofie-automation/corelib/src/playout/stateCacheResolver.js'
 
 const TIMING_DEFAULT_REFRESH_INTERVAL = 1000 / 60 // the interval for high-resolution events (timeupdateHR)
 const LOW_RESOLUTION_TIMING_DECIMATOR = 15
@@ -105,32 +98,12 @@ export const RundownTimingProvider = withTracker<
 		>
 	>
 
-	const { currentPartInstance } = findCurrentAndPreviousPartInstance(
-		activePartInstances,
-		playlist.currentPartInfo?.partInstanceId,
-		playlist.previousPartInfo?.partInstanceId
+	const { partInstances, partsInQuickLoop } = prepareTimingPartInstances(
+		playlist,
+		segments,
+		unorderedParts,
+		activePartInstances
 	)
-
-	let partInstances: MinimalPartInstance[] = []
-
-	const allPartIds: Set<PartId> = new Set()
-
-	for (const partInstance of activePartInstances) {
-		allPartIds.add(partInstance.part._id)
-	}
-
-	partInstances = activePartInstances
-
-	for (const part of unorderedParts) {
-		if (allPartIds.has(part._id)) continue
-		partInstances.push(wrapPartToTemporaryInstance(playlist.activationId ?? protectString(''), part))
-	}
-
-	partInstances = sortPartInstancesInSortedSegments(partInstances, segments)
-
-	partInstances = deduplicatePartInstancesForQuickLoop(playlist, partInstances, currentPartInstance)
-
-	const partsInQuickLoop = findPartInstancesInQuickLoop(playlist, partInstances)
 
 	return {
 		partInstances,
@@ -287,30 +260,3 @@ export const RundownTimingProvider = withTracker<
 		}
 	}
 )
-
-function findCurrentAndPreviousPartInstance(
-	activePartInstances: MinimalPartInstance[],
-	currentPartInstanceId: PartInstanceId | undefined,
-	previousPartInstanceId: PartInstanceId | undefined
-) {
-	let currentPartInstance: MinimalPartInstance | undefined
-	let previousPartInstance: MinimalPartInstance | undefined
-	// the activePartInstances are usually sorted ascending by takeCount, so it makes sense to start
-	// at the end of the array, since that's where the latest PartInstances generally will be
-	for (let i = activePartInstances.length - 1; i >= 0; i--) {
-		const partInstance = activePartInstances[i]
-		if (partInstance._id === currentPartInstanceId) currentPartInstance = partInstance
-		if (partInstance._id === previousPartInstanceId) previousPartInstance = partInstance
-		// we've found what we were looking for, we can stop
-		if (
-			(currentPartInstance || currentPartInstanceId === undefined) &&
-			(previousPartInstance || previousPartInstanceId === undefined)
-		)
-			break
-	}
-
-	return {
-		currentPartInstance,
-		previousPartInstance,
-	}
-}
