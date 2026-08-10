@@ -4,10 +4,8 @@
  */
 
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
-import {
-	type RundownTimingContext,
-	getPlaylistTimingDiff as getPlaylistTimingDiffInner,
-} from '@sofie-automation/meteor-lib/dist/rundownTiming/index'
+import type { RundownTimingContext } from '@sofie-automation/meteor-lib/dist/rundownTiming/index'
+import { getPlaylistTimingDiff as getPlaylistTimingDiffInner } from '@sofie-automation/meteor-lib/dist/rundownTiming/playlistTimingState'
 import { getCurrentTime } from './systemTime.js'
 
 export {

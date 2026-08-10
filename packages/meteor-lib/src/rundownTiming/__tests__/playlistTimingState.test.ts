@@ -14,8 +14,8 @@ import {
 	type TimerState,
 } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { RundownTimingCalculator, getPlaylistTimingDiff } from '../index.js'
-import { calculatePlaylistTimingStates } from '../playlistTimingState.js'
+import { RundownTimingCalculator } from '../index.js'
+import { calculatePlaylistTimingStates, getPlaylistTimingDiff } from '../playlistTimingState.js'
 
 const DEFAULT_DURATION = 0
 

@@ -1,28 +1,27 @@
 /**
- * Calculates the playlist-level timing values as piecewise-linear TimerStates, for publishing
- * over DDP (the `playlistTimingState` publication).
+ * Assembles the playlist-level timing values as TimerStates (a PlaylistTimingStateDoc), for
+ * publishing over DDP (the `playlistTimingState` publication).
  *
- * The key idea: every value shown in the rundown header is a piecewise-linear function of
- * wall-clock time — it counts down 1:1, holds constant, or pushes 1:1 — and the breakpoint
- * (the moment the on-air part/segment overruns its expected duration) is known in advance.
- * So instead of publishing evaluated numbers every second, we publish TimerStates that a
- * consumer evaluates locally with `timerStateToDuration` / `timerStateToZeroTime`, and the
- * server only republishes when playout or ingest state actually changes.
+ * There is deliberately no timing math of its own in this module:
+ * - the time-dependence of the playlist aggregates lives inside RundownTimingCalculator
+ *   (`remainingPlaylistDurationState` / `livePushTime` on the RundownTimingContext)
+ * - the remaining/estimated-end shapes live in `PlaylistTiming.getRemainingDurationState` /
+ *   `getEstimatedEndState` (of which the old numeric helpers are evaluations)
+ * - the over/under balance is composed here as a target/projected TimerState pair, and
+ *   `getPlaylistTimingDiff` is its evaluation at `now` — there is no separate diff formula.
  *
- * The numbers are defined to be equivalent (between state changes) to what the
- * RundownTimingCalculator + PlaylistTiming helpers + getPlaylistTimingDiff produce — this is
- * asserted by the equivalence tests in __tests__/playlistTimingState.test.ts.
+ * Consumers evaluate the published states locally with `timerStateToDuration` /
+ * `timerStateToZeroTime`; the server only needs to republish when playout or ingest state changes.
  */
 
-import type { TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
+import { type TimerState, timerStateToZeroTime } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import type { PlaylistTimingStateDoc } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import type { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { unprotectString } from '@sofie-automation/corelib/dist/protectedString'
-import { RundownTimingCalculator, type RundownTimingContext, type TimingId, getPartInstanceTimingId } from './index.js'
+import { RundownTimingCalculator, type RundownTimingContext, type TimingId } from './index.js'
 
 type CalculateTimingsPartInstance = Pick<
 	PartInstance,
@@ -31,18 +30,6 @@ type CalculateTimingsPartInstance = Pick<
 
 /** The timing value fields of a PlaylistTimingStateDoc (without the document envelope) */
 export type PlaylistTimingStateValues = Omit<PlaylistTimingStateDoc, '_id' | 'type' | 'playlistId'>
-
-/**
- * Describes the single time-varying term of the playlist aggregates:
- * the on-air part (or budgeted segment) counts down until `pushTime`, after which the
- * remaining duration freezes and the as-played duration / estimated end start pushing 1:1.
- */
-interface LiveMotion {
-	/** The timestamp at which the live part/segment overruns (the piecewise breakpoint). */
-	pushTime: number | undefined
-	/** Whether the breakpoint has already passed (we are currently overrunning/pushing). */
-	isPushing: boolean
-}
 
 /**
  * Calculate the playlist timing values as TimerStates for a given point in time.
@@ -75,18 +62,15 @@ export function calculatePlaylistTimingStates(
 		partsInQuickLoop
 	)
 
-	return calculatePlaylistTimingStatesFromContext(now, playlist, partInstances, segmentsMap, timingContext)
+	return calculatePlaylistTimingStatesFromContext(now, playlist, timingContext)
 }
 
 /**
- * Inner implementation of calculatePlaylistTimingStates, for callers that already have a
- * RundownTimingContext calculated at `now` for the same inputs.
+ * Assemble the playlist timing values from a RundownTimingContext calculated at `now`.
  */
 export function calculatePlaylistTimingStatesFromContext(
 	now: number,
 	playlist: DBRundownPlaylist,
-	partInstances: CalculateTimingsPartInstance[],
-	segmentsMap: Map<SegmentId, DBSegment>,
 	timingContext: RundownTimingContext
 ): PlaylistTimingStateValues {
 	const timing = playlist.timing
@@ -99,8 +83,13 @@ export function calculatePlaylistTimingStatesFromContext(
 	// shown while the playlist is active
 	const startedPlayback = playlist.activationId ? playlist.startedPlayback : undefined
 
-	const remaining = timingContext.remainingPlaylistDuration ?? 0
-	const motion = findLiveMotion(now, playlist, partInstances, segmentsMap, timingContext)
+	// Matching the header's hide rule: an untimed playlist with no expected duration that has
+	// never been played has no meaningful over/under
+	const overUnderIsMeaningful = !(
+		PlaylistTiming.isPlaylistTimingNone(timing) &&
+		expectedDuration === undefined &&
+		!playlist.startedPlayback
+	)
 
 	return {
 		timingType: timing.type,
@@ -110,192 +99,54 @@ export function calculatePlaylistTimingStatesFromContext(
 		plannedDuration: expectedDuration !== undefined ? { paused: true, duration: expectedDuration } : undefined,
 		startedPlayback: startedPlayback !== undefined ? { paused: false, zeroTime: startedPlayback } : undefined,
 
-		remainingDuration: calculateRemainingDurationState(
-			now,
+		remainingDuration: PlaylistTiming.getRemainingDurationState(
 			timing,
-			remaining,
-			startedPlayback,
-			expectedDuration,
-			motion
+			timingContext.remainingPlaylistDurationState,
+			startedPlayback
 		),
-		estimatedEnd: calculateEstimatedEndState(
-			now,
-			remaining,
-			startedPlayback,
-			expectedStart,
-			expectedDuration,
+		estimatedEnd: PlaylistTiming.getEstimatedEndState(
 			timing,
-			motion
+			now,
+			timingContext.remainingPlaylistDurationState,
+			startedPlayback
 		),
-		overUnder: calculateOverUnderStates(now, playlist, timingContext, motion),
+		overUnder: overUnderIsMeaningful ? calculateOverUnderStates(now, playlist, timingContext) : undefined,
 	}
 }
 
 /**
- * Find the piecewise breakpoint of the playlist aggregates: the moment the on-air part
- * (or the on-air segment's budget) overruns.
- *
- * This mirrors the branches of RundownTimingCalculator that make `remainingPlaylistDuration`
- * and `asPlayedPlaylistDuration` time-varying:
- * - a budgeted live segment contributes `max(0, budget - (now - segmentStartedPlayback))` to
- *   remaining and `max(now - segmentStartedPlayback, budget)` to as-played
- * - otherwise the live part contributes `max(0, partExpectedDuration - (now - startedPlayback))`
- *   to remaining and `max(partExpectedDuration, now - startedPlayback)` to as-played
- *
- * Both cross their breakpoint at the same time; everything else in the aggregates is constant.
+ * Calculate the over/under diff of a playlist against its planned timing, by evaluating the
+ * over/under TimerState pair at `now`. This is the same number the published states yield.
+ * @param fallbackCurrentTime Used as "now" if the timingContext does not carry a currentTime of its own
  */
-function findLiveMotion(
-	now: number,
-	playlist: DBRundownPlaylist,
-	partInstances: CalculateTimingsPartInstance[],
-	segmentsMap: Map<SegmentId, DBSegment>,
-	timingContext: RundownTimingContext
-): LiveMotion {
-	const noMotion: LiveMotion = { pushTime: undefined, isPushing: false }
+export function getPlaylistTimingDiff(
+	playlist: Pick<DBRundownPlaylist, 'timing' | 'startedPlayback' | 'activationId'>,
+	timingContext: RundownTimingContext,
+	fallbackCurrentTime: number
+): number | undefined {
+	const now = timingContext.currentTime || fallbackCurrentTime
+	const overUnder = calculateOverUnderStates(now, playlist, timingContext)
 
-	const currentPartInstanceId = playlist.currentPartInfo?.partInstanceId
-	if (!currentPartInstanceId) return noMotion
-
-	const livePartInstance = partInstances.find((instance) => instance._id === currentPartInstanceId)
-	if (!livePartInstance) return noMotion
-
-	// Untimed parts don't contribute to the aggregates at all
-	if (livePartInstance.part.untimed) return noMotion
-
-	const liveSegment = segmentsMap.get(livePartInstance.segmentId)
-	const segmentBudget = liveSegment?.segmentTiming?.budgetDuration
-
-	if (segmentBudget !== undefined) {
-		// Budgeted segment: remaining/as-played track the segment budget from when the segment started
-		const segmentStartedPlayback =
-			playlist.segmentsStartedPlayback?.[unprotectString(livePartInstance.segmentPlayoutId)]
-		if (segmentStartedPlayback === undefined) return noMotion
-
-		const pushTime = segmentStartedPlayback + segmentBudget
-		return { pushTime, isPushing: now >= pushTime }
-	} else {
-		// Normal part: remaining/as-played track the live part's expected duration from when it started
-		// (a startedPlayback in the future means it hasn't started yet, e.g. from an autonext)
-		const lastStartedPlayback =
-			(livePartInstance.timings?.plannedStartedPlayback ?? 0) <= now
-				? livePartInstance.timings?.plannedStartedPlayback
-				: undefined
-		if (lastStartedPlayback === undefined) return noMotion
-		// once a duration is set, the part is no longer driving the aggregates
-		if (livePartInstance.timings?.duration !== undefined) return noMotion
-
-		// Use the same (displayDurationGroup-affected) expected duration as the calculator did
-		const partExpectedDuration =
-			timingContext.partExpectedDurations?.[getPartInstanceTimingId(livePartInstance)] ?? 0
-
-		const pushTime = lastStartedPlayback + partExpectedDuration
-		return { pushTime, isPushing: now >= pushTime }
-	}
+	return timerStateToZeroTime(overUnder.projected, now) - timerStateToZeroTime(overUnder.target, now)
 }
 
 /**
- * The remaining playlist duration ("Rem. Dur"), matching `PlaylistTiming.getRemainingDuration`.
- * duration read: counts down 1:1 while the live part is playing, freezes once it overruns.
- */
-function calculateRemainingDurationState(
-	now: number,
-	timing: DBRundownPlaylist['timing'],
-	remaining: number,
-	startedPlayback: number | undefined,
-	expectedDuration: number | undefined,
-	motion: LiveMotion
-): TimerState | undefined {
-	// Duration-timed playlists count down against their own expected duration, ignoring content
-	if (PlaylistTiming.isPlaylistDurationTimed(timing) && expectedDuration) {
-		if (startedPlayback) {
-			// counts down to startedPlayback + expectedDuration (and into negative when over)
-			return { paused: false, zeroTime: startedPlayback + expectedDuration }
-		} else {
-			return { paused: true, duration: expectedDuration }
-		}
-	}
-
-	if (motion.isPushing || motion.pushTime === undefined) {
-		// Frozen (overrunning), or nothing is playing: remaining is constant
-		return { paused: true, duration: remaining }
-	}
-
-	// Counting down; freezes when the live part overruns
-	return { paused: false, zeroTime: now + remaining, pauseTime: motion.pushTime }
-}
-
-/**
- * The estimated end of the playlist ("Est. End"), matching `PlaylistTiming.getEstimatedEnd`.
- * zeroTime read: constant while on schedule, pushes 1:1 once the live part overruns
- * (or, before playback, once the planned start has passed).
- */
-function calculateEstimatedEndState(
-	now: number,
-	remaining: number,
-	startedPlayback: number | undefined,
-	expectedStart: number | undefined,
-	expectedDuration: number | undefined,
-	timing: DBRundownPlaylist['timing'],
-	motion: LiveMotion
-): TimerState | undefined {
-	// Duration-timed playlists have a fixed estimated end once started
-	if (PlaylistTiming.isPlaylistDurationTimed(timing) && expectedDuration) {
-		if (startedPlayback) {
-			return { paused: false, zeroTime: startedPlayback + expectedDuration }
-		} else if (expectedStart) {
-			return { paused: false, zeroTime: expectedStart + expectedDuration }
-		}
-	}
-
-	if (startedPlayback) {
-		// estimatedEnd = now + remaining: constant while remaining counts down,
-		// pushing 1:1 once remaining freezes. This is the same state as remainingDuration,
-		// read through timerStateToZeroTime instead.
-		if (motion.isPushing || motion.pushTime === undefined) {
-			// zeroTime read of a paused state = now + duration: pushes 1:1
-			return { paused: true, duration: remaining }
-		}
-		return { paused: false, zeroTime: now + remaining, pauseTime: motion.pushTime }
-	}
-
-	// Not started: estimatedEnd = max(now, expectedStart ?? now) + remaining
-	if (expectedStart !== undefined && expectedStart > now) {
-		// Fixed at expectedStart + remaining until the planned start passes, then pushes
-		return { paused: false, zeroTime: expectedStart + remaining, pauseTime: expectedStart }
-	}
-	// Planned start already passed (or none): estimatedEnd = now + remaining, pushing 1:1
-	return { paused: true, duration: remaining }
-}
-
-/**
- * The over/under schedule balance, matching `getPlaylistTimingDiff`, expressed as a
- * target/projected TimerState pair (both read via timerStateToZeroTime):
- * over = projected - target.
+ * The over/under schedule balance, as a target/projected TimerState pair (both read via
+ * `timerStateToZeroTime`): over = projected - target.
  *
- * For end-anchored modes (ForwardTime/BackTime while relevant), target is the (derived)
- * planned end and projected is the estimated end.
- * For duration-compared modes (None/Duration, and any played-out & deactivated playlist),
- * both are virtual end timestamps built on a common base: target = base + plannedDuration,
+ * For end-anchored modes (ForwardTime/BackTime while relevant), target is the (derived) planned
+ * end and projected is the estimated end.
+ * For duration-compared modes (None/Duration, and any played-out & deactivated playlist), both
+ * are virtual end timestamps built on a common base: target = base + plannedDuration,
  * projected = base + asPlayedDuration.
  */
 function calculateOverUnderStates(
 	now: number,
-	playlist: DBRundownPlaylist,
-	timingContext: RundownTimingContext,
-	motion: LiveMotion
-): PlaylistTimingStateValues['overUnder'] {
+	playlist: Pick<DBRundownPlaylist, 'timing' | 'startedPlayback' | 'activationId'>,
+	timingContext: RundownTimingContext
+): { target: TimerState; projected: TimerState } {
 	const { timing, startedPlayback, activationId } = playlist
 	const active = !!activationId
-
-	// Matching the header's hide rule: an untimed playlist with no expected duration that has
-	// never been played has no meaningful diff
-	if (
-		PlaylistTiming.isPlaylistTimingNone(timing) &&
-		PlaylistTiming.getExpectedDuration(timing) === undefined &&
-		!startedPlayback
-	) {
-		return undefined
-	}
 
 	const asPlayed = timingContext.asPlayedPlaylistDuration || 0
 	const plannedDuration = timing.expectedDuration ?? timingContext.totalPlaylistDuration ?? 0
@@ -311,7 +162,7 @@ function calculateOverUnderStates(
 		const base = startedPlayback ?? now
 		return {
 			target: { paused: false, zeroTime: base + plannedDuration },
-			projected: projectedAsPlayedEnd(now, base, asPlayed, playedOutAndDeactivated ? noMotionFrozen() : motion),
+			projected: projectedAsPlayedEnd(now, base, asPlayed, playedOutAndDeactivated ? undefined : timingContext),
 		}
 	}
 
@@ -322,12 +173,16 @@ function calculateOverUnderStates(
 		const base = startedPlayback ?? now
 		return {
 			target: { paused: false, zeroTime: timing.expectedEnd },
-			projected: projectedAsPlayedEnd(now, base, asPlayed, noMotionFrozen()),
+			projected: projectedAsPlayedEnd(now, base, asPlayed, undefined),
 		}
 	}
 
 	// End-anchored modes: diff = frontAnchor + remaining - backAnchor
 	const remaining = timingContext.remainingPlaylistDuration || 0
+	const remainingState: TimerState = timingContext.remainingPlaylistDurationState ?? {
+		paused: true,
+		duration: remaining,
+	}
 
 	let target: TimerState
 	if (PlaylistTiming.isPlaylistTimingBackTime(timing)) {
@@ -354,17 +209,15 @@ function calculateOverUnderStates(
 		target = { paused: true, duration: plannedDuration }
 	}
 
-	// projected = frontAnchor + remaining, which is exactly the estimated-end shape
+	// projected = frontAnchor + remaining
 	let projected: TimerState
-	const frontStartedPlayback = playlist.startedPlayback
-	if (frontStartedPlayback !== undefined && frontStartedPlayback <= now) {
-		// frontAnchor = now: projected = now + remaining
-		if (motion.isPushing || motion.pushTime === undefined) {
-			projected = { paused: true, duration: remaining }
-		} else {
-			projected = { paused: false, zeroTime: now + remaining, pauseTime: motion.pushTime }
-		}
+	if (startedPlayback !== undefined && startedPlayback <= now) {
+		// frontAnchor = now: projected = now + remaining, which is exactly the remaining-duration
+		// state read through timerStateToZeroTime
+		projected = remainingState
 	} else {
+		// Not started: frontAnchor = max(now, expectedStart) for ForwardTime, now otherwise
+		// (remaining is constant while nothing is playing)
 		const frontStart = PlaylistTiming.isPlaylistTimingForwardTime(timing)
 			? Math.max(timing.expectedStart, now)
 			: now
@@ -378,25 +231,29 @@ function calculateOverUnderStates(
 	return { target, projected }
 }
 
-/** A LiveMotion representing "nothing is moving" (used for deactivated playlists) */
-function noMotionFrozen(): LiveMotion {
-	return { pushTime: undefined, isPushing: false }
-}
-
 /**
  * A TimerState whose zeroTime read equals `base + asPlayed(t)`:
- * constant until the live part overruns (asPlayed grows by planned durations only),
- * then pushing 1:1 (the live part's as-played term is `max(expected, elapsed)`).
+ * constant until the on-air part/segment overruns (as-played grows by planned durations only),
+ * then pushing 1:1 (the on-air term is `max(expected, elapsed)`).
+ *
+ * @param timingContext Context carrying the live breakpoint; pass undefined when as-played can no
+ *   longer move (e.g. the playlist has been deactivated)
  */
-function projectedAsPlayedEnd(now: number, base: number, asPlayedNow: number, motion: LiveMotion): TimerState {
-	if (motion.isPushing) {
+function projectedAsPlayedEnd(
+	now: number,
+	base: number,
+	asPlayedNow: number,
+	timingContext: RundownTimingContext | undefined
+): TimerState {
+	const pushTime = timingContext?.livePushTime
+	if (pushTime !== undefined && now >= pushTime) {
 		// Already pushing: the zeroTime read of a paused state is `t + duration`, moving 1:1 with
 		// time. Anchor the duration so that at t = now the read equals base + asPlayedNow.
 		return { paused: true, duration: base + asPlayedNow - now }
 	}
-	if (motion.pushTime !== undefined) {
+	if (pushTime !== undefined) {
 		// Constant until pushTime, then pushes
-		return { paused: false, zeroTime: base + asPlayedNow, pauseTime: motion.pushTime }
+		return { paused: false, zeroTime: base + asPlayedNow, pauseTime: pushTime }
 	}
 	// Constant
 	return { paused: false, zeroTime: base + asPlayedNow }

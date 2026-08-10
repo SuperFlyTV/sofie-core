@@ -20,6 +20,7 @@ import {
 	RundownPlaylistTiming,
 } from '@sofie-automation/blueprints-integration'
 import { ReadonlyDeep } from 'type-fest'
+import { TimerState, timerStateToDuration, timerStateToZeroTime } from '../dataModel/TimerState.js'
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace PlaylistTiming {
@@ -75,26 +76,88 @@ export namespace PlaylistTiming {
 		return timing.expectedDuration
 	}
 
+	/**
+	 * The estimated end of the playlist, as a TimerState (read via `timerStateToZeroTime`).
+	 * This is THE implementation of the estimated end; `getEstimatedEnd` is its evaluation at `now`.
+	 *
+	 * @param contentRemainingState The remaining content duration of the playlist as a TimerState
+	 * (e.g. `RundownTimingContext.remainingPlaylistDurationState`)
+	 * @param startedPlayback When the playlist started playing (if active)
+	 */
+	export function getEstimatedEndState(
+		timing: RundownPlaylistTiming,
+		now: number,
+		contentRemainingState: TimerState | undefined,
+		startedPlayback?: number
+	): TimerState | undefined {
+		if (PlaylistTiming.isPlaylistDurationTimed(timing) && timing.expectedDuration) {
+			if (startedPlayback) {
+				return { paused: false, zeroTime: startedPlayback + timing.expectedDuration }
+			} else if (timing.expectedStart) {
+				return { paused: false, zeroTime: timing.expectedStart + timing.expectedDuration }
+			}
+		}
+
+		if (contentRemainingState === undefined) return undefined
+
+		if (startedPlayback) {
+			// estimatedEnd = now + remaining: this is exactly the remaining-duration state read
+			// through timerStateToZeroTime (fixed while remaining counts down, pushing 1:1 with
+			// time once remaining freezes)
+			return contentRemainingState
+		}
+
+		// Not started: estimatedEnd = max(now, expectedStart ?? now) + remaining
+		// (remaining is constant while nothing is playing)
+		const remaining = timerStateToDuration(contentRemainingState, now)
+		const expectedStart = PlaylistTiming.getExpectedStart(timing)
+		if (expectedStart !== undefined && expectedStart > now) {
+			// Fixed at expectedStart + remaining until the planned start passes, then pushes
+			return { paused: false, zeroTime: expectedStart + remaining, pauseTime: expectedStart }
+		}
+		// Planned start already passed (or none): estimatedEnd = now + remaining, pushing 1:1
+		return { paused: true, duration: remaining }
+	}
+
 	export function getEstimatedEnd(
 		timing: RundownPlaylistTiming,
 		now: number,
 		remainingPlaylistDuration?: number,
 		startedPlayback?: number
 	): number | undefined {
+		const state = PlaylistTiming.getEstimatedEndState(
+			timing,
+			now,
+			remainingPlaylistDuration !== undefined ? { paused: true, duration: remainingPlaylistDuration } : undefined,
+			startedPlayback
+		)
+		return state ? timerStateToZeroTime(state, now) : undefined
+	}
+
+	/**
+	 * The remaining duration of the playlist, as a TimerState (read via `timerStateToDuration`).
+	 * This is THE implementation of the remaining duration; `getRemainingDuration` is its
+	 * evaluation at `now`.
+	 *
+	 * @param contentRemainingState The remaining content duration of the playlist as a TimerState
+	 * (e.g. `RundownTimingContext.remainingPlaylistDurationState`)
+	 * @param startedPlayback When the playlist started playing (if active)
+	 */
+	export function getRemainingDurationState(
+		timing: RundownPlaylistTiming,
+		contentRemainingState: TimerState | undefined,
+		startedPlayback?: number
+	): TimerState | undefined {
 		if (PlaylistTiming.isPlaylistDurationTimed(timing) && timing.expectedDuration) {
 			if (startedPlayback) {
-				return startedPlayback + timing.expectedDuration
-			} else if (timing.expectedStart) {
-				return timing.expectedStart + timing.expectedDuration
+				// Counts down to startedPlayback + expectedDuration (and into negative when over)
+				return { paused: false, zeroTime: startedPlayback + timing.expectedDuration }
+			} else {
+				return { paused: true, duration: timing.expectedDuration }
 			}
 		}
 
-		if (remainingPlaylistDuration !== undefined) {
-			const frontAnchor = startedPlayback ? now : Math.max(now, PlaylistTiming.getExpectedStart(timing) ?? now)
-
-			return frontAnchor + remainingPlaylistDuration
-		}
-		return undefined
+		return contentRemainingState
 	}
 
 	export function getRemainingDuration(
@@ -103,15 +166,12 @@ export namespace PlaylistTiming {
 		remainingPlaylistDuration?: number,
 		startedPlayback?: number
 	): number | undefined {
-		if (PlaylistTiming.isPlaylistDurationTimed(timing) && timing.expectedDuration) {
-			if (startedPlayback) {
-				return startedPlayback + timing.expectedDuration - now
-			} else {
-				return timing.expectedDuration
-			}
-		}
-
-		return remainingPlaylistDuration
+		const state = PlaylistTiming.getRemainingDurationState(
+			timing,
+			remainingPlaylistDuration !== undefined ? { paused: true, duration: remainingPlaylistDuration } : undefined,
+			startedPlayback
+		)
+		return state ? timerStateToDuration(state, now) : undefined
 	}
 
 	export function sortTimings(
