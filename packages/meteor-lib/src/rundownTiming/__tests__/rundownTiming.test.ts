@@ -8,11 +8,16 @@ import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment
 
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { unprotectString, protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
-import { RundownTimingCalculator, type RundownTimingContext, findPartInstancesInQuickLoop } from '../rundownTiming.js'
+import {
+	RundownTimingCalculator,
+	type RundownTimingContext,
+	findPartInstancesInQuickLoop,
+	getPlaylistTimingDiff,
+} from '../index.js'
 import { PlaylistTimingType, type SegmentTimingInfo } from '@sofie-automation/blueprints-integration'
 import type { PartId, RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
-import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/src/playout/stateCacheResolver'
+import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
+import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
 
 const DEFAULT_DURATION = 0
 const DEFAULT_NONZERO_DURATION = 4000
@@ -73,6 +78,12 @@ function makeMockSegment(id: string, rank: number, rundownId: string, timing?: S
 
 function convertPartsToPartInstances(parts: DBPart[]): PartInstance[] {
 	return parts.map((part) => wrapPartToTemporaryInstance(protectString(''), part))
+}
+
+function getInstanceOrThrow(partInstancesMap: Map<PartId, PartInstance>, part: DBPart): PartInstance {
+	const instance = partInstancesMap.get(part._id)
+	if (!instance) throw new Error(`PartInstance not found for Part "${part._id}"`)
+	return instance
 }
 
 function makeMockPartsForQuickLoopTest() {
@@ -528,27 +539,27 @@ describe('rundown Timing Calculator', () => {
 				})
 			)
 			const partInstances = Array.from(partInstancesMap.values())
-			partInstancesMap.get(parts[0]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[0]).timings = {
 				// part1
 				duration: 1000,
 				take: 0,
 				plannedStartedPlayback: 0,
 				plannedStoppedPlayback: 1000,
 			}
-			partInstancesMap.get(parts[1]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[1]).timings = {
 				// part2
 				duration: 2000,
 				take: 1000,
 				plannedStartedPlayback: 1000,
 				plannedStoppedPlayback: 3000,
 			}
-			partInstancesMap.get(parts[2]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[2]).timings = {
 				// part3
 				take: 3000,
 				plannedStartedPlayback: 3000,
 			}
-			const currentPartInstanceId = partInstancesMap.get(parts[2]._id)!._id
-			const nextPartInstanceId = partInstancesMap.get(parts[3]._id)!._id
+			const currentPartInstanceId = getInstanceOrThrow(partInstancesMap, parts[2])._id
+			const nextPartInstanceId = getInstanceOrThrow(partInstancesMap, parts[3])._id
 			playlist.currentPartInfo = {
 				partInstanceId: currentPartInstanceId,
 				rundownId: protectString<RundownId>(rundownId1),
@@ -675,27 +686,27 @@ describe('rundown Timing Calculator', () => {
 				})
 			)
 			const partInstances = Array.from(partInstancesMap.values())
-			partInstancesMap.get(parts[0]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[0]).timings = {
 				// part1
 				duration: 1000,
 				take: 0,
 				plannedStartedPlayback: 0,
 				plannedStoppedPlayback: 1000,
 			}
-			partInstancesMap.get(parts[1]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[1]).timings = {
 				// part2
 				duration: 2000,
 				take: 1000,
 				plannedStartedPlayback: 1000,
 				plannedStoppedPlayback: 3000,
 			}
-			partInstancesMap.get(parts[2]._id)!.timings = {
+			getInstanceOrThrow(partInstancesMap, parts[2]).timings = {
 				// part3
 				take: 3000,
 				plannedStartedPlayback: 3000,
 			}
-			const currentPartInstanceId = partInstancesMap.get(parts[2]._id)!._id
-			const nextPartInstanceId = partInstancesMap.get(parts[3]._id)!._id
+			const currentPartInstanceId = getInstanceOrThrow(partInstancesMap, parts[2])._id
+			const nextPartInstanceId = getInstanceOrThrow(partInstancesMap, parts[3])._id
 			playlist.currentPartInfo = {
 				partInstanceId: currentPartInstanceId,
 				rundownId: protectString<RundownId>(rundownId1),
@@ -1414,6 +1425,232 @@ describe('rundown Timing Calculator', () => {
 				},
 			})
 		)
+	})
+})
+
+describe('getPlaylistTimingDiff', () => {
+	function makeTimingContext(fields: Omit<RundownTimingContext, 'isLowResolution'>): RundownTimingContext {
+		return {
+			isLowResolution: false,
+			...fields,
+		}
+	}
+
+	describe('ForwardTime', () => {
+		it('is on schedule before playback, before the planned start', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 10000,
+				expectedDuration: 40000,
+			}
+			const context = makeTimingContext({
+				currentTime: 5000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 40000,
+				asPlayedPlaylistDuration: 40000,
+			})
+			// frontAnchor = expectedStart, backAnchor = expectedStart + expectedDuration
+			expect(getPlaylistTimingDiff(playlist, context, 5000)).toBe(0)
+		})
+
+		it('goes over when the playlist did not start on time', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 10000,
+				expectedDuration: 40000,
+				expectedEnd: 50000,
+			}
+			const context = makeTimingContext({
+				currentTime: 15000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 40000,
+				asPlayedPlaylistDuration: 40000,
+			})
+			// frontAnchor pushes with now, backAnchor is fixed by expectedEnd
+			expect(getPlaylistTimingDiff(playlist, context, 15000)).toBe(5000)
+		})
+
+		it('tracks the remaining duration against the expected end during playback', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 10000,
+				expectedEnd: 50000,
+			}
+			playlist.activationId = protectString('active')
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 30000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 25000,
+				asPlayedPlaylistDuration: 30000,
+			})
+			// now + remaining = 55000 vs expectedEnd = 50000 => 5000 over
+			expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(5000)
+		})
+
+		it('compares as-played against the expected end once deactivated after playout', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 10000,
+				expectedEnd: 50000,
+			}
+			playlist.activationId = undefined
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 100000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 0,
+				asPlayedPlaylistDuration: 45000,
+			})
+			// startedPlayback + asPlayed = 55000 vs expectedEnd = 50000 => 5000 over
+			expect(getPlaylistTimingDiff(playlist, context, 100000)).toBe(5000)
+		})
+
+		it('compares as-played against the plan once deactivated after playout, when there is no expected end', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 10000,
+				expectedDuration: 40000,
+			}
+			playlist.activationId = undefined
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 100000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 0,
+				asPlayedPlaylistDuration: 36000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 100000)).toBe(-4000)
+		})
+	})
+
+	describe('BackTime', () => {
+		it('counts down to the expected end', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.BackTime,
+				expectedEnd: 50000,
+			}
+			playlist.activationId = protectString('active')
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 30000,
+				totalPlaylistDuration: 40000,
+				remainingPlaylistDuration: 15000,
+				asPlayedPlaylistDuration: 30000,
+			})
+			// now + remaining = 45000 vs expectedEnd = 50000 => 5000 under
+			expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(-5000)
+		})
+	})
+
+	describe('None', () => {
+		it('compares as-played against the expected duration', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.None,
+				expectedDuration: 40000,
+			}
+			playlist.activationId = protectString('active')
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 30000,
+				totalPlaylistDuration: 41000,
+				remainingPlaylistDuration: 15000,
+				asPlayedPlaylistDuration: 42000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(2000)
+		})
+
+		it('falls back to the total playlist duration when there is no expected duration', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.None,
+			}
+			playlist.activationId = protectString('active')
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 30000,
+				totalPlaylistDuration: 41000,
+				remainingPlaylistDuration: 15000,
+				asPlayedPlaylistDuration: 42000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(1000)
+		})
+
+		it('keeps comparing as-played against the plan once deactivated after playout', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.None,
+				expectedDuration: 40000,
+			}
+			playlist.activationId = undefined
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 100000,
+				totalPlaylistDuration: 41000,
+				remainingPlaylistDuration: 0,
+				asPlayedPlaylistDuration: 38000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 100000)).toBe(-2000)
+		})
+	})
+
+	describe('Duration', () => {
+		it('compares as-played against the expected duration', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.Duration,
+				expectedDuration: 40000,
+			}
+			playlist.activationId = protectString('active')
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 30000,
+				totalPlaylistDuration: 41000,
+				remainingPlaylistDuration: 15000,
+				asPlayedPlaylistDuration: 43000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(3000)
+		})
+
+		it('keeps comparing as-played against the plan once deactivated after playout', () => {
+			const playlist = makeMockPlaylist()
+			playlist.timing = {
+				type: PlaylistTimingType.Duration,
+				expectedDuration: 40000,
+			}
+			playlist.activationId = undefined
+			playlist.startedPlayback = 10000
+			const context = makeTimingContext({
+				currentTime: 100000,
+				totalPlaylistDuration: 41000,
+				remainingPlaylistDuration: 0,
+				asPlayedPlaylistDuration: 39000,
+			})
+			expect(getPlaylistTimingDiff(playlist, context, 100000)).toBe(-1000)
+		})
+	})
+
+	it('uses the fallback time when the timing context has no currentTime', () => {
+		const playlist = makeMockPlaylist()
+		playlist.timing = {
+			type: PlaylistTimingType.BackTime,
+			expectedEnd: 50000,
+		}
+		playlist.activationId = protectString('active')
+		playlist.startedPlayback = 10000
+		const context = makeTimingContext({
+			totalPlaylistDuration: 40000,
+			remainingPlaylistDuration: 15000,
+			asPlayedPlaylistDuration: 30000,
+		})
+		expect(getPlaylistTimingDiff(playlist, context, 30000)).toBe(-5000)
 	})
 })
 
