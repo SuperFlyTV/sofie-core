@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
 	getPlaylistTimingStateDocId,
+	isPlaylistTimingStateDoc,
 	type PlaylistTimingStateDoc,
+	type TimingStateDoc,
 } from '@sofie-automation/corelib/dist/dataModel/TimingState'
+import type { MongoFieldSpecifierOnes } from '@sofie-automation/corelib/dist/mongo'
 import { PlaylistTimingStates } from '../../Collections.js'
 import { useTracker } from '../../../lib/ReactMeteorData/ReactMeteorData.js'
 import { getCurrentTime } from '../../../lib/systemTime.js'
@@ -48,10 +51,12 @@ export function usePlaylistTimingValue<K extends PlaylistTimingValueKey>(
 
 	const value = useTracker(
 		() => {
+			// `type` is needed to narrow the published union, so it must be in the projection
 			const doc = PlaylistTimingStates.findOne(getPlaylistTimingStateDocId(playlistId), {
-				fields: { [timer]: 1 } as any,
-			}) as Pick<PlaylistTimingStateDoc, K> | undefined
-			return doc?.[timer]
+				fields: { type: 1, [timer]: 1 } as MongoFieldSpecifierOnes<TimingStateDoc>,
+			}) as Pick<TimingStateDoc, 'type'> | undefined
+			if (!doc || !isPlaylistTimingStateDoc(doc)) return undefined
+			return (doc as Pick<PlaylistTimingStateDoc, 'type' | K>)[timer]
 		},
 		[playlistId, timer],
 		undefined

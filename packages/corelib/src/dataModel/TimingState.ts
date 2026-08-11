@@ -6,15 +6,18 @@ import type { TimerState } from './TimerState.js'
 export type TimingStateDocId = ProtectedString<'TimingStateDoc'>
 
 /**
- * A document published by the `playlistTimingState` publication.
+ * A document published by the `playlistTimingState` publication, which carries the timing state of
+ * everything within a RundownPlaylist.
  *
  * Every timing value is expressed as a `TimerState` — a piecewise-linear function of wall-clock time —
  * so that consumers can evaluate the current value locally (via `timerStateToDuration` /
  * `timerStateToZeroTime`) and the server only needs to publish updates when playout or ingest state
  * changes, never on a clock tick.
  *
- * This is a discriminated union so that more document shapes (per-segment, per-partInstance)
- * can be published into the same collection later.
+ * This is a discriminated union, keyed on `type`, with one document per "area": the playlist itself
+ * today, and per-segment / per-partInstance documents to follow. Consumers must narrow on `type`
+ * (e.g. with `isPlaylistTimingStateDoc`) rather than assuming a shape, and must include `type` in
+ * any projection they use.
  */
 export type TimingStateDoc = PlaylistTimingStateDoc
 
@@ -97,4 +100,12 @@ export interface PlaylistTimingStateDoc {
 
 export function getPlaylistTimingStateDocId(playlistId: RundownPlaylistId): TimingStateDocId {
 	return protectString(`playlist_${playlistId}`)
+}
+
+/**
+ * Narrow a published timing state document to the playlist-level one.
+ * Note that `type` must be present on the document, so include it in any projection.
+ */
+export function isPlaylistTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc is PlaylistTimingStateDoc {
+	return doc.type === 'playlist'
 }

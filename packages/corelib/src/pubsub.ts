@@ -203,8 +203,10 @@ export enum CorelibPubSub {
 	uiPieceContentStatuses = 'uiPieceContentStatuses',
 
 	/**
-	 * Fetch the timing state of the given RundownPlaylist: server-computed timing values expressed
-	 * as TimerStates (unix-timestamp based), which consumers evaluate locally against the clock.
+	 * Fetch the timing state of everything within the given RundownPlaylist: server-computed timing
+	 * values expressed as TimerStates (unix-timestamp based), which consumers evaluate locally
+	 * against the clock. Documents are a discriminated union keyed on `type`, with one document per
+	 * "area" (the playlist itself today; per-segment and per-partInstance to follow).
 	 * If the id is null, nothing will be returned
 	 */
 	playlistTimingState = 'playlistTimingState',
