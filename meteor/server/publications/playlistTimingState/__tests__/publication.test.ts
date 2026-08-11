@@ -108,20 +108,9 @@ describe('playlistTimingState publication', () => {
 					zeroTime: EXPECTED_START + totalPartDurations,
 					pauseTime: EXPECTED_START,
 				},
-				overUnder: {
-					// No explicit expectedEnd on the timing: the back-anchor is expectedStart +
-					// plannedDuration, and starts pushing if the planned start passes without playback
-					target: {
-						paused: false,
-						zeroTime: EXPECTED_START + EXPECTED_DURATION,
-						pauseTime: EXPECTED_START,
-					},
-					projected: {
-						paused: false,
-						zeroTime: EXPECTED_START + totalPartDurations,
-						pauseTime: EXPECTED_START,
-					},
-				},
+				// Planned for 40s of content but only 40s exists, and both the target and the
+				// projection slip together while unstarted, so the balance is a steady zero
+				overUnder: { paused: true, duration: EXPECTED_DURATION - totalPartDurations },
 			})
 		})
 

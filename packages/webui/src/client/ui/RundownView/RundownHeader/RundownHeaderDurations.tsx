@@ -1,8 +1,7 @@
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
-import { timerStateToDuration } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { useTranslation } from 'react-i18next'
 import { Countdown } from './Countdown'
-import { usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
+import { TimerValueMode, usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../../lib/rundown.js'
 
 export function RundownHeaderDurations({
@@ -13,15 +12,12 @@ export function RundownHeaderDurations({
 	readonly simplified?: boolean
 }): JSX.Element | null {
 	const { t } = useTranslation()
-	const { value: plannedDuration, now } = usePlaylistTimingValue(playlist._id, 'plannedDuration')
-	const { value: remainingDuration } = usePlaylistTimingValue(playlist._id, 'remainingDuration')
+	const expectedDuration = usePlaylistTimingValue(playlist._id, 'plannedDuration', TimerValueMode.Duration)
+	const estDuration = usePlaylistTimingValue(playlist._id, 'remainingDuration', TimerValueMode.Duration)
 
-	const expectedDuration = plannedDuration ? timerStateToDuration(plannedDuration, now) : undefined
-	const estDuration = remainingDuration ? timerStateToDuration(remainingDuration, now) : undefined
+	if (expectedDuration === null && estDuration === null) return null
 
-	if (expectedDuration == undefined && estDuration == undefined) return null
-
-	const clampedEstDuration = estDuration !== undefined ? Math.max(0, estDuration) : undefined
+	const clampedEstDuration = estDuration !== null ? Math.max(0, estDuration) : null
 
 	return (
 		<div className="rundown-header__show-timers-endtimes">
@@ -30,7 +26,7 @@ export function RundownHeaderDurations({
 					{RundownUtils.formatDiffToTimecode(expectedDuration, false, true, true, true, true, undefined, true, true)}
 				</Countdown>
 			) : null}
-			{clampedEstDuration !== undefined ? (
+			{clampedEstDuration !== null ? (
 				<Countdown label={t('Rem. Dur')} className="rundown-header__show-timers-countdown" ms={clampedEstDuration}>
 					{RundownUtils.formatDiffToTimecode(-clampedEstDuration, false, true, true, true, true, '', true, true)}
 				</Countdown>

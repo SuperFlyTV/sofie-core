@@ -79,23 +79,17 @@ export interface PlaylistTimingStateDoc {
 	estimatedEnd?: TimerState
 
 	/**
-	 * Schedule balance ("Over"/"Under"), expressed like a T-timer projection: a target state
-	 * and a projected state. (A single TimerState cannot express the over/under shape —
-	 * constant while on schedule, then moving 1:1 once pushing — but the difference of two can.)
+	 * Schedule balance ("Over"/"Under").
+	 * duration read = the time in hand: positive = under (ahead of schedule), negative = over.
+	 * The UI's over-positive diff is therefore `-timerStateToDuration(overUnder, now)`.
 	 *
-	 * Evaluate both with `timerStateToZeroTime`:
-	 * over = projected - target (positive = over / behind schedule),
-	 * under = target - projected (positive = under / time in hand).
+	 * The balance holds steady while the playlist is on schedule and burns down 1:1 once it starts
+	 * pushing, so `resumesAt` is the moment it starts being consumed.
 	 *
 	 * Omitted when not meaningful (an untimed playlist with no expected duration that has never
 	 * been played) — consumers should hide the Over/Under display in that case.
 	 */
-	overUnder?: {
-		/** When the playlist is planned to end (or a virtual equivalent for duration-compared modes) */
-		target: TimerState
-		/** When the playlist is projected to end (or a virtual equivalent for duration-compared modes) */
-		projected: TimerState
-	}
+	overUnder?: TimerState
 }
 
 export function getPlaylistTimingStateDocId(playlistId: RundownPlaylistId): TimingStateDocId {

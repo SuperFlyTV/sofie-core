@@ -14,7 +14,11 @@
  * `timerStateToZeroTime`; the server only needs to republish when playout or ingest state changes.
  */
 
-import { type TimerState, timerStateToZeroTime } from '@sofie-automation/corelib/dist/dataModel/TimerState'
+import {
+	type TimerState,
+	timerStateToDuration,
+	timerStateToZeroTime,
+} from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import type { PlaylistTimingStateDoc } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
@@ -110,13 +114,13 @@ export function calculatePlaylistTimingStatesFromContext(
 			timingContext.remainingPlaylistDurationState,
 			startedPlayback
 		),
-		overUnder: overUnderIsMeaningful ? calculateOverUnderStates(now, playlist, timingContext) : undefined,
+		overUnder: overUnderIsMeaningful ? calculateOverUnderState(now, playlist, timingContext) : undefined,
 	}
 }
 
 /**
  * Calculate the over/under diff of a playlist against its planned timing, by evaluating the
- * over/under TimerState pair at `now`. This is the same number the published states yield.
+ * published over/under state at `now`. This is the same number the published state yields.
  * @param fallbackCurrentTime Used as "now" if the timingContext does not carry a currentTime of its own
  */
 export function getPlaylistTimingDiff(
@@ -125,14 +129,53 @@ export function getPlaylistTimingDiff(
 	fallbackCurrentTime: number
 ): number | undefined {
 	const now = timingContext.currentTime || fallbackCurrentTime
-	const overUnder = calculateOverUnderStates(now, playlist, timingContext)
 
-	return timerStateToZeroTime(overUnder.projected, now) - timerStateToZeroTime(overUnder.target, now)
+	// the published state reads as time in hand, the diff is over-positive
+	// (subtracting rather than negating, so that a balanced playlist gives 0 rather than -0)
+	return 0 - timerStateToDuration(calculateOverUnderState(now, playlist, timingContext), now)
 }
 
 /**
- * The over/under schedule balance, as a target/projected TimerState pair (both read via
- * `timerStateToZeroTime`): over = projected - target.
+ * The schedule balance of the playlist, as a single TimerState whose duration read is the time in
+ * hand (positive = under/ahead of schedule, negative = over).
+ *
+ * The balance holds steady while the playlist is on schedule and burns down 1:1 once it starts
+ * pushing, which is exactly a paused timer with a scheduled start. It is derived here from the
+ * playlist's target and projected end times, whose difference is piecewise-linear with slope 0
+ * (on schedule) or -1 (consuming slack), changing at most once.
+ */
+function calculateOverUnderState(
+	now: number,
+	playlist: Pick<DBRundownPlaylist, 'timing' | 'startedPlayback' | 'activationId'>,
+	timingContext: RundownTimingContext
+): TimerState {
+	const { target, projected } = calculateOverUnderAnchors(now, playlist, timingContext)
+
+	const timeInHandAt = (time: number) => timerStateToZeroTime(target, time) - timerStateToZeroTime(projected, time)
+	const timeInHand = timeInHandAt(now)
+
+	if (timeInHandAt(now + 1) < timeInHand) {
+		// Already pushing: the balance is being consumed right now
+		return { paused: false, zeroTime: now + timeInHand }
+	}
+
+	// Otherwise the balance holds until one of the anchors starts moving without the other
+	const candidateBreakpoints = [target.pauseTime, projected.pauseTime]
+		.filter((breakpoint): breakpoint is number => breakpoint != null && breakpoint > now)
+		.sort((a, b) => a - b)
+	for (const breakpoint of candidateBreakpoints) {
+		if (timeInHandAt(breakpoint + 1) < timeInHandAt(breakpoint)) {
+			return { paused: true, duration: timeInHand, resumesAt: breakpoint }
+		}
+	}
+
+	// On schedule with nothing due to change it
+	return { paused: true, duration: timeInHand }
+}
+
+/**
+ * The two end times the schedule balance is the difference between (both read via
+ * `timerStateToZeroTime`): time in hand = target - projected.
  *
  * For end-anchored modes (ForwardTime/BackTime while relevant), target is the (derived) planned
  * end and projected is the estimated end.
@@ -140,7 +183,7 @@ export function getPlaylistTimingDiff(
  * are virtual end timestamps built on a common base: target = base + plannedDuration,
  * projected = base + asPlayedDuration.
  */
-function calculateOverUnderStates(
+function calculateOverUnderAnchors(
 	now: number,
 	playlist: Pick<DBRundownPlaylist, 'timing' | 'startedPlayback' | 'activationId'>,
 	timingContext: RundownTimingContext

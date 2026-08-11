@@ -181,9 +181,8 @@ function assertEquivalence(scenario: MockScenario, now: number, offsets: number[
 			value: referenceEstimatedEnd,
 		})
 
-		const publishedDiff = states.overUnder
-			? timerStateToZeroTime(states.overUnder.projected, t) - timerStateToZeroTime(states.overUnder.target, t)
-			: undefined
+		// the published state reads as time in hand, the reference diff is over-positive
+		const publishedDiff = states.overUnder ? 0 - timerStateToDuration(states.overUnder, t) : undefined
 		expect({ offset, value: publishedDiff }).toEqual({ offset, value: referenceDiff })
 	}
 }

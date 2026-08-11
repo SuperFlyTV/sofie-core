@@ -1,7 +1,6 @@
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
-import { timerStateToZeroTime } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { useTranslation } from 'react-i18next'
-import { usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
+import { TimerValueMode, usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
 import { OverUnderChip } from '../../../lib/Components/OverUnderChip'
 
 export interface IRundownHeaderTimingDisplayProps {
@@ -10,15 +9,14 @@ export interface IRundownHeaderTimingDisplayProps {
 
 export function RundownHeaderTimingDisplay({ playlist }: IRundownHeaderTimingDisplayProps): JSX.Element | null {
 	const { t } = useTranslation()
-	const { value: overUnder, now } = usePlaylistTimingValue(playlist._id, 'overUnder')
+	const timeInHand = usePlaylistTimingValue(playlist._id, 'overUnder', TimerValueMode.Duration)
 
-	// The server omits overUnder when there is no meaningful diff to show
+	// The server omits the balance when there is no meaningful diff to show
 	// (e.g. an untimed playlist that has never been played)
-	if (!overUnder) return null
+	if (timeInHand === null) return null
 
-	// over = projected - target (positive = over / behind schedule)
-	const overUnderClock = timerStateToZeroTime(overUnder.projected, now) - timerStateToZeroTime(overUnder.target, now)
-
+	// the published value is the time in hand; this display is over-positive
+	const overUnderClock = -timeInHand
 	const isUnder = overUnderClock <= 0
 
 	return (
