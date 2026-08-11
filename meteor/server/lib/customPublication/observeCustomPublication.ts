@@ -21,6 +21,8 @@ export class CustomPublishToCollection<TDoc extends { _id: ProtectedString<any> 
 	#isReady = false
 	#isStopped = false
 
+	readonly #whenReady = Promise.withResolvers<void>()
+
 	/**
 	 * @param collection The collection to maintain. It is owned by this receiver: it is cleared on
 	 * init, and must not be written to from anywhere else.
@@ -38,6 +40,17 @@ export class CustomPublishToCollection<TDoc extends { _id: ProtectedString<any> 
 		return this.#isReady
 	}
 
+	/**
+	 * Resolves once the initial documents have been received, or the receiver is stopped.
+	 *
+	 * A subscriber joining an observer that is already running is given its documents on the next
+	 * update run rather than synchronously, so a consumer that did not wait would compute once from
+	 * an empty collection before the real data arrived.
+	 */
+	get whenReady(): Promise<void> {
+		return this.#whenReady.promise
+	}
+
 	onStop(callback: () => void): void {
 		this.#onStop = callback
 	}
@@ -51,6 +64,7 @@ export class CustomPublishToCollection<TDoc extends { _id: ProtectedString<any> 
 		}
 
 		this.#isReady = true
+		this.#whenReady.resolve()
 		this.#onChanged?.()
 	}
 
@@ -75,6 +89,9 @@ export class CustomPublishToCollection<TDoc extends { _id: ProtectedString<any> 
 	stop(): void {
 		if (this.#isStopped) return
 		this.#isStopped = true
+
+		// Nothing more is coming, so anything waiting on the initial documents must not hang
+		this.#whenReady.resolve()
 
 		this.#onStop?.()
 	}
@@ -101,6 +118,9 @@ export async function observeCustomPublication<TDoc extends { _id: ProtectedStri
 
 	try {
 		await setUpObserver(receiver)
+
+		// Like a Mongo observer, this resolves with the collection already populated
+		await receiver.whenReady
 	} catch (e) {
 		// Make sure a partially set up subscription cannot leak
 		receiver.stop()

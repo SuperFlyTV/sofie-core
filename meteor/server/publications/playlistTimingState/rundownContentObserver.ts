@@ -136,7 +136,7 @@ export class RundownContentObserver {
  * Maintains the cache's PartInstances from the UI PartInstances publication, resubscribing when the
  * playlist activation changes and holding none while the playlist is inactive.
  */
-class PartInstancesForActivationObserver {
+export class PartInstancesForActivationObserver {
 	readonly #cache: ContentCache
 	readonly #onChanged: () => void
 
