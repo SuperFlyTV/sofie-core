@@ -88,13 +88,15 @@ describe('playlistTimingState publication', () => {
 		timings: PartInstance['timings']
 	): PartInstanceId {
 		const _id = protectString<PartInstanceId>(instanceId)
+		// As published by uiPartInstances: a DBPartInstance, so no isTemporary
 		cache.PartInstances.insert({
 			_id,
 			rundownId,
 			segmentId,
-			isTemporary: false,
+			playlistActivationId: protectString('activation0'),
 			segmentPlayoutId: protectString<SegmentPlayoutId>('segmentPlayout0'),
 			takeCount,
+			rehearsal: false,
 			part: makeMockPart(partId, takeCount - 1, segmentId),
 			timings,
 			orphaned: undefined,
@@ -273,6 +275,57 @@ describe('playlistTimingState publication', () => {
 					doc: reference,
 				})
 			}
+		})
+
+		/**
+		 * Regression guard. The cache is fed by the uiParts/uiPartInstances publications rather than
+		 * the Parts/PartInstances collections, because a QuickLoop with forced auto-next rewrites
+		 * expectedDuration - so reading the raw collections would make the server publish different
+		 * numbers to the ones the UI shows. This pins that the difference is real and that the
+		 * calculation follows the UI documents.
+		 */
+		it('uses the durations as modified for a forced-auto-next QuickLoop, not the raw ones', () => {
+			const cache = createAndPopulateMockCache()
+			const shortDuration = 1000
+			const fallbackPartDuration = 6000
+
+			cache.StudioSettings.remove(studioId)
+			cache.StudioSettings.insert({
+				_id: studioId,
+				settings: {
+					defaultDisplayDuration: DEFAULT_DISPLAY_DURATION_FROM_STUDIO,
+					fallbackPartDuration,
+				} as IStudioSettings,
+			})
+
+			// every part is shorter than the fallback, so the QuickLoop inflates each of them
+			for (const part of cache.Parts.findFetch({})) {
+				cache.Parts.replace({
+					...part,
+					expectedDuration: shortDuration,
+					expectedDurationWithTransition: shortDuration,
+				})
+			}
+
+			const rawTotal = 4 * shortDuration
+			const uiTotal = 4 * fallbackPartDuration
+
+			// what the raw Parts collection would have produced
+			const docFromRawParts = createPlaylistTimingStateDoc(playlistId, cache, 10000)
+			expect(docFromRawParts?.remainingDuration).toEqual({ paused: true, duration: rawTotal })
+
+			// now apply the same modification uiParts makes, and the numbers change
+			for (const part of cache.Parts.findFetch({})) {
+				cache.Parts.replace({
+					...part,
+					expectedDuration: fallbackPartDuration,
+					expectedDurationWithTransition: fallbackPartDuration,
+				})
+			}
+
+			const docFromUIParts = createPlaylistTimingStateDoc(playlistId, cache, 10000)
+			expect(docFromUIParts?.remainingDuration).toEqual({ paused: true, duration: uiTotal })
+			expect(uiTotal).not.toEqual(rawTotal)
 		})
 
 		it('uses the studio defaultDisplayDuration for parts without a duration', () => {

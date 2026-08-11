@@ -72,21 +72,23 @@ async function setupPlaylistTimingStatePublicationObservers(
 			// Push update
 			triggerUpdate({ newCache: cache })
 
+			// Any change to any of the inputs invalidates the (single) output doc
+			const invalidate = () => triggerUpdate({ invalidateTiming: true })
+
 			const contentObserver = await RundownContentObserver.create(
 				playlist.studioId,
 				args.playlistId,
 				rundownIds,
-				cache
+				cache,
+				invalidate
 			)
 
-			// Any change to any of the inputs invalidates the (single) output doc
-			const invalidate = () => triggerUpdate({ invalidateTiming: true })
+			// The Parts and PartInstances are fed by upstream publications, which notify through the
+			// callback passed above rather than through collection observers
 			const innerQueries = [
 				cache.StudioSettings.observeChanges({ added: invalidate, changed: invalidate, removed: invalidate }),
 				cache.RundownPlaylists.observeChanges({ added: invalidate, changed: invalidate, removed: invalidate }),
 				cache.Segments.observeChanges({ added: invalidate, changed: invalidate, removed: invalidate }),
-				cache.Parts.observeChanges({ added: invalidate, changed: invalidate, removed: invalidate }),
-				cache.PartInstances.observeChanges({ added: invalidate, changed: invalidate, removed: invalidate }),
 			]
 
 			return () => {
@@ -148,7 +150,11 @@ export function createPlaylistTimingStateDoc(
 	const segmentsMap = new Map<SegmentId, DBSegment>(segments.map((segment) => [segment._id, segment]))
 
 	const unorderedParts = contentCache.Parts.findFetch({}) as unknown as DBPart[]
-	const activePartInstances = contentCache.PartInstances.findFetch({}, { sort: { takeCount: 1 } })
+	// These are real PartInstances, as opposed to the temporary ones prepareTimingPartInstances
+	// wraps the not-yet-played Parts in
+	const activePartInstances = contentCache.PartInstances.findFetch({}, { sort: { takeCount: 1 } }).map(
+		(partInstance) => ({ ...partInstance, isTemporary: false })
+	)
 
 	const { partInstances, partsInQuickLoop } = prepareTimingPartInstances(
 		playlist,

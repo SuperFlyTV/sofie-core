@@ -2,11 +2,15 @@ import { z } from 'zod'
 import { PartId, RundownPlaylistId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { check } from '../../lib/check'
 import {
+	CustomPublish,
 	CustomPublishCollection,
 	SetupObserversResult,
 	TriggerUpdate,
+	observeCustomPublication,
 	setUpCollectionOptimizedObserver,
 } from '../../lib/customPublication'
+import type { InMemoryMongoCollection } from '@sofie-automation/corelib/dist/memoryCollection'
+import type { LiveQueryHandleSync } from '../../lib/lib'
 import { logger } from '../../logging'
 import { CustomCollectionName, MeteorPubSub } from '@sofie-automation/meteor-lib/dist/api/pubsub'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
@@ -187,6 +191,38 @@ export async function manipulateUIPartsPublicationData(
 	})
 }
 
+export type UIPart = Omit<DBPart, PartOmitedFields>
+
+/**
+ * Subscribe the given receiver to the UI Parts of a playlist.
+ *
+ * Shared by the DDP publication and by in-process consumers (via `observeCustomPublication`), so
+ * that both join the same optimized observer and see identical documents.
+ */
+async function subscribeToUIParts(playlistId: RundownPlaylistId, receiver: CustomPublish<UIPart>): Promise<void> {
+	await setUpCollectionOptimizedObserver<UIPart, UIPartsArgs, UIPartsState, UIPartsUpdateProps>(
+		`pub_${MeteorPubSub.uiParts}_${playlistId}`,
+		{ playlistId },
+		setupUIPartsPublicationObservers,
+		manipulateUIPartsPublicationData,
+		receiver
+	)
+}
+
+/**
+ * Observe the UI Parts of a playlist in-process, maintaining them in the given collection.
+ *
+ * These are the Parts as the UI sees them, which is not the same as the Parts collection: a
+ * QuickLoop with forced auto-next rewrites expectedDuration and can mark Parts invalid.
+ */
+export async function observeUIParts(
+	playlistId: RundownPlaylistId,
+	collection: InMemoryMongoCollection<UIPart>,
+	onChanged?: () => void
+): Promise<LiveQueryHandleSync> {
+	return observeCustomPublication(collection, async (receiver) => subscribeToUIParts(playlistId, receiver), onChanged)
+}
+
 export function registerPartsUIPublications(registry: PublicationRegistry): void {
 	registry.customPublish(
 		MeteorPubSub.uiParts,
@@ -201,18 +237,7 @@ export function registerPartsUIPublications(registry: PublicationRegistry): void
 				return
 			}
 
-			await setUpCollectionOptimizedObserver<
-				Omit<DBPart, PartOmitedFields>,
-				UIPartsArgs,
-				UIPartsState,
-				UIPartsUpdateProps
-			>(
-				`pub_${MeteorPubSub.uiParts}_${playlistId}`,
-				{ playlistId },
-				setupUIPartsPublicationObservers,
-				manipulateUIPartsPublicationData,
-				pub
-			)
+			await subscribeToUIParts(playlistId, pub)
 		}
 	)
 }
