@@ -16,8 +16,21 @@ $defs:
           For free-run timers, this is elapsed time.
       pauseTime:
         description: >-
-          Optional timestamp when the timer should pause.
-          Typically null when already paused.
+          Not applicable while paused - a paused timer has already stopped.
+          Always null when present.
+        # TODO: this should be `type: 'null'`, which is what is actually produced and is what
+        # consumers should rely on. It is widened here only because the type generator (modelina)
+        # renders a null-only property as `any`, which is worse for consumers of the generated
+        # types than a slightly loose schema. Tighten once the generator can express it.
+        oneOf:
+          - type: integer
+          - type: 'null'
+      resumesAt:
+        description: >-
+          Optional timestamp when the timer should start running, if that is known in advance
+          (e.g. a scheduled start). Once this timestamp has passed the timer is running, and its
+          current value is `duration - (now - resumesAt)`. Null or absent means it stays frozen
+          until a new state is published.
         oneOf:
           - type: integer
           - type: 'null'

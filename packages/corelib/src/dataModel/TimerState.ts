@@ -2,14 +2,28 @@
  * Timing state for a timer, optimized for efficient client rendering.
  * When running, the client calculates current time from zeroTime.
  * When paused, the duration is frozen and sent directly.
- * pauseTime indicates when the timer should automatically pause (when current part ends and overrun begins).
+ *
+ * Each variant carries the timestamp of its transition into the *other* state, so that a transition
+ * whose time is known in advance does not depend on a new state being published at that moment
+ * (which would cost accuracy - the value would be stale until the message lands, then jump):
+ * - `pauseTime` on a running timer: when it freezes (e.g. when the current part ends and overrun begins)
+ * - `resumesAt` on a paused timer: when it starts running (e.g. a scheduled start)
+ *
+ * The other one is always null/absent, and a state therefore has at most one transition. Anything
+ * with further transitions relies on an updated state being published in between; there is a
+ * multi-second window to do so in practice, so that is safe.
  *
  * Client rendering logic:
  * ```typescript
  * if (state.paused === true) {
- *   // Manually paused by user or already pushing/overrun
- *   duration = state.duration
- * } else if (state.pauseTime && now >= state.pauseTime) {
+ *   if (state.resumesAt != null && now >= state.resumesAt) {
+ *     // Scheduled start has passed, running since then
+ *     duration = state.duration - (now - state.resumesAt)
+ *   } else {
+ *     // Manually paused by user, already pushing/overrun, or waiting for a scheduled start
+ *     duration = state.duration
+ *   }
+ * } else if (state.pauseTime != null && now >= state.pauseTime) {
  *   // Auto-pause at overrun (current part ended)
  *   duration = state.zeroTime - state.pauseTime
  * } else {
@@ -26,14 +40,18 @@ export type TimerState =
 			zeroTime: number
 			/** Optional timestamp when the timer should pause (when current part ends) */
 			pauseTime?: number | null
+			/** Not applicable while running - a running timer has no scheduled start */
+			resumesAt?: null
 	  }
 	| {
 			/** Whether the timer is paused */
 			paused: true
 			/** The frozen duration value in milliseconds */
 			duration: number
-			/** Optional timestamp when the timer should pause (null when already paused/pushing) */
-			pauseTime?: number | null
+			/** Not applicable while paused - a paused timer has already stopped */
+			pauseTime?: null
+			/** Optional timestamp when the timer should start running, if that is known in advance */
+			resumesAt?: number | null
 	  }
 
 /**
@@ -46,7 +64,11 @@ export type TimerState =
  */
 export function timerStateToDuration(state: TimerState, now: number): number {
 	if (state.paused) {
-		// Manually paused by user or already pushing/overrun
+		if (state.resumesAt != null && now >= state.resumesAt) {
+			// Scheduled start has passed, so it has been running since then
+			return state.duration - (now - state.resumesAt)
+		}
+		// Manually paused by user, already pushing/overrun, or waiting for a scheduled start
 		return state.duration
 	} else if (state.pauseTime != null && now >= state.pauseTime) {
 		// Auto-pause at overrun (current part ended)
@@ -61,7 +83,8 @@ export function timerStateToDuration(state: TimerState, now: number): number {
  * Get the zero time (reference timestamp) for a timer state.
  * - For countdown/timeOfDay timers: when the timer reaches zero
  * - For freeRun timers: when the timer started (what it counts from)
- * For paused timers, calculates when zero would be if resumed now.
+ * For paused timers, calculates when zero would be if resumed now - unless a scheduled start
+ * (`resumesAt`) has already passed, in which case zero is a fixed point measured from it.
  *
  * @param state The timer state
  * @param now Current timestamp in milliseconds
@@ -69,10 +92,16 @@ export function timerStateToDuration(state: TimerState, now: number): number {
  */
 export function timerStateToZeroTime(state: TimerState, now: number): number {
 	if (state.paused) {
+		if (state.resumesAt != null && now >= state.resumesAt) {
+			// Scheduled start has passed, so zero is a fixed point measured from it
+			return state.resumesAt + state.duration
+		}
 		// Calculate when zero would be if we resumed now
 		return now + state.duration
-	} else if (state.pauseTime && now >= state.pauseTime) {
+	} else if (state.pauseTime != null && now >= state.pauseTime) {
 		// Auto-pause at overrun (current part ended)
+		// (note: `!= null` rather than a truthiness check, so that this agrees with
+		// timerStateToDuration for the degenerate pauseTime of 0)
 		return state.zeroTime - state.pauseTime + now
 	} else {
 		// Already have the zero time

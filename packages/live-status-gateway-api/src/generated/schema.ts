@@ -580,6 +580,10 @@ interface TimerStateRunning {
 	 * Optional timestamp when the timer should automatically pause (e.g., when current part ends and overrun begins).
 	 */
 	pauseTime?: number | null
+	/**
+	 * Not applicable while running - a running timer has no scheduled start. Always null when present.
+	 */
+	resumesAt?: number | null
 }
 
 /**
@@ -595,9 +599,13 @@ interface TimerStatePaused {
 	 */
 	duration: number
 	/**
-	 * Optional timestamp when the timer should pause. Typically null when already paused.
+	 * Not applicable while paused - a paused timer has already stopped. Always null when present.
 	 */
 	pauseTime?: number | null
+	/**
+	 * Optional timestamp when the timer should start running, if that is known in advance (e.g. a scheduled start). Once this timestamp has passed the timer is running, and its current value is `duration - (now - resumesAt)`. Null or absent means it stays frozen until a new state is published.
+	 */
+	resumesAt?: number | null
 }
 
 /**

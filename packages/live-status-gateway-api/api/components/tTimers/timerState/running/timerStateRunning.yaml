@@ -22,6 +22,17 @@ $defs:
         oneOf:
           - type: number
           - type: 'null'
+      resumesAt:
+        description: >-
+          Not applicable while running - a running timer has no scheduled start.
+          Always null when present.
+        # TODO: this should be `type: 'null'`, which is what is actually produced and is what
+        # consumers should rely on. It is widened here only because the type generator (modelina)
+        # renders a null-only property as `any`, which is worse for consumers of the generated
+        # types than a slightly loose schema. Tighten once the generator can express it.
+        oneOf:
+          - type: number
+          - type: 'null'
     required: [paused, zeroTime]
     additionalProperties: false
     examples:

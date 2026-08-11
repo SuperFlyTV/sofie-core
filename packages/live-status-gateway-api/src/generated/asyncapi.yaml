@@ -875,6 +875,12 @@ channels:
                                     oneOf:
                                       - type: number
                                       - type: "null"
+                                  resumesAt:
+                                    description: Not applicable while running - a running timer has no scheduled
+                                      start. Always null when present.
+                                    oneOf:
+                                      - type: number
+                                      - type: "null"
                                 required:
                                   - paused
                                   - zeroTime
@@ -897,8 +903,19 @@ channels:
                                       is remaining time. For free-run timers,
                                       this is elapsed time.
                                   pauseTime:
-                                    description: Optional timestamp when the timer should pause. Typically null when
-                                      already paused.
+                                    description: Not applicable while paused - a paused timer has already stopped.
+                                      Always null when present.
+                                    oneOf:
+                                      - type: integer
+                                      - type: "null"
+                                  resumesAt:
+                                    description: Optional timestamp when the timer should start running, if that is
+                                      known in advance (e.g. a scheduled start).
+                                      Once this timestamp has passed the timer
+                                      is running, and its current value is
+                                      `duration - (now - resumesAt)`. Null or
+                                      absent means it stays frozen until a new
+                                      state is published.
                                     oneOf:
                                       - type: integer
                                       - type: "null"
