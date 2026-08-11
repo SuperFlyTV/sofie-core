@@ -14,7 +14,9 @@ import {
 	type TimerState,
 } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { RundownTimingCalculator } from '../index.js'
+import { QuickLoopMarkerType } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
+import { ForceQuickLoopAutoNext } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
+import { RundownTimingCalculator, findPartInstancesInQuickLoop } from '../index.js'
 import { calculatePlaylistTimingStates, getPlaylistTimingDiff } from '../playlistTimingState.js'
 
 const DEFAULT_DURATION = 0
@@ -132,10 +134,22 @@ function putFirstPartOnAir(scenario: MockScenario, startedPlayback: number): voi
  * are equivalent to what the ported calculator + PlaylistTiming helpers + getPlaylistTimingDiff
  * produce when run at those times (with unchanged inputs).
  */
-function assertEquivalence(scenario: MockScenario, now: number, offsets: number[]): void {
+function assertEquivalence(
+	scenario: MockScenario,
+	now: number,
+	offsets: number[],
+	partsInQuickLoop: Record<string, boolean> = {}
+): void {
 	const { playlist, partInstances, segmentsMap } = scenario
 
-	const states = calculatePlaylistTimingStates(now, playlist, partInstances, segmentsMap, DEFAULT_DURATION, {})
+	const states = calculatePlaylistTimingStates(
+		now,
+		playlist,
+		partInstances,
+		segmentsMap,
+		DEFAULT_DURATION,
+		partsInQuickLoop
+	)
 
 	for (const offset of offsets) {
 		const t = now + offset
@@ -148,7 +162,7 @@ function assertEquivalence(scenario: MockScenario, now: number, offsets: number[
 			partInstances,
 			segmentsMap,
 			DEFAULT_DURATION,
-			{}
+			partsInQuickLoop
 		)
 		const gatedStartedPlayback = playlist.activationId ? playlist.startedPlayback : undefined
 		const referenceRemaining = PlaylistTiming.getRemainingDuration(
@@ -389,6 +403,212 @@ describe('calculatePlaylistTimingStates', () => {
 
 			// now = 30000: 10s into a 25s budget; the budget overruns at 45000
 			assertEquivalence(scenario, 30000, [0, 1000, 14999, 15000, 15001, 30000])
+		})
+	})
+
+	describe('Untimed parts', () => {
+		it('matches the reference when some parts are untimed', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			// the last part does not count towards the playlist timing
+			scenario.partInstances[3].part.untimed = true
+			putFirstPartOnAir(scenario, 20000)
+
+			assertEquivalence(scenario, 25000, [0, 1000, 4999, 5000, 5001, 10000, 60000])
+		})
+
+		it('matches the reference when the on-air part is untimed', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, 20000)
+			scenario.partInstances[0].part.untimed = true
+
+			assertEquivalence(scenario, 25000, [0, 1000, 5000, 10000, 60000])
+		})
+	})
+
+	describe('Autonext', () => {
+		function makeAutonextScenario(): MockScenario {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, 20000)
+			// an autonext has scheduled the next part to start at 30000, which is still in the future
+			scenario.partInstances[0].part.autoNext = true
+			scenario.partInstances[1].timings = { take: 30000, plannedStartedPlayback: 30000 }
+			return scenario
+		}
+
+		it('matches the reference up until the scheduled start', () => {
+			assertEquivalence(makeAutonextScenario(), 25000, [0, 1000, 4999])
+		})
+
+		/**
+		 * Known limitation. The calculator treats a part whose plannedStartedPlayback has passed as
+		 * started, so at the scheduled start the next part stops counting towards the remaining
+		 * pool. That is a second transition, and a TimerState carries only one - which
+		 * remainingDuration has already spent on the on-air part's overrun.
+		 *
+		 * In practice the autonext firing also writes to the database, so the publication
+		 * recomputes at that moment and the stale window is one round-trip. This test pins the
+		 * size of that staleness so the boundary is visible rather than silently assumed.
+		 */
+		it('goes stale by the next part duration if the scheduled start passes without a republish', () => {
+			const scenario = makeAutonextScenario()
+			const { playlist, partInstances, segmentsMap } = scenario
+			const scheduledStart = 30000
+
+			const publishedAtStale = calculatePlaylistTimingStates(
+				25000,
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+			const publishedAfterRepublish = calculatePlaylistTimingStates(
+				scheduledStart,
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			const stale = evalDuration(publishedAtStale.remainingDuration, scheduledStart)
+			const fresh = evalDuration(publishedAfterRepublish.remainingDuration, scheduledStart)
+
+			// the stale value still counts the next part's 10s; recomputing drops it
+			expect(stale).toBe(30000)
+			expect(fresh).toBe(20000)
+		})
+	})
+
+	describe('QuickLoop', () => {
+		it('matches the reference with a running loop', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, 20000)
+			scenario.playlist.quickLoop = {
+				start: { type: QuickLoopMarkerType.PART, id: scenario.partInstances[1].part._id },
+				end: { type: QuickLoopMarkerType.PART, id: scenario.partInstances[2].part._id },
+				running: true,
+				forceAutoNext: ForceQuickLoopAutoNext.DISABLED,
+				locked: false,
+			}
+			const partsInQuickLoop = findPartInstancesInQuickLoop(scenario.playlist, scenario.partInstances)
+
+			assertEquivalence(scenario, 25000, [0, 1000, 5000, 10000], partsInQuickLoop)
+		})
+	})
+
+	/**
+	 * The publication only republishes when playout or ingest state changes, so the states must be
+	 * a *time-independent* description of each value: recomputing at a later time from the same
+	 * inputs has to produce an identical document, or the publication would churn every tick.
+	 */
+	describe('is stable as time passes with unchanged inputs', () => {
+		function expectStableAcross(scenario: MockScenario, times: number[]): void {
+			const { playlist, partInstances, segmentsMap } = scenario
+			const reference = calculatePlaylistTimingStates(
+				times[0],
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			for (const time of times.slice(1)) {
+				const later = calculatePlaylistTimingStates(
+					time,
+					playlist,
+					partInstances,
+					segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+				expect({ time, states: later }).toEqual({ time, states: reference })
+			}
+		}
+
+		it('before playback', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedDuration: 40000,
+			}
+
+			// all before the planned start, so nothing has changed state
+			expectStableAcross(scenario, [10000, 11000, 15000, 19999])
+		})
+
+		it('while on air and on schedule', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, 20000)
+
+			// all within the on-air part's expected duration (which ends at 30000)
+			expectStableAcross(scenario, [20000, 21000, 25000, 29999])
+		})
+
+		it('while the on-air part is overrunning', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, 20000)
+
+			// the part overran at 30000 and nothing has happened since
+			expectStableAcross(scenario, [31000, 35000, 60000, 120000])
+		})
+
+		it('for a BackTime playlist that has not started', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.BackTime,
+				expectedEnd: 60000,
+			}
+
+			expectStableAcross(scenario, [10000, 11000, 30000])
+		})
+
+		it('once played out and deactivated', () => {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: 20000,
+				expectedEnd: 60000,
+			}
+			for (const partInstance of scenario.partInstances) {
+				partInstance.timings = { take: 0, plannedStartedPlayback: 0, duration: 11000 }
+			}
+			scenario.playlist.activationId = undefined
+			scenario.playlist.startedPlayback = 20000
+
+			expectStableAcross(scenario, [70000, 80000, 200000])
 		})
 	})
 })

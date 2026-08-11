@@ -1,11 +1,7 @@
 import React, { useMemo } from 'react'
 import _ from 'underscore'
 import { SegmentTimeline, type SegmentTimelineClass } from './SegmentTimeline.js'
-import {
-	computeSegmentDisplayDuration,
-	RundownTiming,
-	type TimingEvent,
-} from '../RundownView/RundownTiming/RundownTiming.js'
+import { RundownTiming, type TimingEvent } from '../RundownView/RundownTiming/RundownTiming.js'
 import { UIStateStorage } from '../../lib/UIStateStorage.js'
 import { SpeechSynthesiser } from '../../lib/speechSynthesis.js'
 import { getElementWidth } from '../../utils/dimensions.js'
@@ -25,7 +21,7 @@ import {
 	type ITrackedResolvedSegmentProps,
 	type IOutputLayerUi,
 } from '../SegmentContainer/withResolvedSegment.js'
-import { computeSegmentDuration, getPartInstanceTimingId } from '../../lib/rundownTiming.js'
+import { computeSegmentDuration, getPartInstanceTimingId, type RundownTimingContext } from '../../lib/rundownTiming.js'
 import { DEFAULT_DISPLAY_DURATION, DEFAULT_TIME_SCALE } from '@sofie-automation/shared-lib/dist/core/constants'
 import { RundownViewShelf } from '../RundownView/RundownViewShelf.js'
 import type { PartInstanceId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
@@ -46,6 +42,10 @@ import type { PartExtended } from '@sofie-automation/corelib/src/dataModel/Part.
 
 // Kept for backwards compatibility
 export type { SegmentUi, PartUi, ISourceLayerUi, IOutputLayerUi } from '../SegmentContainer/withResolvedSegment.js'
+
+export function computeSegmentDisplayDuration(timingDurations: RundownTimingContext, parts: PartUi[]): number {
+	return parts.reduce((memo, part) => memo + SegmentTimelinePartClass.getPartDisplayDuration(part, timingDurations), 0)
+}
 
 interface IState {
 	scrollLeft: number
