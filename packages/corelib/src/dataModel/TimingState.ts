@@ -1,6 +1,6 @@
 import type { PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { ProtectedString, protectString } from '../protectedString.js'
-import type { RundownPlaylistId } from './Ids.js'
+import type { PartInstanceId, RundownPlaylistId, SegmentId } from './Ids.js'
 import type { TimerState } from './TimerState.js'
 
 export type TimingStateDocId = ProtectedString<'TimingStateDoc'>
@@ -77,6 +77,29 @@ export interface PlaylistTimingStateDoc {
 	 * cannot express both a constant timestamp and a constant duration at once.
 	 */
 	estimatedEnd?: TimerState
+
+	/**
+	 * The on-air PartInstance, if any. Consumers that render a specific part should compare this
+	 * before using the on-air timers below, so that they never show another part's numbers.
+	 */
+	currentPartInstanceId?: PartInstanceId
+	/** The on-air Segment, if any. Same purpose, for segment-scoped consumers. */
+	currentSegmentId?: SegmentId
+
+	/**
+	 * Time left of the on-air part ("On Air").
+	 * duration read = time remaining, going negative once the part overruns - it is deliberately
+	 * not clamped, because overrunning is what the display highlights.
+	 * Holds at the part's full duration until the part actually starts (`resumesAt`), which is the
+	 * window after a take in a multi-gateway studio.
+	 */
+	remainingOnCurrentPart?: TimerState
+	/**
+	 * Time left of the on-air segment's budget ("Seg. Budg.").
+	 * Omitted unless the on-air segment uses `CountdownType.SEGMENT_BUDGET_DURATION` - consumers
+	 * hide the display when it is absent.
+	 */
+	remainingBudgetOnCurrentSegment?: TimerState
 
 	/**
 	 * Schedule balance ("Over"/"Under").

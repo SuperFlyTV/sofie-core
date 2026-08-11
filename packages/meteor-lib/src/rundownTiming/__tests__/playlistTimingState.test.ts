@@ -535,6 +535,202 @@ describe('calculatePlaylistTimingStates', () => {
 		})
 	})
 
+	/**
+	 * The two on-air scalars. Both are published as TimerStates, so a consumer evaluates them
+	 * locally between recomputes; these check they agree with the calculator's own numbers, which
+	 * are the values the client has always displayed.
+	 */
+	describe('on-air timers', () => {
+		function expectMatchesCalculator(scenario: MockScenario, now: number, offsets: number[]): void {
+			const { playlist, partInstances, segmentsMap } = scenario
+			const states = calculatePlaylistTimingStates(
+				now,
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			for (const offset of offsets) {
+				const t = now + offset
+				const reference = new RundownTimingCalculator().updateDurations(
+					t,
+					false,
+					playlist,
+					partInstances,
+					segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+
+				expect({ offset, value: evalDuration(states.remainingOnCurrentPart, t) }).toEqual({
+					offset,
+					value: reference.remainingTimeOnCurrentPart,
+				})
+				expect({ offset, value: evalDuration(states.remainingBudgetOnCurrentSegment, t) }).toEqual({
+					offset,
+					value: reference.remainingBudgetOnCurrentSegment,
+				})
+			}
+		}
+
+		it('publishes the identities consumers guard on', () => {
+			const scenario = makeStandardScenario()
+			putFirstPartOnAir(scenario, 20000)
+
+			const states = calculatePlaylistTimingStates(
+				25000,
+				scenario.playlist,
+				scenario.partInstances,
+				scenario.segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			expect(states.currentPartInstanceId).toBe(scenario.partInstances[0]._id)
+			expect(states.currentSegmentId).toBe(scenario.partInstances[0].segmentId)
+		})
+
+		it('counts the on-air part down, through the overrun', () => {
+			const scenario = makeStandardScenario()
+			putFirstPartOnAir(scenario, 20000)
+
+			// a 10s part started at 20000
+			expectMatchesCalculator(scenario, 25000, [0, 1000, 4999, 5000, 5001, 20000])
+		})
+
+		it('holds the on-air part at its full duration until it starts', () => {
+			const scenario = makeStandardScenario()
+			// taken at 20000 but scheduled to start at 20400, as in a multi-gateway studio
+			putFirstPartOnAir(scenario, 20400)
+			scenario.playlist.startedPlayback = 20000
+
+			const states = calculatePlaylistTimingStates(
+				20000,
+				scenario.playlist,
+				scenario.partInstances,
+				scenario.segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			// holds at the full duration across the wait, then counts down from the start
+			expect(evalDuration(states.remainingOnCurrentPart, 20000)).toBe(10000)
+			expect(evalDuration(states.remainingOnCurrentPart, 20399)).toBe(10000)
+			expect(evalDuration(states.remainingOnCurrentPart, 20400)).toBe(10000)
+			expect(evalDuration(states.remainingOnCurrentPart, 21400)).toBe(9000)
+
+			expectMatchesCalculator(scenario, 20000, [0, 399, 400, 401, 5000, 15000])
+		})
+
+		it('has no on-air timers when nothing is playing', () => {
+			const scenario = makeStandardScenario()
+
+			const states = calculatePlaylistTimingStates(
+				10000,
+				scenario.playlist,
+				scenario.partInstances,
+				scenario.segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			expect(states.currentPartInstanceId).toBeUndefined()
+			expect(states.remainingOnCurrentPart).toBeUndefined()
+			expect(states.remainingBudgetOnCurrentSegment).toBeUndefined()
+		})
+
+		describe('segment budget', () => {
+			function makeBudgetScenario(): MockScenario {
+				const scenario = makeStandardScenario({
+					budgetDuration: 25000,
+					countdownType: CountdownType.SEGMENT_BUDGET_DURATION,
+				})
+				putFirstPartOnAir(scenario, 20000)
+				scenario.playlist.segmentsStartedPlayback = {
+					[scenario.partInstances[0].segmentPlayoutId as unknown as string]: 20000,
+				}
+				return scenario
+			}
+
+			it('counts the budget down from when the segment started', () => {
+				const scenario = makeBudgetScenario()
+
+				const states = calculatePlaylistTimingStates(
+					30000,
+					scenario.playlist,
+					scenario.partInstances,
+					scenario.segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+
+				// 10s into a 25s budget, and it keeps going negative once overrun
+				expect(evalDuration(states.remainingBudgetOnCurrentSegment, 30000)).toBe(15000)
+				expect(evalDuration(states.remainingBudgetOnCurrentSegment, 45000)).toBe(0)
+				expect(evalDuration(states.remainingBudgetOnCurrentSegment, 50000)).toBe(-5000)
+
+				expectMatchesCalculator(scenario, 30000, [0, 1000, 15000, 20000])
+			})
+
+			it('is omitted for a segment that does not use a budget', () => {
+				const scenario = makeStandardScenario()
+				putFirstPartOnAir(scenario, 20000)
+
+				const states = calculatePlaylistTimingStates(
+					25000,
+					scenario.playlist,
+					scenario.partInstances,
+					scenario.segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+
+				expect(states.remainingBudgetOnCurrentSegment).toBeUndefined()
+			})
+
+			/**
+			 * Preserved behaviour, not desired behaviour. The calculator only assigns the budget
+			 * countdown when it iterates OUT of the live segment, so a live segment with nothing
+			 * after it never gets one and the "Seg. Budg." display disappears. Pinned here so that
+			 * fixing it later is a visible, deliberate change.
+			 */
+			it('is omitted when the on-air segment is the last one (known bug, preserved)', () => {
+				const rundownId = 'rundown1'
+				const scenario = makeStandardScenario()
+				// collapse the playlist to a single budgeted segment
+				scenario.segmentsMap = new Map([
+					[
+						protectString<SegmentId>('segment1'),
+						makeMockSegment('segment1', 0, rundownId, {
+							budgetDuration: 25000,
+							countdownType: CountdownType.SEGMENT_BUDGET_DURATION,
+						}),
+					],
+				])
+				scenario.partInstances = scenario.partInstances.filter(
+					(instance) => instance.segmentId === protectString<SegmentId>('segment1')
+				)
+				putFirstPartOnAir(scenario, 20000)
+				scenario.playlist.segmentsStartedPlayback = {
+					[scenario.partInstances[0].segmentPlayoutId as unknown as string]: 20000,
+				}
+
+				const states = calculatePlaylistTimingStates(
+					30000,
+					scenario.playlist,
+					scenario.partInstances,
+					scenario.segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+
+				expect(states.remainingBudgetOnCurrentSegment).toBeUndefined()
+			})
+		})
+	})
+
 	describe('Autonext', () => {
 		function makeAutonextScenario(): MockScenario {
 			const scenario = makeStandardScenario()

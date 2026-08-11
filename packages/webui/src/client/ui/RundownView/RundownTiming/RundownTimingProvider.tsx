@@ -125,10 +125,21 @@ export const RundownTimingProvider = withTracker<
 		/**
 		 * This context works in an unusual way.
 		 * It contains a constant value which gets mutated in place, with the consumer expected to setup a timer to poll for changes.
+		 * The exception is `playlistId`, which consumers do need to re-render on, so a new object is
+		 * created on the rare occasions it changes - see `contextValue()`.
 		 */
 		private childContextValue: IRundownTimingProviderValues = {
 			durations: this.durations,
 			syncedDurations: this.syncedDurations,
+			playlistId: undefined,
+		}
+
+		private contextValue(): IRundownTimingProviderValues {
+			const playlistId = this.props.playlist?._id
+			if (this.childContextValue.playlistId !== playlistId) {
+				this.childContextValue = { ...this.childContextValue, playlistId }
+			}
+			return this.childContextValue
 		}
 
 		private refreshTimer: number | undefined
@@ -253,7 +264,7 @@ export const RundownTimingProvider = withTracker<
 
 		render(): React.ReactNode {
 			return (
-				<RundownTimingProviderContext.Provider value={this.childContextValue}>
+				<RundownTimingProviderContext.Provider value={this.contextValue()}>
 					{this.props.children}
 				</RundownTimingProviderContext.Provider>
 			)

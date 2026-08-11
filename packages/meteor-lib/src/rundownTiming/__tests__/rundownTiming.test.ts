@@ -10,6 +10,7 @@ import { literal } from '@sofie-automation/corelib/dist/lib'
 import { unprotectString, protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { RundownTimingCalculator, type RundownTimingContext, findPartInstancesInQuickLoop } from '../index.js'
 import { getPlaylistTimingDiff } from '../playlistTimingState.js'
+import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { PlaylistTimingType, type SegmentTimingInfo } from '@sofie-automation/blueprints-integration'
 import type { PartId, RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
@@ -84,21 +85,29 @@ function getInstanceOrThrow(partInstancesMap: Map<PartId, PartInstance>, part: D
 
 /**
  * Assert a full RundownTimingContext against an expected literal.
- * `remainingPlaylistDurationState` is composed by the calculator from `remainingPlaylistDuration`
- * and `livePushTime` (+ `currentTime`), so unless the expected literal provides it explicitly it
- * is derived from those fields here rather than repeated in every test.
+ *
+ * The context carries several values twice: as a number, and as the TimerState the number is an
+ * evaluation of. The tests below pin the numbers - those are the values that were verified against
+ * the original client behaviour - so rather than restating each state as a literal, the states are
+ * checked against their own numbers here. That is the property that has to hold anyway, and it
+ * keeps the expectations readable.
  */
 function expectContextToEqual(result: RundownTimingContext, expected: RundownTimingContext): void {
 	const now = expected.currentTime ?? 0
-	const remaining = expected.remainingPlaylistDuration ?? 0
-	const livePushTime = expected.livePushTime
-	expect(result).toEqual({
-		remainingPlaylistDurationState:
-			livePushTime !== undefined && now < livePushTime
-				? { paused: false, zeroTime: now + remaining, pauseTime: livePushTime }
-				: { paused: true, duration: remaining },
-		...expected,
-	})
+
+	const {
+		remainingPlaylistDurationState,
+		remainingTimeOnCurrentPartState,
+		remainingBudgetOnCurrentSegmentState,
+		...numericResult
+	} = result
+
+	expect(numericResult).toEqual(expected)
+
+	const evaluate = (state: TimerState | undefined) => (state ? timerStateToDuration(state, now) : undefined)
+	expect(evaluate(remainingPlaylistDurationState)).toBe(expected.remainingPlaylistDuration ?? 0)
+	expect(evaluate(remainingTimeOnCurrentPartState)).toBe(expected.remainingTimeOnCurrentPart)
+	expect(evaluate(remainingBudgetOnCurrentSegmentState)).toBe(expected.remainingBudgetOnCurrentSegment)
 }
 
 function makeMockPartsForQuickLoopTest() {

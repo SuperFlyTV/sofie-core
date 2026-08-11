@@ -111,6 +111,7 @@ export class RundownTimingCalculator {
 		let segmentDisplayDuration = 0
 		let segmentBudgetDurationLeft = 0
 		let remainingBudgetOnCurrentSegment: undefined | number
+		let remainingBudgetOnCurrentSegmentState: undefined | TimerState
 
 		/**
 		 * The single time-varying term of the playlist aggregates: the on-air part (or the on-air
@@ -166,14 +167,20 @@ export class RundownTimingCalculator {
 						if (liveSegment?.segmentTiming?.countdownType === CountdownType.SEGMENT_BUDGET_DURATION) {
 							const budgetDuration = liveSegment.segmentTiming.budgetDuration ?? 0
 							if (budgetDuration > 0) {
-								remainingBudgetOnCurrentSegment =
-									(playlist.segmentsStartedPlayback?.[
+								// The countdown runs from when the segment started; with no known start
+								// there is nothing to count from, so it simply reads as the full budget
+								const segmentStartedPlayback =
+									playlist.segmentsStartedPlayback?.[
 										unprotectString(liveSegmentIds.segmentPlayoutId)
-									] ??
-										lastStartedPlayback ??
-										now) +
-									budgetDuration -
+									] ?? lastStartedPlayback
+								remainingBudgetOnCurrentSegmentState =
+									segmentStartedPlayback !== undefined
+										? { paused: false, zeroTime: segmentStartedPlayback + budgetDuration }
+										: { paused: true, duration: budgetDuration }
+								remainingBudgetOnCurrentSegment = timerStateToDuration(
+									remainingBudgetOnCurrentSegmentState,
 									now
+								)
 							}
 						}
 					}
@@ -618,6 +625,7 @@ export class RundownTimingCalculator {
 		}
 
 		let remainingTimeOnCurrentPart: number | undefined = undefined
+		let remainingTimeOnCurrentPartState: TimerState | undefined = undefined
 		let currentPartWillAutoNext = false
 		let currentSegmentId: SegmentId | null | undefined
 		if (currentAIndex >= 0) {
@@ -639,10 +647,16 @@ export class RundownTimingCalculator {
 					onAirPartDuration
 			}
 
-			remainingTimeOnCurrentPart =
+			// The part holds at its full duration until it starts, then counts down from there.
+			// A scheduled start expresses that directly: before it the state reads as the whole
+			// duration, after it as `start + duration - now`. (That is the same as the previous
+			// `Math.min(start, now) + duration - now`, which is how a start in the future - every
+			// multi-gateway take - was handled.)
+			remainingTimeOnCurrentPartState =
 				typeof lastStartedPlayback === 'number'
-					? Math.min(lastStartedPlayback, now) + onAirPartDuration - now
-					: onAirPartDuration
+					? { paused: true, duration: onAirPartDuration, resumesAt: lastStartedPlayback }
+					: { paused: true, duration: onAirPartDuration }
+			remainingTimeOnCurrentPart = timerStateToDuration(remainingTimeOnCurrentPartState, now)
 
 			currentPartWillAutoNext = !!(currentLivePart.autoNext && currentLivePart.expectedDuration)
 
@@ -677,7 +691,9 @@ export class RundownTimingCalculator {
 			partDisplayDurations: this.partDisplayDurations,
 			currentTime: now,
 			remainingTimeOnCurrentPart,
+			remainingTimeOnCurrentPartState,
 			remainingBudgetOnCurrentSegment,
+			remainingBudgetOnCurrentSegmentState,
 			currentPartWillAutoNext,
 			isLowResolution,
 			partsInQuickLoop,
@@ -742,8 +758,18 @@ export interface RundownTimingContext {
 	partExpectedDurations?: Record<string, number>
 	/** Remaining time on current part */
 	remainingTimeOnCurrentPart?: number
+	/**
+	 * Remaining time on the current part as a TimerState (read via `timerStateToDuration`).
+	 * `remainingTimeOnCurrentPart` is this state's evaluation at `currentTime`.
+	 */
+	remainingTimeOnCurrentPartState?: TimerState
 	/** Remaining budget on current segment, if its countdownType === CountdownType.SEGMENT_BUDGET_DURATION, undefined otherwise */
 	remainingBudgetOnCurrentSegment?: number | undefined
+	/**
+	 * Remaining budget on the current segment as a TimerState (read via `timerStateToDuration`).
+	 * `remainingBudgetOnCurrentSegment` is this state's evaluation at `currentTime`.
+	 */
+	remainingBudgetOnCurrentSegmentState?: TimerState
 	/** Current part will autoNext */
 	currentPartWillAutoNext?: boolean
 	/** Current time of this calculation */

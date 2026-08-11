@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import _ from 'underscore'
 import { RundownTiming } from './RundownTiming.js'
 import type { RundownTimingContext } from '../../../lib/rundownTiming.js'
+import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
 export type TimingFilterFunction = (durations: RundownTimingContext) => any
 
@@ -34,6 +35,8 @@ type IWrappedComponent<IProps, IState> =
 export interface IRundownTimingProviderValues {
 	durations: RundownTimingContext
 	syncedDurations: RundownTimingContext
+	/** The playlist this timing scope is for, so consumers can read its published timing state */
+	playlistId: RundownPlaylistId | undefined
 }
 export const RundownTimingProviderContext = React.createContext<IRundownTimingProviderValues>({
 	durations: {
@@ -42,7 +45,18 @@ export const RundownTimingProviderContext = React.createContext<IRundownTimingPr
 	syncedDurations: {
 		isLowResolution: true,
 	},
+	playlistId: undefined,
 })
+
+/**
+ * The playlist of the surrounding timing scope.
+ *
+ * Lets a component read the playlist's published timing state without every one of its call sites
+ * having to thread the id down to it.
+ */
+export function useTimingPlaylistId(): RundownPlaylistId | undefined {
+	return useContext(RundownTimingProviderContext).playlistId
+}
 
 /**
  * Wrap a component in a HOC that will inject a the timing context as a prop. Takes an optional options object that

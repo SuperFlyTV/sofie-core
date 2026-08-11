@@ -98,6 +98,13 @@ export function calculatePlaylistTimingStatesFromContext(
 	return {
 		timingType: timing.type,
 
+		// Identities, so consumers can tell whether the on-air timers are about the part or segment
+		// they are rendering
+		currentPartInstanceId: timingContext.currentPartInstanceId ?? undefined,
+		currentSegmentId: timingContext.currentSegmentId ?? undefined,
+		remainingOnCurrentPart: timingContext.remainingTimeOnCurrentPartState,
+		remainingBudgetOnCurrentSegment: timingContext.remainingBudgetOnCurrentSegmentState,
+
 		plannedStart: expectedStart !== undefined ? { paused: false, zeroTime: expectedStart } : undefined,
 		plannedEnd: expectedEnd !== undefined ? { paused: false, zeroTime: expectedEnd } : undefined,
 		plannedDuration: expectedDuration !== undefined ? { paused: true, duration: expectedDuration } : undefined,

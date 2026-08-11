@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import type { PartInstanceId, RundownPlaylistId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
 	getPlaylistTimingStateDocId,
 	isPlaylistTimingStateDoc,
@@ -42,6 +42,17 @@ export interface UsePlaylistTimingValueOptions {
 	 * Defaults to Synced (1Hz, aligned with the rest of the timing UI).
 	 */
 	tickResolution?: TimingTickResolution
+
+	/**
+	 * Only return a value while the published state is about this PartInstance.
+	 *
+	 * The on-air timers describe whichever part is on air, and a component rendering a specific
+	 * part must not show another part's numbers during the moment after a take when the two
+	 * disagree. Pass the part being rendered and the hook returns null until they match.
+	 */
+	forPartInstanceId?: PartInstanceId | null
+	/** Only return a value while the published state is about this Segment. See `forPartInstanceId`. */
+	forSegmentId?: SegmentId | null
 }
 
 /**
@@ -54,29 +65,47 @@ export interface UsePlaylistTimingValueOptions {
  * Note: the tick is driven by the RundownTimingProvider timing events, so this must be used within
  * a view that mounts one (as all the rundown views do).
  *
+ * @param playlistId The playlist to read, or undefined outside a timing scope
  * @param timer Which timer to read
  * @param mode Whether to read it as a duration or as a wall-clock timestamp
  * @returns The value in milliseconds, or null if that timer is not currently published
  */
 export function usePlaylistTimingValue(
-	playlistId: RundownPlaylistId,
+	playlistId: RundownPlaylistId | undefined,
 	timer: PlaylistTimerKey,
 	mode: TimerValueMode,
 	options?: UsePlaylistTimingValueOptions
 ): number | null {
 	const tickResolution = options?.tickResolution ?? TimingTickResolution.Synced
+	const forPartInstanceId = options?.forPartInstanceId
+	const forSegmentId = options?.forSegmentId
 
 	const state = useTracker(
 		() => {
-			// `type` is needed to narrow the published union, so it must be in the projection
+			if (!playlistId) return undefined
+
+			// `type` narrows the published union; the identities are needed for the guards below,
+			// so all of them have to be in the projection
 			const doc = PlaylistTimingStates.findOne(getPlaylistTimingStateDocId(playlistId), {
-				fields: { type: 1, [timer]: 1 } satisfies MongoFieldSpecifierOnes<PlaylistTimingStateDoc>,
-			}) as Pick<PlaylistTimingStateDoc, 'type' | typeof timer> | undefined
+				fields: {
+					type: 1,
+					currentPartInstanceId: 1,
+					currentSegmentId: 1,
+					[timer]: 1,
+				} satisfies MongoFieldSpecifierOnes<PlaylistTimingStateDoc>,
+			}) as
+				| Pick<PlaylistTimingStateDoc, 'type' | 'currentPartInstanceId' | 'currentSegmentId' | typeof timer>
+				| undefined
 
 			if (!doc || !isPlaylistTimingStateDoc(doc)) return undefined
+
+			// Discard a state that is about a different part or segment than the caller renders
+			if (forPartInstanceId !== undefined && doc.currentPartInstanceId !== forPartInstanceId) return undefined
+			if (forSegmentId !== undefined && doc.currentSegmentId !== forSegmentId) return undefined
+
 			return doc[timer]
 		},
-		[playlistId, timer],
+		[playlistId, timer, forPartInstanceId, forSegmentId],
 		undefined
 	)
 
