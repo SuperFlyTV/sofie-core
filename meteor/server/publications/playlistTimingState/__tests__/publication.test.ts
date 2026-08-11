@@ -13,7 +13,12 @@ import { IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { getPlaylistTimingStateDocId } from '@sofie-automation/corelib/dist/dataModel/TimingState'
-import { manipulatePlaylistTimingStatePublicationData, createPlaylistTimingStateDoc } from '../publication'
+import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
+import {
+	manipulatePlaylistTimingStatePublicationData,
+	createPlaylistTimingStateDoc,
+	isCacheViewConsistent,
+} from '../publication'
 import { ContentCache, createReactiveContentCache } from '../reactiveContentCache'
 
 describe('playlistTimingState publication', () => {
@@ -76,6 +81,11 @@ describe('playlistTimingState publication', () => {
 		cache.Parts.insert(makeMockPart('part3', 1, segmentId1))
 
 		return cache
+	}
+
+	function evalDuration(state: TimerState | undefined, now: number): number {
+		if (!state) throw new Error('Expected a timer state')
+		return timerStateToDuration(state, now)
 	}
 
 	/** Add a (non-temporary) PartInstance for the given part to the cache */
@@ -343,6 +353,125 @@ describe('playlistTimingState publication', () => {
 			// The remaining pool only counts expectedDurations (the default duration affects display
 			// durations, not remaining) - so this should simply drop to 3 parts
 			expect(doc?.remainingDuration).toEqual({ paused: true, duration: 3 * PART_DURATION })
+		})
+	})
+
+	/**
+	 * The playlist and its PartInstances are written concurrently and observed separately, so the
+	 * cache can briefly hold a playlist naming a PartInstance that has not arrived. Computing then
+	 * is not merely stale, it is wrong in a way that is invisible afterwards, so the publication
+	 * waits instead.
+	 */
+	describe('consistency of the cached view', () => {
+		/** Point the playlist at a next PartInstance whose document has not been observed yet */
+		function setDanglingNextPartInstance(cache: ContentCache): void {
+			const playlist = cache.RundownPlaylists.findOne(playlistId)
+			if (!playlist) throw new Error('Playlist not found in cache')
+			playlist.nextPartInfo = {
+				partInstanceId: protectString<PartInstanceId>('instance-not-yet-observed'),
+				rundownId,
+				manuallySelected: false,
+				consumesQueuedSegmentId: false,
+			}
+			cache.RundownPlaylists.replace(playlist)
+		}
+
+		function setUpTakeInProgress(cache: ContentCache): void {
+			const currentInstanceId = putPartOnAir(cache, 'part0', segmentId0, 'instance0', 1, {
+				take: 20000,
+				plannedStartedPlayback: 20000,
+			})
+			setPlaylistPlayout(cache, { startedPlayback: 20000, currentPartInstanceId: currentInstanceId })
+			setDanglingNextPartInstance(cache)
+		}
+
+		it('is consistent when the playlist is inactive, which legitimately has no PartInstances', () => {
+			const cache = createAndPopulateMockCache()
+
+			expect(isCacheViewConsistent(playlistId, cache)).toBe(true)
+		})
+
+		it('is consistent once every named PartInstance has been observed', () => {
+			const cache = createAndPopulateMockCache()
+			const instanceId = putPartOnAir(cache, 'part0', segmentId0, 'instance0', 1, {
+				take: 20000,
+				plannedStartedPlayback: 20000,
+			})
+			setPlaylistPlayout(cache, { startedPlayback: 20000, currentPartInstanceId: instanceId })
+
+			expect(isCacheViewConsistent(playlistId, cache)).toBe(true)
+		})
+
+		it('is inconsistent while a named PartInstance is missing', () => {
+			const cache = createAndPopulateMockCache()
+			setUpTakeInProgress(cache)
+
+			expect(isCacheViewConsistent(playlistId, cache)).toBe(false)
+		})
+
+		it('publishes nothing new rather than a document computed from the gap', async () => {
+			const cache = createAndPopulateMockCache()
+			const state = {}
+
+			// a good document is published first
+			const first = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, { newCache: cache })
+			expect(first).toHaveLength(1)
+
+			setUpTakeInProgress(cache)
+
+			// null leaves the previously published document in place
+			const during = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, {
+				invalidateTiming: true,
+			})
+			expect(during).toBeNull()
+		})
+
+		/**
+		 * Shows why the guard is worth having: with a budgeted segment and an unresolvable next
+		 * PartInstance, the calculator drops the segment's whole budget from the remaining pool.
+		 */
+		it('would otherwise drop unplayed budget segments from the remaining pool', () => {
+			const cache = createAndPopulateMockCache()
+			const budgetDuration = 300000
+
+			// the upcoming segment is budgeted, so it only counts towards remaining once the
+			// calculator can place the next PartInstance
+			const segment1 = cache.Segments.findOne(segmentId1)
+			if (!segment1) throw new Error('Segment not found in cache')
+			segment1.segmentTiming = { budgetDuration, countdownType: CountdownType.SEGMENT_BUDGET_DURATION }
+			cache.Segments.replace(segment1)
+
+			const currentInstanceId = putPartOnAir(cache, 'part0', segmentId0, 'instance0', 1, {
+				take: 20000,
+				plannedStartedPlayback: 20000,
+			})
+			const nextInstanceId = putPartOnAir(cache, 'part1', segmentId0, 'instance1', 2, { take: 0 })
+			setPlaylistPlayout(cache, { startedPlayback: 20000, currentPartInstanceId: currentInstanceId })
+
+			const playlist = cache.RundownPlaylists.findOne(playlistId)
+			if (!playlist) throw new Error('Playlist not found in cache')
+			playlist.nextPartInfo = {
+				partInstanceId: nextInstanceId,
+				rundownId,
+				manuallySelected: false,
+				consumesQueuedSegmentId: false,
+			}
+			cache.RundownPlaylists.replace(playlist)
+
+			const resolved = createPlaylistTimingStateDoc(playlistId, cache, 25000)
+			expect(isCacheViewConsistent(playlistId, cache)).toBe(true)
+
+			// now lose the next PartInstance, as happens in the window between the two writes
+			setDanglingNextPartInstance(cache)
+			const unresolved = createPlaylistTimingStateDoc(playlistId, cache, 25000)
+
+			// the whole budget silently vanishes from the remaining pool
+			const resolvedRemaining = evalDuration(resolved?.remainingDuration, 25000)
+			const unresolvedRemaining = evalDuration(unresolved?.remainingDuration, 25000)
+			expect(resolvedRemaining - unresolvedRemaining).toBe(budgetDuration)
+
+			// which is exactly the state the guard refuses to publish
+			expect(isCacheViewConsistent(playlistId, cache)).toBe(false)
 		})
 	})
 

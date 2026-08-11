@@ -121,8 +121,41 @@ export async function manipulatePlaylistTimingStatePublicationData(
 		return []
 	}
 
+	if (!isCacheViewConsistent(args.playlistId, state.contentCache)) {
+		// Leave what is already published in place until the cache catches up
+		return null
+	}
+
 	const doc = createPlaylistTimingStateDoc(args.playlistId, state.contentCache, getCurrentTime())
 	return doc ? [doc] : []
+}
+
+/**
+ * Whether the cached documents are a consistent view of the playlist.
+ *
+ * The playlist and its PartInstances are written concurrently by the job worker, and reach this
+ * cache by separate observers, so there is a window in which the playlist names a PartInstance that
+ * has not arrived yet. Computing then would silently produce wrong numbers - most visibly, an
+ * unresolvable next PartInstance drops every unplayed budgeted segment out of the remaining pool.
+ * It is better to publish nothing until the two agree; whatever is missing is on its way, and will
+ * trigger another update when it lands.
+ *
+ * Only applies while the playlist is active: an inactive playlist legitimately has no PartInstances
+ * (they are published per activation), so requiring them would mean never publishing at all.
+ */
+export function isCacheViewConsistent(
+	playlistId: RundownPlaylistId,
+	contentCache: ReadonlyDeep<ContentCache>
+): boolean {
+	const playlist = contentCache.RundownPlaylists.findOne(playlistId)
+	if (!playlist || !playlist.activationId) return true
+
+	for (const selected of [playlist.currentPartInfo, playlist.nextPartInfo]) {
+		if (!selected) continue
+		if (!contentCache.PartInstances.findOne(selected.partInstanceId)) return false
+	}
+
+	return true
 }
 
 /**

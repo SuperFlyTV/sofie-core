@@ -435,6 +435,106 @@ describe('calculatePlaylistTimingStates', () => {
 		})
 	})
 
+	/**
+	 * Multi-gateway studios schedule a take a little into the future (getNowInPlayout adds the
+	 * gateway latency), so for a moment after every take the on-air part has a planned start that
+	 * has not been reached yet. The states must describe the part that is about to play, not a
+	 * playlist with nothing playing - otherwise the projected end pushes with the clock, and stays
+	 * wrong until the gateway reports playback, because nothing recomputes at the planned start.
+	 */
+	describe('taken but not yet started', () => {
+		const TAKE_TIME = 20000
+		const GATEWAY_LATENCY = 400
+		const PLANNED_START = TAKE_TIME + GATEWAY_LATENCY
+
+		function makePreRollScenario(): MockScenario {
+			const scenario = makeStandardScenario()
+			scenario.playlist.timing = {
+				type: PlaylistTimingType.ForwardTime,
+				expectedStart: TAKE_TIME,
+				expectedEnd: 60000,
+			}
+			putFirstPartOnAir(scenario, PLANNED_START)
+			scenario.playlist.startedPlayback = TAKE_TIME
+			return scenario
+		}
+
+		it('holds the projected end fixed across the wait and beyond', () => {
+			const scenario = makePreRollScenario()
+			const { playlist, partInstances, segmentsMap } = scenario
+
+			// the playlist ends one part duration after the planned start, plus the rest
+			const expectedEnd = PLANNED_START + 4 * 10000
+
+			for (const now of [TAKE_TIME, TAKE_TIME + 100, PLANNED_START - 1, PLANNED_START, PLANNED_START + 5000]) {
+				const states = calculatePlaylistTimingStates(
+					now,
+					playlist,
+					partInstances,
+					segmentsMap,
+					DEFAULT_DURATION,
+					{}
+				)
+				expect({ now, estimatedEnd: evalZeroTime(states.estimatedEnd, now) }).toEqual({
+					now,
+					estimatedEnd: expectedEnd,
+				})
+			}
+		})
+
+		it('publishes a document that stays correct without recomputing at the planned start', () => {
+			const scenario = makePreRollScenario()
+			const { playlist, partInstances, segmentsMap } = scenario
+
+			// computed once, just after the take, while the start is still in the future
+			const states = calculatePlaylistTimingStates(
+				TAKE_TIME,
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			const expectedEnd = PLANNED_START + 4 * 10000
+			// evaluating that same document later, across the planned start, must not drift
+			for (const now of [TAKE_TIME, PLANNED_START - 1, PLANNED_START, PLANNED_START + 5000]) {
+				expect({ now, estimatedEnd: evalZeroTime(states.estimatedEnd, now) }).toEqual({
+					now,
+					estimatedEnd: expectedEnd,
+				})
+			}
+
+			// and the remaining duration counts down through the wait rather than holding
+			expect(evalDuration(states.remainingDuration, TAKE_TIME)).toBe(expectedEnd - TAKE_TIME)
+			expect(evalDuration(states.remainingDuration, PLANNED_START)).toBe(expectedEnd - PLANNED_START)
+		})
+
+		it('still freezes when the on-air part overruns', () => {
+			const scenario = makePreRollScenario()
+			const { playlist, partInstances, segmentsMap } = scenario
+
+			const states = calculatePlaylistTimingStates(
+				TAKE_TIME,
+				playlist,
+				partInstances,
+				segmentsMap,
+				DEFAULT_DURATION,
+				{}
+			)
+
+			// the part is due to end at PLANNED_START + 10000; past that the remaining pool holds
+			const overrunsAt = PLANNED_START + 10000
+			const remainingAtOverrun = evalDuration(states.remainingDuration, overrunsAt)
+			expect(remainingAtOverrun).toBe(3 * 10000)
+			expect(evalDuration(states.remainingDuration, overrunsAt + 5000)).toBe(remainingAtOverrun)
+		})
+
+		it('matches the reference throughout', () => {
+			assertEquivalence(makePreRollScenario(), TAKE_TIME, [0, 100, 399, 400, 401, 5000, 15000])
+		})
+	})
+
 	describe('Autonext', () => {
 		function makeAutonextScenario(): MockScenario {
 			const scenario = makeStandardScenario()

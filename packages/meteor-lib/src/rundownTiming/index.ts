@@ -473,7 +473,29 @@ export class RundownTimingCalculator {
 				// if false (default), past unplayed parts will not count towards remaining time
 				// If SegmentUsesBudget, these values are set when iterating over all Segments, see below.
 				if (!segmentUsesBudget) {
-					if (
+					// note: this deliberately uses the planned start rather than `lastStartedPlayback`,
+					// so that it also covers a part that has been taken but has not started yet.
+					// Multi-gateway studios schedule the start a little into the future, so for a
+					// moment after every take the on-air part has a planned start that has not been
+					// reached. Anchoring on that start keeps the playlist's projected end fixed
+					// across the window, rather than letting it push along with the clock.
+					const plannedStartedPlayback = partInstance.timings?.plannedStartedPlayback
+					const isOnAir =
+						playlist.currentPartInfo?.partInstanceId === partInstance._id &&
+						plannedStartedPlayback !== undefined &&
+						!partInstance.timings?.duration &&
+						!partIsUntimed
+
+					if (isOnAir) {
+						// The on-air part's remaining time: a countdown to its expected end, freezing
+						// at zero once it overruns. This is the state that makes the aggregates
+						// time-varying; the numeric value is its evaluation at `now`. Before the
+						// planned start this evaluates to more than the part's duration, by the
+						// amount of the wait - which is what keeps the projected end fixed.
+						const expectedEndTime = plannedStartedPlayback + partExpectedDuration
+						liveCountdown = { paused: false, zeroTime: expectedEndTime, pauseTime: expectedEndTime }
+						remainingRundownDuration += timerStateToDuration(liveCountdown, now)
+					} else if (
 						typeof lastStartedPlayback !== 'number' &&
 						!partInstance.part.floated &&
 						partCounts &&
@@ -484,19 +506,6 @@ export class RundownTimingCalculator {
 						// add any duration to the "remaining" time pool
 						remainingRundownDuration +=
 							calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0
-					} else if (
-						// item is onAir right now
-						lastStartedPlayback &&
-						!partInstance.timings?.duration &&
-						playlist.currentPartInfo?.partInstanceId === partInstance._id &&
-						!partIsUntimed
-					) {
-						// The on-air part's remaining time: a countdown to its expected end, freezing
-						// at zero once it overruns. This is the state that makes the aggregates
-						// time-varying; the numeric value is its evaluation at `now`.
-						const expectedEndTime = lastStartedPlayback + partExpectedDuration
-						liveCountdown = { paused: false, zeroTime: expectedEndTime, pauseTime: expectedEndTime }
-						remainingRundownDuration += timerStateToDuration(liveCountdown, now)
 					}
 				}
 
