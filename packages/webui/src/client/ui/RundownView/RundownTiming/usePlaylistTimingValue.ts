@@ -143,6 +143,37 @@ export function usePartTimingValue(
 	return useTimingStateValue(partId && getPartTimingStateDocId(partId), isPartTimingStateDoc, timer, mode, options)
 }
 
+/**
+ * Read one of a part's non-timer fields from its published timing state - `rank`, `isInQuickLoop`
+ * or `countsTowardsTiming`.
+ *
+ * These do not vary with the clock, so unlike {@link usePartTimingValue} this does not tick: the
+ * caller re-renders only when the published value actually changes.
+ *
+ * @returns The value, or undefined while nothing is published for the part
+ */
+export function usePartTimingField<TField extends 'rank' | 'isInQuickLoop' | 'countsTowardsTiming'>(
+	partId: PartId | undefined,
+	field: TField
+): PartTimingStateDoc[TField] | undefined {
+	return useTracker(
+		() => {
+			if (!partId) return undefined
+
+			// `type` narrows the published union, so it has to be in the projection
+			const doc = PlaylistTimingStates.findOne(getPartTimingStateDocId(partId), {
+				fields: { type: 1, [field]: 1 } satisfies MongoFieldSpecifierOnes<PartTimingStateDoc>,
+			}) as (Pick<TimingStateDoc, 'type'> & Partial<PartTimingStateDoc>) | undefined
+
+			if (!doc || !isPartTimingStateDoc(doc)) return undefined
+
+			return doc[field]
+		},
+		[partId, field],
+		undefined
+	)
+}
+
 function useTimingStateValue<TDoc extends TimingStateDoc>(
 	docId: TimingStateDocId | undefined,
 	isWantedDoc: (doc: Pick<TimingStateDoc, 'type'>) => doc is TDoc,
