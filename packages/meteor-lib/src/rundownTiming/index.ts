@@ -65,6 +65,7 @@ export class RundownTimingCalculator {
 	private partDisplayStartsAt: Record<TimingId, number> = {}
 	private partDisplayDurations: Record<TimingId, number> = {}
 	private partDisplayDurationsNoPlayback: Record<TimingId, number> = {}
+	private partDurationsNoPlayback: Record<TimingId, number> = {}
 	private segmentAsPlayedDurations: Record<string, number> = {}
 
 	/**
@@ -386,6 +387,7 @@ export class RundownTimingCalculator {
 				this.partDurations[partInstanceOrPartId] = partDuration
 				this.partDisplayDurations[partInstanceOrPartId] = partDisplayDuration
 				this.partDisplayDurationsNoPlayback[partInstanceOrPartId] = partDisplayDurationNoPlayback
+				this.partDurationsNoPlayback[partInstanceOrPartId] = resolved.durationNoPlayback
 				startsAtAccumulator += this.partDurations[partInstanceOrPartId]
 				displayStartsAtAccumulator += this.partDisplayDurations[partInstanceOrPartId]
 
@@ -645,6 +647,7 @@ export class RundownTimingCalculator {
 			partExpectedDurations: this.partExpectedDurations,
 			partDisplayDurations: this.partDisplayDurations,
 			partDisplayDurationsNoPlayback: this.partDisplayDurationsNoPlayback,
+			partDurationsNoPlayback: this.partDurationsNoPlayback,
 			currentTime: now,
 			remainingTimeOnCurrentPart,
 			remainingTimeOnCurrentPartState,
@@ -719,6 +722,10 @@ export interface RundownTimingContext {
 	 * grow while the on-air part overruns. This is the static part of the display duration.
 	 */
 	partDisplayDurationsNoPlayback?: Record<string, number>
+	/** Same as partDurations, but calculated as if the part were not playing - so it does not grow
+	 * while the on-air part overruns. This is the static part of the duration.
+	 */
+	partDurationsNoPlayback?: Record<string, number>
 	/** As-played durations of each part. Will be 0, if not yet played.
 	 * Will be counted from start to now if currently playing.
 	 */

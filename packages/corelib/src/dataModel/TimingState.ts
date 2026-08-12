@@ -100,6 +100,9 @@ export interface PlaylistTimingStateDoc {
 	 */
 	remainingBudgetOnCurrentSegment?: TimerState
 
+	/** Whether the on-air Part will auto-next out of itself */
+	currentPartWillAutoNext: boolean
+
 	/**
 	 * Schedule balance ("Over"/"Under").
 	 * duration read = the time in hand: positive = under (ahead of schedule), negative = over.
@@ -209,6 +212,13 @@ export interface PartTimingStateDoc {
 	 * on air, frozen at the recorded duration once it is done.
 	 */
 	played?: TimerState
+
+	/**
+	 * The Part's duration: as-run once it has played, as-planned before that, and growing past the
+	 * planned value while the Part is on air and overrunning.
+	 * duration read = *negative*, per the count-up convention described on `played`.
+	 */
+	duration?: TimerState
 
 	/**
 	 * `displayDuration` while the Part is on air: it grows once the Part passes its planned end, so

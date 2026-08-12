@@ -104,6 +104,7 @@ export function calculatePlaylistTimingStatesFromContext(
 		currentSegmentId: timingContext.currentSegmentId ?? undefined,
 		remainingOnCurrentPart: timingContext.remainingTimeOnCurrentPartState,
 		remainingBudgetOnCurrentSegment: timingContext.remainingBudgetOnCurrentSegmentState,
+		currentPartWillAutoNext: timingContext.currentPartWillAutoNext ?? false,
 
 		plannedStart: expectedStart !== undefined ? { paused: false, zeroTime: expectedStart } : undefined,
 		plannedEnd: expectedEnd !== undefined ? { paused: false, zeroTime: expectedEnd } : undefined,

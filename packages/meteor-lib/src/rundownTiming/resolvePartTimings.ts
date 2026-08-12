@@ -25,6 +25,9 @@ export interface ResolvedPartDurations {
 	/** As-played where known, else as-planned, grown to the elapsed time while on air, less any play offset */
 	duration: number
 
+	/** The duration the Part would have if it were not playing. Only differs from `duration` while on air and overrunning */
+	durationNoPlayback: number
+
 	/** The display duration, grown to the elapsed time while the Part is on air */
 	displayDuration: number
 
@@ -117,6 +120,7 @@ export class PartDurationResolver {
 
 		// This is where we actually calculate all the various variants of duration of a part
 		let partDuration: number
+		let partDurationNoPlayback: number
 		let partDisplayDuration: number
 		let partDisplayDurationNoPlayback: number
 		let partPlayed: number
@@ -129,11 +133,11 @@ export class PartDurationResolver {
 				(partInstance.timings?.plannedStoppedPlayback
 					? lastStartedPlayback - partInstance.timings?.plannedStoppedPlayback
 					: undefined)
-			partDuration =
-				Math.max(
-					recordedDuration || calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0,
-					now - lastStartedPlayback
-				) - playOffset
+			// the as-planned duration this part grows away from once it overruns
+			partDurationNoPlayback =
+				(recordedDuration || calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0) -
+				playOffset
+			partDuration = Math.max(partDurationNoPlayback + playOffset, now - lastStartedPlayback) - playOffset
 			// because displayDurationGroups have no actual timing on them, we need to have a copy of the
 			// partDisplayDuration, but calculated as if it's not playing, so that the countdown can be
 			// calculated
@@ -151,6 +155,7 @@ export class PartDurationResolver {
 				(partInstance.timings?.duration ||
 					calculatePartInstanceExpectedDurationWithTransition(partInstance) ||
 					0) - playOffset
+			partDurationNoPlayback = partDuration
 			partDisplayDurationNoPlayback = Math.max(
 				0,
 				(partInstance.timings?.duration && partInstance.timings?.duration + playOffset) ||
@@ -168,6 +173,7 @@ export class PartDurationResolver {
 		return {
 			expectedDuration: partExpectedDuration,
 			duration: partDuration,
+			durationNoPlayback: partDurationNoPlayback,
 			displayDuration: partDisplayDuration,
 			displayDurationNoPlayback: partDisplayDurationNoPlayback,
 			played: partPlayed,

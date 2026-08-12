@@ -153,6 +153,7 @@ function evaluateStates(states: Map<PartId, PartTimingStateValues>, t: number) {
 				displayDurationNoPlayback: evalDuration(state.displayDuration, t),
 				// the count-ups are published negated, per the convention on PartTimingStateDoc.played
 				displayDuration: negate(evalDuration(state.liveDisplayDuration, t)),
+				duration: negate(evalDuration(state.duration, t)),
 				played: negate(evalDuration(state.played, t)),
 				countdown: evalDuration(state.countdown, t) ?? null,
 				countsTowardsTiming: state.countsTowardsTiming,
@@ -177,6 +178,7 @@ function calculatorValues(scenario: MockScenario, t: number) {
 					expectedDuration: timingContext.partExpectedDurations?.[timingId],
 					displayDurationNoPlayback: timingContext.partDisplayDurationsNoPlayback?.[timingId],
 					displayDuration: timingContext.partDisplayDurations?.[timingId],
+					duration: timingContext.partDurations?.[timingId],
 					played: timingContext.partPlayed?.[timingId],
 					countdown: timingContext.partCountdown?.[partId] ?? null,
 					countsTowardsTiming: timingContext.partCountsTowardsTiming?.[timingId] ?? false,

@@ -36,6 +36,7 @@ function makeDoc(fields: Partial<PlaylistTimingStateDoc>): PlaylistTimingStateDo
 		type: 'playlist',
 		playlistId: PLAYLIST_ID,
 		timingType: PlaylistTimingType.ForwardTime,
+		currentPartWillAutoNext: false,
 		...fields,
 	}
 }

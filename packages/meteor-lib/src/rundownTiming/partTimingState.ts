@@ -57,6 +57,8 @@ function calculateOnePartTimingStates(
 	const expectedDuration = timingContext.partExpectedDurations?.[timingId]
 	const displayDurationNoPlayback = timingContext.partDisplayDurationsNoPlayback?.[timingId]
 	const liveDisplayDuration = timingContext.partDisplayDurations?.[timingId]
+	const duration = timingContext.partDurations?.[timingId]
+	const durationNoPlayback = timingContext.partDurationsNoPlayback?.[timingId]
 	const played = timingContext.partPlayed?.[timingId]
 
 	// A part's values grow with the clock while it is the on-air part and has not finished. An
@@ -66,11 +68,15 @@ function calculateOnePartTimingStates(
 	// multi-gateway studio it is a little way in the future, and putting it in `resumesAt` means the
 	// values are right from the moment it arrives rather than only once this has been republished.
 	const startedPlayback = partInstance.timings?.plannedStartedPlayback
-	const isGrowing =
+	const playOffset = partInstance.timings?.playOffset || 0
+	const isRunning =
 		partInstance._id === timingContext.currentPartInstanceId &&
 		startedPlayback !== undefined &&
-		!partInstance.timings?.duration &&
-		!(partInstance.part.invalid && !partInstance.part.gap)
+		!partInstance.timings?.duration
+
+	// An invalid part's *display* duration and played time are pinned to preset values regardless of
+	// playback, so they never grow. Its plain duration is not pinned, and does.
+	const isGrowing = isRunning && !(partInstance.part.invalid && !partInstance.part.gap)
 
 	// `partCountdown` is keyed by PartId, unlike every other map here
 	const countdown = timingContext.partCountdownStates?.[partId]
@@ -90,6 +96,14 @@ function calculateOnePartTimingStates(
 
 		// The played time grows from the moment the part starts, from zero
 		played: played === undefined ? undefined : isGrowing ? countUp(0, startedPlayback) : countUp(played, undefined),
+
+		// Same shape as the display duration below: holds at the as-planned value, then grows
+		duration:
+			duration === undefined
+				? undefined
+				: isRunning && durationNoPlayback !== undefined && startedPlayback !== undefined
+					? countUp(durationNoPlayback, startedPlayback + durationNoPlayback + playOffset)
+					: countUp(duration, undefined),
 
 		// The display duration holds at its static value and only starts growing once the part passes
 		// it, so that is where the slope changes

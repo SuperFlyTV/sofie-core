@@ -104,6 +104,7 @@ function expectContextToEqual(result: RundownTimingContext, expected: RundownTim
 		// They are checked exhaustively against this same calculator in partTimingState.test.ts, so
 		// listing them in every expectation below would be churn without added coverage.
 		partDisplayDurationsNoPlayback,
+		partDurationsNoPlayback,
 		partCountsTowardsTiming,
 		...numericResult
 	} = result
@@ -112,6 +113,7 @@ function expectContextToEqual(result: RundownTimingContext, expected: RundownTim
 
 	// they must however describe exactly the same set of parts as the rest
 	expect(Object.keys(partDisplayDurationsNoPlayback ?? {})).toEqual(Object.keys(expected.partDisplayDurations ?? {}))
+	expect(Object.keys(partDurationsNoPlayback ?? {})).toEqual(Object.keys(expected.partDisplayDurations ?? {}))
 	expect(Object.keys(partCountsTowardsTiming ?? {})).toEqual(Object.keys(expected.partDisplayDurations ?? {}))
 
 	const evaluate = (state: TimerState | undefined) => (state ? timerStateToDuration(state, now) : undefined)

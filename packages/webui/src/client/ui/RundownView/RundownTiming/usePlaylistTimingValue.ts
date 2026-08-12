@@ -144,6 +144,36 @@ export function usePartTimingValue(
 }
 
 /**
+ * Read one of the playlist's non-timer fields from its published timing state.
+ *
+ * These do not vary with the clock, so unlike {@link usePlaylistTimingValue} this does not tick: the
+ * caller re-renders only when the published value actually changes.
+ *
+ * @returns The value, or undefined while nothing is published for the playlist
+ */
+export function usePlaylistTimingField<TField extends 'timingType' | 'currentPartWillAutoNext'>(
+	playlistId: RundownPlaylistId | undefined,
+	field: TField
+): PlaylistTimingStateDoc[TField] | undefined {
+	return useTracker(
+		() => {
+			if (!playlistId) return undefined
+
+			// `type` narrows the published union, so it has to be in the projection
+			const doc = PlaylistTimingStates.findOne(getPlaylistTimingStateDocId(playlistId), {
+				fields: { type: 1, [field]: 1 } satisfies MongoFieldSpecifierOnes<PlaylistTimingStateDoc>,
+			}) as (Pick<TimingStateDoc, 'type'> & Partial<PlaylistTimingStateDoc>) | undefined
+
+			if (!doc || !isPlaylistTimingStateDoc(doc)) return undefined
+
+			return doc[field]
+		},
+		[playlistId, field],
+		undefined
+	)
+}
+
+/**
  * Read one of a part's non-timer fields from its published timing state - `rank`, `isInQuickLoop`
  * or `countsTowardsTiming`.
  *
@@ -195,6 +225,35 @@ export function useOrderedPartIds(playlistId: RundownPlaylistId | undefined): Pa
 			[playlistId],
 			[]
 		) ?? []
+	)
+}
+
+/**
+ * The sum of every part's resolved expected duration.
+ *
+ * Used as a stand-in playlist length where the playlist has no planned duration of its own. Note
+ * this counts the parts that currently exist, so unlike the calculator's equivalent it does not
+ * keep counting parts that an ingest has since removed.
+ */
+export function usePartsTotalExpectedDuration(playlistId: RundownPlaylistId | undefined): number {
+	return (
+		useTracker(
+			() => {
+				if (!playlistId) return 0
+
+				let total = 0
+				PlaylistTimingStates.find({ type: 'part', playlistId } as never, {
+					fields: { expectedDuration: 1 } satisfies MongoFieldSpecifierOnes<PartTimingStateDoc>,
+				}).forEach((doc) => {
+					const expectedDuration = (doc as PartTimingStateDoc).expectedDuration
+					// a constant state, so any instant reads the same value
+					total += expectedDuration ? timerStateToDuration(expectedDuration, 0) : 0
+				})
+				return total
+			},
+			[playlistId],
+			0
+		) ?? 0
 	)
 }
 

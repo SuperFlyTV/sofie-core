@@ -162,6 +162,7 @@ describe('playlistTimingState publication', () => {
 				type: 'playlist',
 				playlistId,
 				timingType: PlaylistTimingType.ForwardTime,
+				currentPartWillAutoNext: false,
 				plannedStart: { paused: false, zeroTime: EXPECTED_START },
 				plannedEnd: { paused: false, zeroTime: EXPECTED_START + EXPECTED_DURATION },
 				plannedDuration: { paused: true, duration: EXPECTED_DURATION },
