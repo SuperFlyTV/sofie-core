@@ -20,7 +20,6 @@ import { RundownUtils } from '../../lib/rundown.js'
 import { CountdownType, PieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PieceCountdownContainer } from '../PieceIcons/PieceCountdown.js'
-import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import type { DashboardLayout, RundownLayoutBase } from '@sofie-automation/meteor-lib/dist/collections/RundownLayouts'
 import type {
 	RundownId,
@@ -509,11 +508,10 @@ function PresenterScreenContentDefaultLayout({
 	// The segment budget takes precedence when the on-air segment has one
 	const remainingBudget = usePlaylistTimingValue(playlistId, 'remainingBudgetOnCurrentSegment', TimerValueMode.Duration)
 	const remainingOnPart = usePlaylistTimingValue(playlistId, 'remainingOnCurrentPart', TimerValueMode.Duration)
+	const expectedStart = usePlaylistTimingValue(playlistId, 'plannedStart', TimerValueMode.Timestamp)
 
 	if (playlist && playlistId && segments) {
 		const currentPartOrSegmentCountdown = remainingBudget ?? remainingOnPart ?? 0
-
-		const expectedStart = PlaylistTiming.getExpectedStart(playlist.timing)
 
 		return (
 			<div className="presenter-screen">

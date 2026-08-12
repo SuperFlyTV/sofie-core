@@ -21,7 +21,6 @@ import { RundownUtils } from '../../../lib/rundown.js'
 import { PieceLifespan, SourceLayerType } from '@sofie-automation/blueprints-integration'
 import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PieceFreezeContainer } from '../ClockViewPieceIcons/ClockViewFreezeCount.js'
-import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import type {
 	RundownId,
 	RundownPlaylistId,
@@ -46,7 +45,11 @@ import { useTranslation } from 'react-i18next'
 import type { DBShowStyleBase, UIShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance.js'
 import { DirectorScreenTop } from './DirectorScreenTop.js'
-import { useTimingNow } from '../../RundownView/RundownTiming/usePlaylistTimingValue.js'
+import {
+	TimerValueMode,
+	usePlaylistTimingValue,
+	useTimingNow,
+} from '../../RundownView/RundownTiming/usePlaylistTimingValue.js'
 import type { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import { RundownStatusBar } from '../RundownStatusBar.js'
@@ -444,6 +447,8 @@ function DirectorScreenRender({
 	// re-render on each tick, so the timers below stay current
 	useTimingNow()
 
+	const expectedStart = usePlaylistTimingValue(playlistId, 'plannedStart', TimerValueMode.Timestamp) ?? 0
+
 	// Compute current and next clip player ids (for pieces with AB sessions)
 	const currentClipPlayer: string | undefined = useTracker(() => {
 		if (!currentPartInstance || !currentShowStyleBase || !playlist?.assignedAbSessions) return undefined
@@ -507,8 +512,6 @@ function DirectorScreenRender({
 	}, [nextPartInstance?.instance._id, nextShowStyleBaseId, playlist?.assignedAbSessions])
 
 	if (playlist && playlistId && segments) {
-		const expectedStart = PlaylistTiming.getExpectedStart(playlist.timing) || 0
-
 		// Show countdown if it is the first segment and the current part is untimed:
 		const currentSegmentIsFirst = currentSegment?._rank === 0
 		const isFirstPieceAndNoDuration =
