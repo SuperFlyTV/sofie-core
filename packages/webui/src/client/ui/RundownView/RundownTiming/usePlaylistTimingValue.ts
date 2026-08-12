@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react'
 import type { PartInstanceId, RundownPlaylistId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
 	getPlaylistTimingStateDocId,
+	getSegmentTimingStateDocId,
 	isPlaylistTimingStateDoc,
+	isSegmentTimingStateDoc,
 	type PlaylistTimingStateDoc,
+	type SegmentTimingStateDoc,
+	type TimingStateDoc,
+	type TimingStateDocId,
 } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import {
 	type TimerState,
@@ -31,10 +36,13 @@ export enum TimerValueMode {
 	Timestamp = 'timestamp',
 }
 
-/** The timer values of a PlaylistTimingStateDoc that can be read as a single TimerState */
-export type PlaylistTimerKey = {
-	[K in keyof PlaylistTimingStateDoc]-?: NonNullable<PlaylistTimingStateDoc[K]> extends TimerState ? K : never
-}[keyof PlaylistTimingStateDoc]
+/** The fields of a published document that can be read as a single TimerState */
+type TimerKeysOf<TDoc> = {
+	[K in keyof TDoc]-?: NonNullable<TDoc[K]> extends TimerState ? K : never
+}[keyof TDoc]
+
+export type PlaylistTimerKey = TimerKeysOf<PlaylistTimingStateDoc>
+export type SegmentTimerKey = TimerKeysOf<SegmentTimingStateDoc>
 
 export interface UsePlaylistTimingValueOptions {
 	/**
@@ -56,7 +64,7 @@ export interface UsePlaylistTimingValueOptions {
 }
 
 /**
- * Read a single timer value from the server-published playlist timing state
+ * Read a single timer from the playlist's published timing state
  * (the `playlistTimingState` publication), already evaluated against the current time.
  *
  * Reactivity is scoped to the requested timer: the caller only re-renders when that timer's state
@@ -76,36 +84,71 @@ export function usePlaylistTimingValue(
 	mode: TimerValueMode,
 	options?: UsePlaylistTimingValueOptions
 ): number | null {
+	return useTimingStateValue(
+		playlistId && getPlaylistTimingStateDocId(playlistId),
+		isPlaylistTimingStateDoc,
+		timer,
+		mode,
+		options
+	)
+}
+
+/**
+ * Read a single timer from a segment's published timing state. See {@link usePlaylistTimingValue}.
+ *
+ * Each segment's document already describes that segment - whether it is the on-air one or not -
+ * so unlike the playlist's on-air timers this needs no identity guard.
+ */
+export function useSegmentTimingValue(
+	segmentId: SegmentId | undefined,
+	timer: SegmentTimerKey,
+	mode: TimerValueMode,
+	options?: UsePlaylistTimingValueOptions
+): number | null {
+	return useTimingStateValue(
+		segmentId && getSegmentTimingStateDocId(segmentId),
+		isSegmentTimingStateDoc,
+		timer,
+		mode,
+		options
+	)
+}
+
+function useTimingStateValue<TDoc extends TimingStateDoc>(
+	docId: TimingStateDocId | undefined,
+	isWantedDoc: (doc: Pick<TimingStateDoc, 'type'>) => doc is TDoc,
+	timer: TimerKeysOf<TDoc>,
+	mode: TimerValueMode,
+	options?: UsePlaylistTimingValueOptions
+): number | null {
 	const tickResolution = options?.tickResolution ?? TimingTickResolution.Synced
 	const forPartInstanceId = options?.forPartInstanceId
 	const forSegmentId = options?.forSegmentId
 
 	const state = useTracker(
 		() => {
-			if (!playlistId) return undefined
+			if (!docId) return undefined
 
-			// `type` narrows the published union; the identities are needed for the guards below,
-			// so all of them have to be in the projection
-			const doc = PlaylistTimingStates.findOne(getPlaylistTimingStateDocId(playlistId), {
+			// `type` narrows the published union, and the identities back the guards below, so all
+			// of them have to be in the projection
+			const doc = PlaylistTimingStates.findOne(docId, {
 				fields: {
 					type: 1,
 					currentPartInstanceId: 1,
 					currentSegmentId: 1,
 					[timer]: 1,
 				} satisfies MongoFieldSpecifierOnes<PlaylistTimingStateDoc>,
-			}) as
-				| Pick<PlaylistTimingStateDoc, 'type' | 'currentPartInstanceId' | 'currentSegmentId' | typeof timer>
-				| undefined
+			}) as (Pick<TimingStateDoc, 'type'> & Partial<PlaylistTimingStateDoc>) | undefined
 
-			if (!doc || !isPlaylistTimingStateDoc(doc)) return undefined
+			if (!doc || !isWantedDoc(doc)) return undefined
 
 			// Discard a state that is about a different part or segment than the caller renders
 			if (forPartInstanceId !== undefined && doc.currentPartInstanceId !== forPartInstanceId) return undefined
 			if (forSegmentId !== undefined && doc.currentSegmentId !== forSegmentId) return undefined
 
-			return doc[timer]
+			return (doc as TDoc)[timer] as TimerState | undefined
 		},
-		[playlistId, timer, forPartInstanceId, forSegmentId],
+		[docId, timer, forPartInstanceId, forSegmentId],
 		undefined
 	)
 

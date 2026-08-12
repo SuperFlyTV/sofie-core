@@ -6,7 +6,9 @@ import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { CustomCollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import {
 	getPlaylistTimingStateDocId,
+	getSegmentTimingStateDocId,
 	PlaylistTimingStateDoc,
+	SegmentTimingStateDoc,
 	TimingStateDoc,
 } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
@@ -16,8 +18,10 @@ import { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { sortSegmentsInRundowns } from '@sofie-automation/corelib/dist/playout/playlist'
 import { DEFAULT_DISPLAY_DURATION } from '@sofie-automation/shared-lib/dist/core/constants'
-import { calculatePlaylistTimingStates } from '@sofie-automation/meteor-lib/dist/rundownTiming/playlistTimingState'
+import { calculatePlaylistTimingStatesFromContext } from '@sofie-automation/meteor-lib/dist/rundownTiming/playlistTimingState'
+import { calculateSegmentTimingStates } from '@sofie-automation/meteor-lib/dist/rundownTiming/segmentTimingState'
 import { prepareTimingPartInstances } from '@sofie-automation/meteor-lib/dist/rundownTiming/prepareTimingInputs'
+import { RundownTimingCalculator } from '@sofie-automation/meteor-lib/dist/rundownTiming/index'
 import { setUpOptimizedObserverArray, SetupObserversResult, TriggerUpdate } from '../../lib/customPublication'
 import { logger } from '../../logging'
 import { getCurrentTime } from '../../lib/lib'
@@ -126,8 +130,7 @@ export async function manipulatePlaylistTimingStatePublicationData(
 		return null
 	}
 
-	const doc = createPlaylistTimingStateDoc(args.playlistId, state.contentCache, getCurrentTime())
-	return doc ? [doc] : []
+	return createTimingStateDocs(args.playlistId, state.contentCache, getCurrentTime())
 }
 
 /**
@@ -159,15 +162,38 @@ export function isCacheViewConsistent(
 }
 
 /**
- * Compute the PlaylistTimingStateDoc from the cached content, for a given point in time.
- * All the timing math lives in meteor-lib/corelib (shared with the client); this only feeds it
- * the cached documents.
+ * Compute every timing document for the playlist - the playlist itself, and one per segment - from
+ * the cached content, for a given point in time.
  */
+export function createTimingStateDocs(
+	playlistId: RundownPlaylistId,
+	contentCache: ReadonlyDeep<ContentCache>,
+	now: number
+): TimingStateDoc[] {
+	const computed = computeTimingState(playlistId, contentCache, now)
+	if (!computed) return []
+
+	return [computed.playlistDoc, ...computed.segmentDocs]
+}
+
+/** Just the playlist-level document. */
 export function createPlaylistTimingStateDoc(
 	playlistId: RundownPlaylistId,
 	contentCache: ReadonlyDeep<ContentCache>,
 	now: number
 ): PlaylistTimingStateDoc | undefined {
+	return computeTimingState(playlistId, contentCache, now)?.playlistDoc
+}
+
+/**
+ * All the timing math lives in meteor-lib/corelib (shared with the client); this only feeds it the
+ * cached documents, and runs the calculator once for both the playlist and the segments.
+ */
+function computeTimingState(
+	playlistId: RundownPlaylistId,
+	contentCache: ReadonlyDeep<ContentCache>,
+	now: number
+): { playlistDoc: PlaylistTimingStateDoc; segmentDocs: SegmentTimingStateDoc[] } | undefined {
 	// Note: the casts below are safe because the cache projections include every field the timing
 	// calculations read (matching the projections the client RundownTimingProvider uses)
 	const playlist = contentCache.RundownPlaylists.findOne(playlistId) as unknown as DBRundownPlaylist | undefined
@@ -196,8 +222,9 @@ export function createPlaylistTimingStateDoc(
 		activePartInstances
 	)
 
-	const timingValues = calculatePlaylistTimingStates(
+	const timingContext = new RundownTimingCalculator().updateDurations(
 		now,
+		false,
 		playlist,
 		partInstances,
 		segmentsMap,
@@ -205,11 +232,22 @@ export function createPlaylistTimingStateDoc(
 		partsInQuickLoop
 	)
 
+	const segmentStates = calculateSegmentTimingStates(now, timingContext, partInstances, segmentsMap)
+
 	return {
-		_id: getPlaylistTimingStateDocId(playlistId),
-		type: 'playlist',
-		playlistId: playlistId,
-		...timingValues,
+		playlistDoc: {
+			_id: getPlaylistTimingStateDocId(playlistId),
+			type: 'playlist',
+			playlistId,
+			...calculatePlaylistTimingStatesFromContext(now, playlist, timingContext),
+		},
+		segmentDocs: Array.from(segmentStates.entries(), ([segmentId, values]) => ({
+			_id: getSegmentTimingStateDocId(segmentId),
+			type: 'segment' as const,
+			playlistId,
+			segmentId,
+			...values,
+		})),
 	}
 }
 

@@ -1,4 +1,4 @@
-import type { PlaylistTimingType } from '@sofie-automation/blueprints-integration'
+import type { CountdownType, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { ProtectedString, protectString } from '../protectedString.js'
 import type { PartInstanceId, RundownPlaylistId, SegmentId } from './Ids.js'
 import type { TimerState } from './TimerState.js'
@@ -19,7 +19,7 @@ export type TimingStateDocId = ProtectedString<'TimingStateDoc'>
  * (e.g. with `isPlaylistTimingStateDoc`) rather than assuming a shape, and must include `type` in
  * any projection they use.
  */
-export type TimingStateDoc = PlaylistTimingStateDoc
+export type TimingStateDoc = PlaylistTimingStateDoc | SegmentTimingStateDoc
 
 /**
  * Playlist-level timing values: the timers shown in the rundown header.
@@ -115,8 +115,41 @@ export interface PlaylistTimingStateDoc {
 	overUnder?: TimerState
 }
 
+/**
+ * Timing values for a single Segment: what the segment duration displays show.
+ */
+export interface SegmentTimingStateDoc {
+	_id: TimingStateDocId
+	type: 'segment'
+	playlistId: RundownPlaylistId
+	segmentId: SegmentId
+
+	/** Which countdown this segment uses. Consumers need it for the hard-floor display rule. */
+	countdownType: CountdownType
+
+	/**
+	 * The segment's planned length: its budget duration, or the sum of its parts' expected
+	 * durations when it has no budget. Constant - duration read.
+	 */
+	plannedDuration?: TimerState
+	/**
+	 * How much of the segment has played out. duration read = the elapsed time, counting up as a
+	 * negative value while the segment is on air (the usual count-up convention).
+	 */
+	playedOut?: TimerState
+	/**
+	 * What is left of the segment. duration read = time remaining, going negative once over.
+	 * For a budgeted segment this is the budget countdown; otherwise planned minus played out.
+	 */
+	remaining?: TimerState
+}
+
 export function getPlaylistTimingStateDocId(playlistId: RundownPlaylistId): TimingStateDocId {
 	return protectString(`playlist_${playlistId}`)
+}
+
+export function getSegmentTimingStateDocId(segmentId: SegmentId): TimingStateDocId {
+	return protectString(`segment_${segmentId}`)
 }
 
 /**
@@ -125,4 +158,12 @@ export function getPlaylistTimingStateDocId(playlistId: RundownPlaylistId): Timi
  */
 export function isPlaylistTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc is PlaylistTimingStateDoc {
 	return doc.type === 'playlist'
+}
+
+/**
+ * Narrow a published timing state document to a segment-level one.
+ * Note that `type` must be present on the document, so include it in any projection.
+ */
+export function isSegmentTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc is SegmentTimingStateDoc {
+	return doc.type === 'segment'
 }

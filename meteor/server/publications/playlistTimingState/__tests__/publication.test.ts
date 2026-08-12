@@ -12,7 +12,10 @@ import { CountdownType, PlaylistTimingType } from '@sofie-automation/blueprints-
 import { IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
-import { getPlaylistTimingStateDocId } from '@sofie-automation/corelib/dist/dataModel/TimingState'
+import {
+	getPlaylistTimingStateDocId,
+	getSegmentTimingStateDocId,
+} from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import {
 	manipulatePlaylistTimingStatePublicationData,
@@ -413,9 +416,9 @@ describe('playlistTimingState publication', () => {
 			const cache = createAndPopulateMockCache()
 			const state = {}
 
-			// a good document is published first
+			// good documents are published first
 			const first = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, { newCache: cache })
-			expect(first).toHaveLength(1)
+			expect(first?.map((doc) => doc._id)).toContain(getPlaylistTimingStateDocId(playlistId))
 
 			setUpTakeInProgress(cache)
 
@@ -483,22 +486,33 @@ describe('playlistTimingState publication', () => {
 			expect(result).toEqual([])
 		})
 
-		it('publishes the doc once a cache arrives, and clears when the playlist disappears', async () => {
+		it('publishes the playlist and a document per segment once a cache arrives', async () => {
 			const cache = createAndPopulateMockCache()
 			const state = {}
 
 			const result = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, {
 				newCache: cache,
 			})
-			expect(result).toHaveLength(1)
-			expect(result?.[0]?._id).toEqual(getPlaylistTimingStateDocId(playlistId))
 
-			// Remove the playlist and invalidate
+			expect(result?.map((doc) => doc._id)).toEqual([
+				getPlaylistTimingStateDocId(playlistId),
+				getSegmentTimingStateDocId(segmentId0),
+				getSegmentTimingStateDocId(segmentId1),
+			])
+		})
+
+		it('clears everything when the playlist disappears', async () => {
+			const cache = createAndPopulateMockCache()
+			const state = {}
+
+			await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, { newCache: cache })
+
 			cache.RundownPlaylists.remove(playlistId)
-			const result2 = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, {
+			const result = await manipulatePlaylistTimingStatePublicationData({ playlistId }, state, {
 				invalidateTiming: true,
 			})
-			expect(result2).toEqual([])
+
+			expect(result).toEqual([])
 		})
 	})
 })
