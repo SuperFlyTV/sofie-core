@@ -423,6 +423,7 @@ export function usePresenterScreenSubscriptions(props: PresenterScreenProps): vo
 	useSubscriptionIfEnabled(CorelibPubSub.parts, rundownIds.length > 0, rundownIds, null)
 	useSubscriptionIfEnabled(MeteorPubSub.uiParts, !!playlist, playlist?._id ?? null)
 	useSubscriptionIfEnabled(MeteorPubSub.uiPartInstances, !!playlist?.activationId, playlist?.activationId ?? null)
+	useSubscriptionIfEnabled(CorelibPubSub.playlistTimingState, !!playlist, props.playlistId)
 	useSubscriptionIfEnabled(CorelibPubSub.pieces, rundownIds.length > 0, rundownIds, null)
 	useSubscriptions(
 		MeteorPubSub.uiShowStyleBase,

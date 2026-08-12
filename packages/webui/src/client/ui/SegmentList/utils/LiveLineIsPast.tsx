@@ -1,22 +1,19 @@
 import React from 'react'
-import { TimingDataResolution, TimingTickResolution, useTiming } from '../../RundownView/RundownTiming/withTiming.js'
+import { TimingTickResolution } from '../../RundownView/RundownTiming/withTiming.js'
+import { TimerValueMode, usePartTimingValue } from '../../RundownView/RundownTiming/usePlaylistTimingValue.js'
+import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
 export const LiveLineIsPast = React.memo(function LiveLineIsPast({
-	partTimingId,
+	partId,
 	time,
 	children,
 }: {
-	partTimingId: string
+	partId: PartId
 	time: number
 	children?: (isPast: boolean) => JSX.Element | null
 }) {
-	const timingContext = useTiming(
-		TimingTickResolution.High,
-		TimingDataResolution.High,
-		(data) => data.partPlayed?.[partTimingId]
-	)
-
-	const livePosition = timingContext.partPlayed?.[partTimingId] ?? 0
+	const livePosition =
+		usePartTimingValue(partId, 'played', TimerValueMode.CountUp, { tickResolution: TimingTickResolution.High }) ?? 0
 
 	return children ? children(livePosition > time) : null
 })

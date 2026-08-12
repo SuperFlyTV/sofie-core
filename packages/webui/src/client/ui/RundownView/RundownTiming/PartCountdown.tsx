@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react'
 import Moment from 'react-moment'
-import { useTiming } from './withTiming.js'
-import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { RundownUtils } from '../../../lib/rundown.js'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { TimerValueMode, usePartTimingValue, useTimingNow } from './usePlaylistTimingValue.js'
 
 interface IPartCountdownProps {
 	partId?: PartId
@@ -19,41 +18,32 @@ interface IPartCountdownProps {
  * A presentational component that will render a countdown to a given Part
  */
 export function PartCountdown(props: IPartCountdownProps): JSX.Element | null {
-	const timingDurations = useTiming()
+	// absent when the Part will probably not be played out, if played in order
+	const thisPartCountdown = usePartTimingValue(props.partId, 'countdown', TimerValueMode.Duration)
+	const now = useTimingNow()
 
-	if (!props.partId || !timingDurations?.partCountdown) return null
-	const thisPartCountdown: number | undefined =
-		timingDurations.partCountdown[unprotectString(props.partId)] ?? undefined
+	if (thisPartCountdown === null || (props.hideOnZero === true && thisPartCountdown <= 0)) return null
 
-	if (thisPartCountdown !== undefined && (props.hideOnZero !== true || thisPartCountdown > 0)) {
-		return (
-			<>
-				{props.label}
-				<span role="timer">
-					{props.useWallClock ? (
-						<Moment
-							interval={0}
-							format="HH:mm:ss"
-							date={
-								(props.playlist.activationId
-									? // if show is activated, use currentTime as base
-										(timingDurations.currentTime ?? 0)
-									: // if show is not activated, use expectedStart or currentTime, whichever is later
-										Math.max(
-											PlaylistTiming.getExpectedStart(props.playlist.timing) ?? 0,
-											timingDurations.currentTime ?? 0
-										)) + (thisPartCountdown || 0)
-							}
-						/>
-					) : (
-						RundownUtils.formatTimeToShortTime(
-							thisPartCountdown // shouldShow will be false if thisPartCountdown is undefined
-						)
-					)}
-				</span>
-			</>
-		)
-	} else {
-		return null
-	}
+	return (
+		<>
+			{props.label}
+			<span role="timer">
+				{props.useWallClock ? (
+					<Moment
+						interval={0}
+						format="HH:mm:ss"
+						date={
+							(props.playlist.activationId
+								? // if show is activated, use currentTime as base
+									now
+								: // if show is not activated, use expectedStart or currentTime, whichever is later
+									Math.max(PlaylistTiming.getExpectedStart(props.playlist.timing) ?? 0, now)) + thisPartCountdown
+						}
+					/>
+				) : (
+					RundownUtils.formatTimeToShortTime(thisPartCountdown)
+				)}
+			</span>
+		</>
+	)
 }

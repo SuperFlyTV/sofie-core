@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
-import type { PartInstanceId, RundownPlaylistId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import type { PartId, PartInstanceId, RundownPlaylistId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
+	getPartTimingStateDocId,
 	getPlaylistTimingStateDocId,
 	getSegmentTimingStateDocId,
+	isPartTimingStateDoc,
 	isPlaylistTimingStateDoc,
 	isSegmentTimingStateDoc,
+	type PartTimingStateDoc,
 	type PlaylistTimingStateDoc,
 	type SegmentTimingStateDoc,
 	type TimingStateDoc,
@@ -16,6 +19,7 @@ import {
 	timerStateToZeroTime,
 } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import type { MongoFieldSpecifierOnes } from '@sofie-automation/corelib/dist/mongo'
+import { assertNever } from '@sofie-automation/corelib/dist/lib'
 import { PlaylistTimingStates } from '../../Collections.js'
 import { useTracker } from '../../../lib/ReactMeteorData/ReactMeteorData.js'
 import { getCurrentTime } from '../../../lib/systemTime.js'
@@ -34,6 +38,14 @@ export enum TimerValueMode {
 	 * Use for a wall-clock display ("Plan. End", "Est. End").
 	 */
 	Timestamp = 'timestamp',
+	/**
+	 * Milliseconds elapsed, as a positive growing number.
+	 *
+	 * A TimerState's duration read can hold or fall but never rise, so anything that counts up is
+	 * published as a falling negative (`played`, `playedOut`, `liveDisplayDuration`). This flips it
+	 * back, so callers of those never have to negate by hand.
+	 */
+	CountUp = 'countUp',
 }
 
 /** The fields of a published document that can be read as a single TimerState */
@@ -43,6 +55,7 @@ type TimerKeysOf<TDoc> = {
 
 export type PlaylistTimerKey = TimerKeysOf<PlaylistTimingStateDoc>
 export type SegmentTimerKey = TimerKeysOf<SegmentTimingStateDoc>
+export type PartTimerKey = TimerKeysOf<PartTimingStateDoc>
 
 export interface UsePlaylistTimingValueOptions {
 	/**
@@ -114,6 +127,22 @@ export function useSegmentTimingValue(
 	)
 }
 
+/**
+ * Read a single timer from a part's published timing state. See {@link usePlaylistTimingValue}.
+ *
+ * Each part's document already describes that part, so unlike the playlist's on-air timers this
+ * needs no identity guard. Note that `played` and `liveDisplayDuration` count up, so they want
+ * {@link TimerValueMode.CountUp}.
+ */
+export function usePartTimingValue(
+	partId: PartId | undefined,
+	timer: PartTimerKey,
+	mode: TimerValueMode,
+	options?: UsePlaylistTimingValueOptions
+): number | null {
+	return useTimingStateValue(partId && getPartTimingStateDocId(partId), isPartTimingStateDoc, timer, mode, options)
+}
+
 function useTimingStateValue<TDoc extends TimingStateDoc>(
 	docId: TimingStateDocId | undefined,
 	isWantedDoc: (doc: Pick<TimingStateDoc, 'type'>) => doc is TDoc,
@@ -157,7 +186,18 @@ function useTimingStateValue<TDoc extends TimingStateDoc>(
 
 	if (!state) return null
 
-	return mode === TimerValueMode.Duration ? timerStateToDuration(state, now) : timerStateToZeroTime(state, now)
+	switch (mode) {
+		case TimerValueMode.Duration:
+			return timerStateToDuration(state, now)
+		case TimerValueMode.CountUp:
+			// subtracting rather than negating, so that nothing elapsed gives 0 rather than -0
+			return 0 - timerStateToDuration(state, now)
+		case TimerValueMode.Timestamp:
+			return timerStateToZeroTime(state, now)
+		default:
+			assertNever(mode)
+			return null
+	}
 }
 
 /**
