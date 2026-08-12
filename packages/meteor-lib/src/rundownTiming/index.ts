@@ -35,13 +35,9 @@ import {
 	isEntirePlaylistLooping,
 } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
 
-// Minimum duration that a part can be assigned. Used by gap parts to allow them to "compress" to indicate time running out.
-const MINIMAL_NONZERO_DURATION = 1
+import { type CalculateTimingsPartInstance, PartDurationResolver } from './resolvePartTimings.js'
 
-type CalculateTimingsPartInstance = Pick<
-	PartInstance,
-	'_id' | 'isTemporary' | 'segmentId' | 'segmentPlayoutId' | 'orphaned' | 'timings' | 'part'
->
+export type { CalculateTimingsPartInstance }
 
 export type TimingId = string
 
@@ -68,7 +64,6 @@ export class RundownTimingCalculator {
 	private partDisplayStartsAt: Record<TimingId, number> = {}
 	private partDisplayDurations: Record<TimingId, number> = {}
 	private partDisplayDurationsNoPlayback: Record<TimingId, number> = {}
-	private displayDurationGroups: Record<string, number> = {}
 	private segmentAsPlayedDurations: Record<string, number> = {}
 
 	/**
@@ -127,7 +122,9 @@ export class RundownTimingCalculator {
 
 		let liveSegmentIds: { segmentId: SegmentId; segmentPlayoutId: SegmentPlayoutId } | undefined
 
-		Object.keys(this.displayDurationGroups).forEach((key) => delete this.displayDurationGroups[key])
+		// The display-duration group pools only live for the length of one pass over the playout order
+		const partDurationResolver = new PartDurationResolver()
+
 		Object.keys(this.segmentAsPlayedDurations).forEach((key) => delete this.segmentAsPlayedDurations[key])
 		this.untimedSegments.clear()
 		this.linearParts.length = 0
@@ -230,78 +227,22 @@ export class RundownTimingCalculator {
 					totalRundownDuration += calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0
 				}
 
-				const playOffset = partInstance.timings?.playOffset || 0
+				const resolved = partDurationResolver.resolve(
+					partInstance,
+					partInstances[itIndex + 1],
+					now,
+					lastStartedPlayback,
+					defaultDuration
+				)
+				const { memberOfDisplayDurationGroup, displayDurationFromGroup } = resolved
+				const partExpectedDuration = resolved.expectedDuration
+				const partDuration = resolved.duration
+				const partDisplayDurationNoPlayback = resolved.displayDurationNoPlayback
+				let partDisplayDuration = resolved.displayDuration
+				this.partPlayed[partInstanceOrPartId] = resolved.played
 
-				let partDuration = 0
-				let partExpectedDuration = 0
-				let partDisplayDuration = 0
-				let partDisplayDurationNoPlayback = 0
-
-				let displayDurationFromGroup = 0
-
-				partExpectedDuration =
-					calculatePartInstanceExpectedDurationWithTransition(partInstance) ||
-					partInstance.timings?.duration ||
-					0
-
-				// Display Duration groups are groups of two or more Parts, where some of them have an
-				// expectedDuration and some have 0.
-				// Then, some of them will have a displayDuration. The expectedDurations are pooled together, the parts with
-				// display durations will take up that much time in the Rundown. The left-over time from the display duration group
-				// will be used by Parts without expectedDurations.
-				let memberOfDisplayDurationGroup = false
-				// using a separate displayDurationGroup processing flag simplifies implementation
-				if (
-					partInstance.part.displayDurationGroup &&
-					// either this is not the first element of the displayDurationGroup
-					(this.displayDurationGroups[partInstance.part.displayDurationGroup] !== undefined ||
-						// or there is a following member of this displayDurationGroup
-						(partInstances[itIndex + 1] &&
-							partInstances[itIndex + 1].part.displayDurationGroup ===
-								partInstance.part.displayDurationGroup)) &&
-					!partInstance.part.floated &&
-					!partIsUntimed
-				) {
-					this.displayDurationGroups[partInstance.part.displayDurationGroup] =
-						(this.displayDurationGroups[partInstance.part.displayDurationGroup] || 0) +
-						(calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0)
-					displayDurationFromGroup =
-						partInstance.part.displayDuration ||
-						Math.max(
-							0,
-							this.displayDurationGroups[partInstance.part.displayDurationGroup],
-							partInstance.part.gap ? MINIMAL_NONZERO_DURATION : defaultDuration
-						)
-					partExpectedDuration =
-						partExpectedDuration || this.displayDurationGroups[partInstance.part.displayDurationGroup] || 0
-					memberOfDisplayDurationGroup = true
-				}
-
-				// This is where we actually calculate all the various variants of duration of a part
 				if (lastStartedPlayback && !partInstance.timings?.duration) {
-					// if duration isn't available, check if `plannedStoppedPlayback` has already been set and use the difference
-					// between startedPlayback and plannedStoppedPlayback as the duration
-					const duration =
-						partInstance.timings?.duration ||
-						(partInstance.timings?.plannedStoppedPlayback
-							? lastStartedPlayback - partInstance.timings?.plannedStoppedPlayback
-							: undefined)
-					partDuration =
-						Math.max(
-							duration || calculatePartInstanceExpectedDurationWithTransition(partInstance) || 0,
-							now - lastStartedPlayback
-						) - playOffset
-					// because displayDurationGroups have no actual timing on them, we need to have a copy of the
-					// partDisplayDuration, but calculated as if it's not playing, so that the countdown can be
-					// calculated
-					partDisplayDurationNoPlayback =
-						duration ||
-						(memberOfDisplayDurationGroup
-							? displayDurationFromGroup
-							: calculatePartInstanceExpectedDurationWithTransition(partInstance)) ||
-						defaultDuration
-					partDisplayDuration = Math.max(partDisplayDurationNoPlayback, now - lastStartedPlayback)
-					this.partPlayed[partInstanceOrPartId] = now - lastStartedPlayback
+					const duration = resolved.recordedDuration
 					const segmentStartedPlayback =
 						playlist.segmentsStartedPlayback?.[unprotectString(partInstance.segmentPlayoutId)] ??
 						lastStartedPlayback
@@ -324,23 +265,6 @@ export class RundownTimingCalculator {
 								(now - lastStartedPlayback)
 						)
 					}
-				} else {
-					partDuration =
-						(partInstance.timings?.duration ||
-							calculatePartInstanceExpectedDurationWithTransition(partInstance) ||
-							0) - playOffset
-					partDisplayDurationNoPlayback = Math.max(
-						0,
-						(partInstance.timings?.duration && partInstance.timings?.duration + playOffset) ||
-							displayDurationFromGroup ||
-							ensureMinimumDefaultDurationIfNotAuto(
-								partInstance,
-								calculatePartInstanceExpectedDurationWithTransition(partInstance),
-								defaultDuration
-							)
-					)
-					partDisplayDuration = partDisplayDurationNoPlayback
-					this.partPlayed[partInstanceOrPartId] = (partInstance.timings?.duration || 0) - playOffset
 				}
 
 				// asPlayed is the actual duration so far and expected durations in unplayed lines.
@@ -429,17 +353,12 @@ export class RundownTimingCalculator {
 					this.partPlayed[partInstanceOrPartId] = 0
 				}
 
-				if (
-					memberOfDisplayDurationGroup &&
-					partInstance.part.displayDurationGroup &&
-					!partInstance.part.floated &&
-					!partInstance.part.invalid &&
-					!partIsUntimed &&
-					(partInstance.timings?.duration || partInstance.timings?.plannedStoppedPlayback || partCounts)
-				) {
-					this.displayDurationGroups[partInstance.part.displayDurationGroup] =
-						this.displayDurationGroups[partInstance.part.displayDurationGroup] - partDisplayDuration
-				}
+				partDurationResolver.takeFromDisplayDurationGroup(
+					partInstance,
+					resolved,
+					partDisplayDuration,
+					partCounts
+				)
 
 				this.partExpectedDurations[partInstanceOrPartId] = partExpectedDuration
 				this.partStartsAt[partInstanceOrPartId] = startsAtAccumulator
@@ -844,18 +763,6 @@ export function getPartInstanceTimingValue(
 		return values[unprotectString(partInstance.part._id)] ?? null
 	}
 	return values[unprotectString(partInstance._id)] ?? values[unprotectString(partInstance.part._id)] ?? null
-}
-
-function ensureMinimumDefaultDurationIfNotAuto(
-	partInstance: CalculateTimingsPartInstance,
-	incomingDuration: number | undefined,
-	defaultDuration: number
-): number {
-	if (incomingDuration === undefined || !Number.isFinite(incomingDuration)) return defaultDuration
-
-	if (partInstance.part.autoNext) return incomingDuration
-
-	return Math.max(incomingDuration, defaultDuration)
 }
 
 export type MinimalPartInstance = Pick<
