@@ -5,8 +5,10 @@ import { ReadonlyDeep } from 'type-fest'
 import { CorelibPubSub } from '@sofie-automation/corelib/dist/pubsub'
 import { CustomCollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
 import {
+	getPartTimingStateDocId,
 	getPlaylistTimingStateDocId,
 	getSegmentTimingStateDocId,
+	PartTimingStateDoc,
 	PlaylistTimingStateDoc,
 	SegmentTimingStateDoc,
 	TimingStateDoc,
@@ -20,6 +22,7 @@ import { sortSegmentsInRundowns } from '@sofie-automation/corelib/dist/playout/p
 import { DEFAULT_DISPLAY_DURATION } from '@sofie-automation/shared-lib/dist/core/constants'
 import { calculatePlaylistTimingStatesFromContext } from '@sofie-automation/meteor-lib/dist/rundownTiming/playlistTimingState'
 import { calculateSegmentTimingStates } from '@sofie-automation/meteor-lib/dist/rundownTiming/segmentTimingState'
+import { calculatePartTimingStates } from '@sofie-automation/meteor-lib/dist/rundownTiming/partTimingState'
 import { prepareTimingPartInstances } from '@sofie-automation/meteor-lib/dist/rundownTiming/prepareTimingInputs'
 import { RundownTimingCalculator } from '@sofie-automation/meteor-lib/dist/rundownTiming/index'
 import { setUpOptimizedObserverArray, SetupObserversResult, TriggerUpdate } from '../../lib/customPublication'
@@ -162,8 +165,8 @@ export function isCacheViewConsistent(
 }
 
 /**
- * Compute every timing document for the playlist - the playlist itself, and one per segment - from
- * the cached content, for a given point in time.
+ * Compute every timing document for the playlist - the playlist itself, one per segment and one per
+ * part - from the cached content, for a given point in time.
  */
 export function createTimingStateDocs(
 	playlistId: RundownPlaylistId,
@@ -173,7 +176,7 @@ export function createTimingStateDocs(
 	const computed = computeTimingState(playlistId, contentCache, now)
 	if (!computed) return []
 
-	return [computed.playlistDoc, ...computed.segmentDocs]
+	return [computed.playlistDoc, ...computed.segmentDocs, ...computed.partDocs]
 }
 
 /** Just the playlist-level document. */
@@ -193,7 +196,9 @@ function computeTimingState(
 	playlistId: RundownPlaylistId,
 	contentCache: ReadonlyDeep<ContentCache>,
 	now: number
-): { playlistDoc: PlaylistTimingStateDoc; segmentDocs: SegmentTimingStateDoc[] } | undefined {
+):
+	| { playlistDoc: PlaylistTimingStateDoc; segmentDocs: SegmentTimingStateDoc[]; partDocs: PartTimingStateDoc[] }
+	| undefined {
 	// Note: the casts below are safe because the cache projections include every field the timing
 	// calculations read (matching the projections the client RundownTimingProvider uses)
 	const playlist = contentCache.RundownPlaylists.findOne(playlistId) as unknown as DBRundownPlaylist | undefined
@@ -233,6 +238,11 @@ function computeTimingState(
 	)
 
 	const segmentStates = calculateSegmentTimingStates(now, timingContext, partInstances, segmentsMap)
+	const partStates = calculatePartTimingStates(timingContext, partInstances)
+
+	// The part states are keyed by PartId; the PartInstance each was resolved from carries the rest
+	// of the document's identity
+	const partInstancesByPartId = new Map(partInstances.map((partInstance) => [partInstance.part._id, partInstance]))
 
 	return {
 		playlistDoc: {
@@ -248,6 +258,21 @@ function computeTimingState(
 			segmentId,
 			...values,
 		})),
+		partDocs: Array.from(partStates.entries(), ([partId, values]) => {
+			const partInstance = partInstancesByPartId.get(partId)
+
+			return {
+				_id: getPartTimingStateDocId(partId),
+				type: 'part' as const,
+				playlistId,
+				segmentId: partInstance?.segmentId as SegmentId,
+				partId,
+				// temporary instances are wrappers around a Part that has never been played, so they
+				// have no PartInstance identity to report
+				partInstanceId: partInstance && !partInstance.isTemporary ? partInstance._id : undefined,
+				...values,
+			}
+		}),
 	}
 }
 

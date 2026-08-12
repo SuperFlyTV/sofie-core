@@ -7,19 +7,22 @@ import {
 	SegmentPlayoutId,
 	StudioId,
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import { protectString } from '@sofie-automation/corelib/dist/protectedString'
+import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import { CountdownType, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { IStudioSettings } from '@sofie-automation/corelib/dist/dataModel/Studio'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import {
 	getPlaylistTimingStateDocId,
+	getPartTimingStateDocId,
 	getSegmentTimingStateDocId,
+	type TimingStateDoc,
 } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import {
 	manipulatePlaylistTimingStatePublicationData,
 	createPlaylistTimingStateDoc,
+	createTimingStateDocs,
 	isCacheViewConsistent,
 } from '../publication'
 import { ContentCache, createReactiveContentCache } from '../reactiveContentCache'
@@ -478,6 +481,96 @@ describe('playlistTimingState publication', () => {
 		})
 	})
 
+	describe('document churn', () => {
+		/**
+		 * Which documents actually differ between two computations. The publication deep-diffs its
+		 * output and only sends what changed, so this is what a subscriber sees on the wire - the
+		 * property worth pinning, because the per-part documents make it O(parts) rather than O(1).
+		 */
+		function changedDocIds(before: TimingStateDoc[], after: TimingStateDoc[]): string[] {
+			const beforeById = new Map(before.map((doc) => [unprotectString(doc._id), JSON.stringify(doc)]))
+
+			return after
+				.filter((doc) => beforeById.get(unprotectString(doc._id)) !== JSON.stringify(doc))
+				.map((doc) => unprotectString(doc._id))
+		}
+
+		it('recomputing at a later time changes nothing', () => {
+			const cache = createAndPopulateMockCache()
+			const partInstanceId = putPartOnAir(cache, 'part0', segmentId0, 'instance0', 1, {
+				plannedStartedPlayback: 1000,
+			})
+			setPlaylistPlayout(cache, { startedPlayback: 1000, currentPartInstanceId: partInstanceId })
+
+			// this is what lets the publication stay quiet between playout events
+			expect(
+				changedDocIds(
+					createTimingStateDocs(playlistId, cache, 2000),
+					createTimingStateDocs(playlistId, cache, 10000)
+				)
+			).toEqual([])
+
+			// Past the on-air part's planned end at 11000 the playlist document re-anchors: it reports
+			// the same values, but a state that has passed its breakpoint is re-expressed as a plain
+			// paused one. The part documents stay byte-identical even across that.
+			expect(
+				changedDocIds(
+					createTimingStateDocs(playlistId, cache, 2000),
+					createTimingStateDocs(playlistId, cache, 60000)
+				)
+			).toEqual(['playlist_playlist0'])
+		})
+
+		it('changing one part changes that part, and the countdowns that follow it', () => {
+			const cache = createAndPopulateMockCache()
+			const before = createTimingStateDocs(playlistId, cache, 1000)
+
+			const part1 = cache.Parts.findOne(protectString('part1'))
+			if (!part1) throw new Error('part1 not found in cache')
+			cache.Parts.replace({ ...part1, expectedDuration: 20000, expectedDurationWithTransition: 20000 })
+
+			// part1's own durations change, and the parts after it start later - but part0, which comes
+			// before it, is untouched, as are the segment and playlist documents that do not span it
+			expect(changedDocIds(before, createTimingStateDocs(playlistId, cache, 1000))).toEqual([
+				'playlist_playlist0',
+				'segment_segment0',
+				'part_part1',
+				'part_part2',
+				'part_part3',
+			])
+		})
+
+		it('a take changes every downstream countdown', () => {
+			const cache = createAndPopulateMockCache()
+			const instance0 = putPartOnAir(cache, 'part0', segmentId0, 'instance0', 1, { plannedStartedPlayback: 1000 })
+			setPlaylistPlayout(cache, { startedPlayback: 1000, currentPartInstanceId: instance0 })
+			const before = createTimingStateDocs(playlistId, cache, 5000)
+
+			const instance1 = putPartOnAir(cache, 'part1', segmentId0, 'instance1', 2, { plannedStartedPlayback: 5000 })
+			const playedInstance0 = cache.PartInstances.findOne(instance0)
+			if (!playedInstance0) throw new Error('instance0 not found in cache')
+			cache.PartInstances.replace({
+				...playedInstance0,
+				timings: { ...playedInstance0.timings, duration: 4000 },
+			})
+			setPlaylistPlayout(cache, { startedPlayback: 1000, currentPartInstanceId: instance1 })
+
+			// Every part's countdown is an offset from the one that is running, so a take necessarily
+			// moves all of them. This is inherent to publishing per-part countdowns at all - any
+			// absolute per-part time depends on the durations accumulated before it - so it is pinned
+			// here rather than treated as something to optimise away.
+			// (segment0 is unchanged: the take stays within it and its played-out total is the same
+			// either side of it)
+			expect(changedDocIds(before, createTimingStateDocs(playlistId, cache, 5000))).toEqual([
+				'playlist_playlist0',
+				'part_part0',
+				'part_part1',
+				'part_part2',
+				'part_part3',
+			])
+		})
+	})
+
 	describe('manipulatePlaylistTimingStatePublicationData', () => {
 		it('publishes nothing before a cache is provided', async () => {
 			const state = {}
@@ -486,7 +579,7 @@ describe('playlistTimingState publication', () => {
 			expect(result).toEqual([])
 		})
 
-		it('publishes the playlist and a document per segment once a cache arrives', async () => {
+		it('publishes the playlist and a document per segment and part once a cache arrives', async () => {
 			const cache = createAndPopulateMockCache()
 			const state = {}
 
@@ -498,6 +591,10 @@ describe('playlistTimingState publication', () => {
 				getPlaylistTimingStateDocId(playlistId),
 				getSegmentTimingStateDocId(segmentId0),
 				getSegmentTimingStateDocId(segmentId1),
+				getPartTimingStateDocId(protectString('part0')),
+				getPartTimingStateDocId(protectString('part1')),
+				getPartTimingStateDocId(protectString('part2')),
+				getPartTimingStateDocId(protectString('part3')),
 			])
 		})
 
