@@ -1,6 +1,6 @@
 import type { CountdownType, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { ProtectedString, protectString } from '../protectedString.js'
-import type { PartInstanceId, RundownPlaylistId, SegmentId } from './Ids.js'
+import type { PartId, PartInstanceId, RundownPlaylistId, SegmentId } from './Ids.js'
 import type { TimerState } from './TimerState.js'
 
 export type TimingStateDocId = ProtectedString<'TimingStateDoc'>
@@ -14,12 +14,11 @@ export type TimingStateDocId = ProtectedString<'TimingStateDoc'>
  * `timerStateToZeroTime`) and the server only needs to publish updates when playout or ingest state
  * changes, never on a clock tick.
  *
- * This is a discriminated union, keyed on `type`, with one document per "area": the playlist itself
- * today, and per-segment / per-partInstance documents to follow. Consumers must narrow on `type`
- * (e.g. with `isPlaylistTimingStateDoc`) rather than assuming a shape, and must include `type` in
- * any projection they use.
+ * This is a discriminated union, keyed on `type`, with one document per "area": the playlist, each
+ * segment and each part. Consumers must narrow on `type` (e.g. with `isPlaylistTimingStateDoc`)
+ * rather than assuming a shape, and must include `type` in any projection they use.
  */
-export type TimingStateDoc = PlaylistTimingStateDoc | SegmentTimingStateDoc
+export type TimingStateDoc = PlaylistTimingStateDoc | SegmentTimingStateDoc | PartTimingStateDoc
 
 /**
  * Playlist-level timing values: the timers shown in the rundown header.
@@ -144,12 +143,96 @@ export interface SegmentTimingStateDoc {
 	remaining?: TimerState
 }
 
+/**
+ * Timing values for a single Part.
+ *
+ * The static fields here are the *resolved* durations - the whole cascade of fallbacks (recorded
+ * duration, expected duration with transition, the Part's share of its display-duration group, the
+ * Studio default) has already been applied. A consumer takes the number it wants and needs to know
+ * none of that.
+ */
+export interface PartTimingStateDoc {
+	_id: TimingStateDocId
+	type: 'part'
+	playlistId: RundownPlaylistId
+	segmentId: SegmentId
+	partId: PartId
+	/**
+	 * The PartInstance this describes, when there is one. Absent for Parts that have not been played.
+	 * Note that most timing values are keyed by PartInstance where one exists and by Part otherwise,
+	 * which is why both ids are carried here.
+	 */
+	partInstanceId?: PartInstanceId
+
+	/**
+	 * Position in the playout order, counting from 0.
+	 * Documents have no inherent order, and several displays need "the parts in order" or "the first
+	 * part", so this carries the order that the publication resolved them in.
+	 */
+	rank: number
+
+	/** Whether the Part is inside the QuickLoop */
+	isInQuickLoop: boolean
+
+	/**
+	 * Whether this Part contributes to the playlist and rundown totals. False for Parts that will be
+	 * skipped if the rundown is played in order, unless the playlist allows out-of-order timing.
+	 */
+	countsTowardsTiming: boolean
+
+	/**
+	 * The Part's expected duration, resolved. Constant - duration read, positive.
+	 */
+	expectedDuration?: TimerState
+
+	/**
+	 * How long the Part occupies in the rundown display, resolved, as if it were not playing.
+	 * Constant - duration read, positive. See `liveDisplayDuration` for the on-air value.
+	 */
+	displayDuration?: TimerState
+
+	/**
+	 * Countdown until this Part goes on air.
+	 * duration read = time until it starts, holding at the Part's own wait once the on-air Part has
+	 * overrun (the countdown cannot go below the waits that still have to happen).
+	 *
+	 * Absent when the Part will probably not be played out if the rundown is played in order - which
+	 * is what the displays use to decide not to show a countdown at all.
+	 */
+	countdown?: TimerState
+
+	/**
+	 * How much of this Part has played.
+	 * duration read = the elapsed time as a *negative* value, per the count-up convention also used
+	 * by the Segment document's `playedOut` - a TimerState's duration read can hold or fall, never
+	 * rise, so a quantity that grows is published as one that falls. Free-running while the Part is
+	 * on air, frozen at the recorded duration once it is done.
+	 */
+	played?: TimerState
+
+	/**
+	 * `displayDuration` while the Part is on air: it grows once the Part passes its planned end, so
+	 * that an overrunning Part keeps taking up more room rather than being drawn as finished.
+	 * Only differs from `displayDuration` for the on-air Part.
+	 * duration read = *negative*, per the count-up convention described on `played`.
+	 */
+	liveDisplayDuration?: TimerState
+}
+
 export function getPlaylistTimingStateDocId(playlistId: RundownPlaylistId): TimingStateDocId {
 	return protectString(`playlist_${playlistId}`)
 }
 
 export function getSegmentTimingStateDocId(segmentId: SegmentId): TimingStateDocId {
 	return protectString(`segment_${segmentId}`)
+}
+
+/**
+ * Keyed on the PartId rather than the PartInstanceId, so that a Part keeps one document across
+ * takes and resets, and consumers that only know the Part (which is most of them) can find it.
+ */
+export function getPartTimingStateDocId(partId: PartId): TimingStateDocId {
+	return protectString(`part_${partId}`)
 }
 
 /**
@@ -166,4 +249,12 @@ export function isPlaylistTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc
  */
 export function isSegmentTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc is SegmentTimingStateDoc {
 	return doc.type === 'segment'
+}
+
+/**
+ * Narrow a published timing state document to a part-level one.
+ * Note that `type` must be present on the document, so include it in any projection.
+ */
+export function isPartTimingStateDoc(doc: Pick<TimingStateDoc, 'type'>): doc is PartTimingStateDoc {
+	return doc.type === 'part'
 }

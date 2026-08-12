@@ -124,6 +124,8 @@ export class RundownTimingCalculator {
 
 		/** Keyed by partId, matching `partCountdown`. Rebuilt each run, so it never goes stale */
 		const partCountdownStates: Record<TimingId, TimerState | null> = {}
+		/** Rebuilt each run, so it never goes stale */
+		const partCountsTowardsTiming: Record<TimingId, boolean> = {}
 
 		const rundownExpectedDurations: Record<string, number> = {}
 		const rundownAsPlayedDurations: Record<string, number> = {}
@@ -220,6 +222,8 @@ export class RundownTimingCalculator {
 					!playlist.activationId ||
 					(itIndex >= currentAIndex && currentAIndex >= 0) ||
 					(itIndex >= nextAIndex && nextAIndex >= 0 && currentAIndex === -1)
+
+				partCountsTowardsTiming[partInstanceOrPartId] = partCounts
 
 				const partIsUntimed = partInstance.part.untimed || false
 
@@ -351,8 +355,16 @@ export class RundownTimingCalculator {
 
 				// the part is the current part but has not yet started playback
 				if (playlist.currentPartInfo?.partInstanceId === partInstance._id && !lastStartedPlayback) {
-					// nothing is ticking yet, so this simply holds at the part's full length
-					currentRemainingState = { paused: true, duration: partDisplayDuration }
+					// Nothing is ticking yet, so this holds at the part's full length. Where the start is
+					// already known but still in the future - the window after a take in a multi-gateway
+					// studio - `resumesAt` carries it, so the countdowns are right the moment it passes
+					// rather than only once this has been recomputed and republished.
+					const plannedStartedPlayback = partInstance.timings?.plannedStartedPlayback
+					currentRemainingState = {
+						paused: true,
+						duration: partDisplayDuration,
+						resumesAt: plannedStartedPlayback ?? null,
+					}
 				}
 
 				// Handle invalid parts by overriding the values to preset values for Invalid parts
@@ -625,12 +637,14 @@ export class RundownTimingCalculator {
 			rundownAsPlayedDurations,
 			partCountdown: objectFromEntries(this.linearParts),
 			partCountdownStates,
+			partCountsTowardsTiming,
 			partDurations: this.partDurations,
 			partPlayed: this.partPlayed,
 			partStartsAt: this.partStartsAt,
 			partDisplayStartsAt: this.partDisplayStartsAt,
 			partExpectedDurations: this.partExpectedDurations,
 			partDisplayDurations: this.partDisplayDurations,
+			partDisplayDurationsNoPlayback: this.partDisplayDurationsNoPlayback,
 			currentTime: now,
 			remainingTimeOnCurrentPart,
 			remainingTimeOnCurrentPartState,
@@ -682,6 +696,11 @@ export interface RundownTimingContext {
 	 * Also keyed by PartId; `null` means "will probably not be played out, if played in order".
 	 */
 	partCountdownStates?: Record<string, TimerState | null>
+	/**
+	 * Whether each part contributes to the playlist and rundown totals - false for parts that will be
+	 * skipped if the rundown is played in order, unless the playlist allows out-of-order timing.
+	 */
+	partCountsTowardsTiming?: Record<string, boolean>
 	/** The calculated durations of each of the Parts: as-planned/as-run depending on state. */
 	partDurations?: Record<string, number>
 	/** Whether a Part (or Part Instance) is within the QuickLoop */
@@ -696,6 +715,10 @@ export interface RundownTimingContext {
 	 * (such as minimal display width for an Part, etc.).
 	 */
 	partDisplayDurations?: Record<string, number>
+	/** Same as partDisplayDurations, but calculated as if the part were not playing - so it does not
+	 * grow while the on-air part overruns. This is the static part of the display duration.
+	 */
+	partDisplayDurationsNoPlayback?: Record<string, number>
 	/** As-played durations of each part. Will be 0, if not yet played.
 	 * Will be counted from start to now if currently playing.
 	 */
