@@ -174,6 +174,30 @@ export function usePartTimingField<TField extends 'rank' | 'isInQuickLoop' | 'co
 	)
 }
 
+/**
+ * Every part of the playlist, in playout order.
+ *
+ * Documents have no inherent order, so this sorts on the `rank` the publication resolved them in -
+ * which is the order the calculator walked, not the ingest order, and so accounts for the queued
+ * segment and the parts that are actually going to be played.
+ */
+export function useOrderedPartIds(playlistId: RundownPlaylistId | undefined): PartId[] {
+	return (
+		useTracker(
+			() => {
+				if (!playlistId) return []
+
+				return PlaylistTimingStates.find({ type: 'part', playlistId } as never, {
+					fields: { partId: 1, rank: 1 } satisfies MongoFieldSpecifierOnes<PartTimingStateDoc>,
+					sort: { rank: 1 },
+				}).map((doc) => (doc as PartTimingStateDoc).partId)
+			},
+			[playlistId],
+			[]
+		) ?? []
+	)
+}
+
 function useTimingStateValue<TDoc extends TimingStateDoc>(
 	docId: TimingStateDocId | undefined,
 	isWantedDoc: (doc: Pick<TimingStateDoc, 'type'>) => doc is TDoc,

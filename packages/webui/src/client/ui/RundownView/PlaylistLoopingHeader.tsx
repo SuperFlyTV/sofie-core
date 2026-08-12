@@ -2,25 +2,30 @@ import classNames from 'classnames'
 import { useTranslation } from 'react-i18next'
 import Moment from 'react-moment'
 import { LoopingIcon } from '../../lib/ui/icons/looping.js'
-import { useTiming } from './RundownTiming/withTiming.js'
+import { useTimingPlaylistId } from './RundownTiming/withTiming.js'
+import {
+	TimerValueMode,
+	useOrderedPartIds,
+	usePartTimingValue,
+	useTimingNow,
+} from './RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../lib/rundown.js'
 
 function NextLoopClock({ useWallClock }: { useWallClock?: boolean }) {
-	const timingDurations = useTiming()
+	const playlistId = useTimingPlaylistId()
+	// the countdown to the first part of the rundown, which is where the loop returns to
+	const firstPartId = useOrderedPartIds(playlistId)[0]
+	const thisPartCountdown = usePartTimingValue(firstPartId, 'countdown', TimerValueMode.Duration)
+	const now = useTimingNow()
 
-	if (!timingDurations?.partCountdown) return null
-	const thisPartCountdown = timingDurations.partCountdown[
-		Object.keys(timingDurations.partCountdown)[0] // use the countdown to first part of rundown
-	] as number | undefined
+	if (thisPartCountdown === null) return null
 
 	return (
 		<span>
 			{useWallClock ? (
-				<Moment interval={0} format="HH:mm:ss" date={(timingDurations.currentTime || 0) + (thisPartCountdown || 0)} />
+				<Moment interval={0} format="HH:mm:ss" date={now + thisPartCountdown} />
 			) : (
-				RundownUtils.formatTimeToShortTime(
-					thisPartCountdown! // shouldShow will be false if thisPartCountdown is undefined
-				)
+				RundownUtils.formatTimeToShortTime(thisPartCountdown)
 			)}
 		</span>
 	)

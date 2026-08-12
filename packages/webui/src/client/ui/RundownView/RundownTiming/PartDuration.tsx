@@ -1,9 +1,8 @@
 import ClassNames from 'classnames'
 import type { ReactNode } from 'react'
-import { useTiming } from './withTiming.js'
 import { RundownUtils } from '../../../lib/rundown.js'
 import type { PartUi } from '../../SegmentTimeline/SegmentTimelineContainer.js'
-import { getPartInstanceTimingId } from '../../../lib/rundownTiming.js'
+import { TimerValueMode, usePartTimingValue } from './usePlaylistTimingValue.js'
 
 interface IPartDurationProps {
 	part: PartUi
@@ -21,26 +20,14 @@ interface IPartDurationProps {
  * @extends React.Component<WithTiming<IPartDurationProps>>
  */
 export function PartDisplayDuration(props: IPartDurationProps): JSX.Element | null {
-	const timingDurations = useTiming(undefined, undefined, (context) => {
-		return context.partExpectedDurations && context.partExpectedDurations[getPartInstanceTimingId(props.part.instance)]
-	})
-
-	let duration: number | undefined = undefined
-	let budget = 0
-	let playedOut = 0
-
 	const part = props.part
+	const expectedDuration = usePartTimingValue(part.instance.part._id, 'expectedDuration', TimerValueMode.Duration)
+	const played = usePartTimingValue(part.instance.part._id, 'played', TimerValueMode.CountUp)
 
-	if (timingDurations.partPlayed && timingDurations.partExpectedDurations) {
-		const { partPlayed, partExpectedDurations } = timingDurations
-		budget =
-			part.instance.orphaned || part.instance.part.untimed
-				? 0
-				: partExpectedDurations[getPartInstanceTimingId(part.instance)] || 0
-		playedOut = (!part.instance.part.untimed ? partPlayed[getPartInstanceTimingId(part.instance)] : 0) || 0
-	}
+	const budget = part.instance.orphaned || part.instance.part.untimed ? 0 : (expectedDuration ?? 0)
+	const playedOut = (!part.instance.part.untimed ? played : 0) ?? 0
 
-	duration = budget - playedOut
+	const duration = budget - playedOut
 
 	if (duration !== undefined) {
 		return (

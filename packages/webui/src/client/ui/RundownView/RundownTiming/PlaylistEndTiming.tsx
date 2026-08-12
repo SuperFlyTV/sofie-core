@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import Moment from 'react-moment'
 import { getCurrentTime } from '../../../lib/systemTime.js'
 import { RundownUtils } from '../../../lib/rundown.js'
-import { useTiming } from './withTiming.js'
+import { useTiming, useTimingPlaylistId } from './withTiming.js'
+import { TimerValueMode, useOrderedPartIds, usePartTimingValue } from './usePlaylistTimingValue.js'
 import ClassNames from 'classnames'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { getPlaylistTimingDiff } from '../../../lib/rundownTiming.js'
@@ -39,6 +40,10 @@ export function PlaylistEndTiming({
 	const { t } = useTranslation()
 
 	const timingDurations = useTiming()
+
+	// where a running loop returns to, so the "Next Loop at" clock counts down to it
+	const firstPartId = useOrderedPartIds(useTimingPlaylistId())[0]
+	const firstPartCountdown = usePartTimingValue(firstPartId, 'countdown', TimerValueMode.Duration)
 
 	const overUnderClock = getPlaylistTimingDiff(rundownPlaylist, timingDurations) ?? 0
 	const now = timingDurations.currentTime ?? getCurrentTime()
@@ -89,14 +94,10 @@ export function PlaylistEndTiming({
 					)
 				) : timingDurations ? (
 					isLoopRunning(rundownPlaylist) ? (
-						timingDurations.partCountdown && rundownPlaylist.activationId && rundownPlaylist.currentPartInfo ? (
+						firstPartCountdown !== null && rundownPlaylist.activationId && rundownPlaylist.currentPartInfo ? (
 							<span className="timing-clock plan-end visual-last-child" role="timer">
 								{!hidePlannedEndLabel && <span className="timing-clock-label right">{t('Next Loop at')}</span>}
-								<Moment
-									interval={0}
-									format="HH:mm:ss"
-									date={now + (timingDurations.partCountdown[Object.keys(timingDurations.partCountdown)[0]] || 0)}
-								/>
+								<Moment interval={0} format="HH:mm:ss" date={now + firstPartCountdown} />
 							</span>
 						) : null
 					) : (
