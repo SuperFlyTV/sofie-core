@@ -99,6 +99,7 @@ function expectContextToEqual(result: RundownTimingContext, expected: RundownTim
 		remainingPlaylistDurationState,
 		remainingTimeOnCurrentPartState,
 		remainingBudgetOnCurrentSegmentState,
+		partCountdownStates,
 		...numericResult
 	} = result
 
@@ -108,6 +109,18 @@ function expectContextToEqual(result: RundownTimingContext, expected: RundownTim
 	expect(evaluate(remainingPlaylistDurationState)).toBe(expected.remainingPlaylistDuration ?? 0)
 	expect(evaluate(remainingTimeOnCurrentPartState)).toBe(expected.remainingTimeOnCurrentPart)
 	expect(evaluate(remainingBudgetOnCurrentSegmentState)).toBe(expected.remainingBudgetOnCurrentSegment)
+
+	// The published countdown states must agree with the numbers the calculator reports, for every
+	// part, in every one of these scenarios - that is what makes them the same implementation rather
+	// than a second one that happens to look right
+	expect(
+		Object.fromEntries(
+			Object.entries<TimerState | null>(partCountdownStates ?? {}).map(([partId, state]) => [
+				partId,
+				state === null ? null : timerStateToDuration(state, now),
+			])
+		)
+	).toEqual(expected.partCountdown ?? {})
 }
 
 function makeMockPartsForQuickLoopTest() {

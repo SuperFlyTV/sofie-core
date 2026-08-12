@@ -80,6 +80,29 @@ export function timerStateToDuration(state: TimerState, now: number): number {
 }
 
 /**
+ * Shift a timer state by a constant amount, giving a state whose duration read is always `offset`
+ * greater than the original's, and whose zero time is always `offset` later.
+ *
+ * This is how a whole family of timers that differ only by a fixed head start is expressed as
+ * offsets from a single running one - e.g. the countdown to each upcoming Part, which is that Part's
+ * static wait plus the one countdown that is actually ticking. Only the one live state has to be
+ * derived; the rest are shifts of it, so they cannot drift apart from it or from each other.
+ *
+ * The breakpoint (`pauseTime`/`resumesAt`) is deliberately not shifted: it is the moment the timer
+ * changes slope, which is the same moment for every member of the family.
+ *
+ * @param state The timer state to shift
+ * @param offset Milliseconds to add to the state's duration
+ */
+export function offsetTimerState(state: TimerState, offset: number): TimerState {
+	if (state.paused) {
+		return { ...state, duration: state.duration + offset }
+	} else {
+		return { ...state, zeroTime: state.zeroTime + offset }
+	}
+}
+
+/**
  * Get the zero time (reference timestamp) for a timer state.
  * - For countdown/timeOfDay timers: when the timer reaches zero
  * - For freeRun timers: when the timer started (what it counts from)

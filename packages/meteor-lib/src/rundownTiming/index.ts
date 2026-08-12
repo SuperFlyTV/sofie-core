@@ -15,6 +15,7 @@ import type { PartId, PartInstanceId, SegmentId, SegmentPlayoutId } from '@sofie
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import {
 	type TimerState,
+	offsetTimerState,
 	timerStateToDuration,
 	timerStateToZeroTime,
 } from '@sofie-automation/corelib/dist/dataModel/TimerState'
@@ -100,7 +101,11 @@ export class RundownTimingCalculator {
 		// the "wait" for a part is defined as its asPlayedDuration or its displayDuration or its expectedDuration
 		const waitPerPart: Record<string, number> = {}
 		let waitAccumulator = 0
-		let currentRemaining = 0
+		/**
+		 * The countdown until the Next part goes on air, as a state. Every part's countdown is this
+		 * plus that part's static wait, so this is the only time-varying term in all of them.
+		 */
+		let currentRemainingState: TimerState = { paused: true, duration: 0 }
 		let startsAtAccumulator = 0
 		let displayStartsAtAccumulator = 0
 		let segmentDisplayDuration = 0
@@ -116,6 +121,9 @@ export class RundownTimingCalculator {
 		 * in the playlist aggregates.
 		 */
 		let liveCountdown: (TimerState & { paused: false; pauseTime: number }) | undefined
+
+		/** Keyed by partId, matching `partCountdown`. Rebuilt each run, so it never goes stale */
+		const partCountdownStates: Record<TimingId, TimerState | null> = {}
 
 		const rundownExpectedDurations: Record<string, number> = {}
 		const rundownAsPlayedDurations: Record<string, number> = {}
@@ -248,22 +256,21 @@ export class RundownTimingCalculator {
 						lastStartedPlayback
 
 					// NOTE: displayDurationGroups are ignored here, when using budgetDuration
+					// Both branches count down to a fixed moment and then hold at zero, which is the
+					// `pauseTime === zeroTime` shape - the old `Math.max(0, …)` clamp expressed as a state
 					if (segmentUsesBudget) {
-						currentRemaining = Math.max(
-							0,
-							segmentBudget - segmentDisplayDuration - (now - segmentStartedPlayback)
-						)
+						const budgetEndTime = segmentStartedPlayback + segmentBudget - segmentDisplayDuration
+						currentRemainingState = { paused: false, zeroTime: budgetEndTime, pauseTime: budgetEndTime }
 						segmentBudgetDurationLeft = 0
 					} else {
-						currentRemaining = Math.max(
-							0,
+						const partEndTime =
+							lastStartedPlayback +
 							(duration ||
 								(memberOfDisplayDurationGroup
 									? displayDurationFromGroup
 									: calculatePartInstanceExpectedDurationWithTransition(partInstance)) ||
-								0) -
-								(now - lastStartedPlayback)
-						)
+								0)
+						currentRemainingState = { paused: false, zeroTime: partEndTime, pauseTime: partEndTime }
 					}
 				}
 
@@ -344,7 +351,8 @@ export class RundownTimingCalculator {
 
 				// the part is the current part but has not yet started playback
 				if (playlist.currentPartInfo?.partInstanceId === partInstance._id && !lastStartedPlayback) {
-					currentRemaining = partDisplayDuration
+					// nothing is ticking yet, so this simply holds at the part's full length
+					currentRemainingState = { paused: true, duration: partDisplayDuration }
 				}
 
 				// Handle invalid parts by overriding the values to preset values for Invalid parts
@@ -446,6 +454,11 @@ export class RundownTimingCalculator {
 
 			// This is where the waitAccumulator-generated data in the linearSegLines is used to calculate the countdowns.
 			// at this point the "waitAccumulator" should be the total sum of all the "waits" in the rundown
+			//
+			// NOTE: this loop works in *offsets from the Next part's countdown* - i.e. it is the
+			// arithmetic below with `currentRemaining` taken to be zero. Each part's actual countdown is
+			// its offset plus `currentRemainingState`, applied in the pass that follows, so that the one
+			// live term appears exactly once and every countdown is a shift of the same state.
 			let localAccum = 0
 			let timeTillEndLoop: undefined | number = undefined
 			for (let i = 0; i < this.linearParts.length; i++) {
@@ -459,14 +472,14 @@ export class RundownTimingCalculator {
 				} else if (i === nextAIndex) {
 					// this is a calculation for the next line, which is basically how much there is left of the current line
 					localAccum = this.linearParts[i][1] || 0 // if there is no current line, rebase following lines to the next line
-					this.linearParts[i][1] = currentRemaining
+					this.linearParts[i][1] = 0
 				} else {
 					// these are lines after next line
 					// we take whatever value this line has, subtract the value as set on the Next Part
 					// (note that the Next Part value will be using currentRemaining as the countdown)
 					// and add the currentRemaining countdown, since we are currentRemaining + diff between next and
 					// this away from this line.
-					this.linearParts[i][1] = (this.linearParts[i][1] || 0) - localAccum + currentRemaining
+					this.linearParts[i][1] = (this.linearParts[i][1] || 0) - localAccum
 
 					if (!partsInQuickLoop[unprotectString(this.linearParts[i][0])] && !entirePlaylistIsLooping) {
 						timeTillEndLoop = timeTillEndLoop ?? this.linearParts[i][1] ?? undefined
@@ -479,7 +492,7 @@ export class RundownTimingCalculator {
 				// we track the sum of all the "waits" that happen in the loop
 				let waitInLoop = 0
 				// if timeTillEndLoop was undefined then we can assume the end of the loop is the last line in the rundown
-				timeTillEndLoop = timeTillEndLoop ?? waitAccumulator - localAccum + currentRemaining
+				timeTillEndLoop = timeTillEndLoop ?? waitAccumulator - localAccum
 				for (let i = 0; i < nextAIndex; i++) {
 					if (!partsInQuickLoop[unprotectString(this.linearParts[i][0])] && !entirePlaylistIsLooping) continue
 
@@ -489,6 +502,15 @@ export class RundownTimingCalculator {
 					// add the wait from this part to the waitInLoop (the lookup here should still work by the definition of a "wait")
 					waitInLoop += waitPerPart[unprotectString(this.linearParts[i][0])] ?? 0
 				}
+			}
+
+			// Apply the one live term to every offset, giving each part's countdown as a state, and take
+			// the numbers back out of those states so that the two can never disagree
+			for (const linearPart of this.linearParts) {
+				const offset = linearPart[1]
+				const state = offset === null ? null : offsetTimerState(currentRemainingState, offset)
+				partCountdownStates[unprotectString(linearPart[0])] = state
+				linearPart[1] = state && timerStateToDuration(state, now)
 			}
 
 			// For the sake of Segment Budget Durations, we need to now iterate over all Segments
@@ -602,6 +624,7 @@ export class RundownTimingCalculator {
 			rundownExpectedDurations,
 			rundownAsPlayedDurations,
 			partCountdown: objectFromEntries(this.linearParts),
+			partCountdownStates,
 			partDurations: this.partDurations,
 			partPlayed: this.partPlayed,
 			partStartsAt: this.partStartsAt,
@@ -653,6 +676,12 @@ export interface RundownTimingContext {
 	rundownAsPlayedDurations?: Record<string, number>
 	/** this is the countdown to each of the parts relative to the current on air part. This always uses PartId's as the index */
 	partCountdown?: Record<string, number | null>
+	/**
+	 * `partCountdown` as states, so that a consumer can keep the countdowns current between recomputes.
+	 * Every entry is the same live state shifted by that part's static wait, so they cannot drift apart.
+	 * Also keyed by PartId; `null` means "will probably not be played out, if played in order".
+	 */
+	partCountdownStates?: Record<string, TimerState | null>
 	/** The calculated durations of each of the Parts: as-planned/as-run depending on state. */
 	partDurations?: Record<string, number>
 	/** Whether a Part (or Part Instance) is within the QuickLoop */
