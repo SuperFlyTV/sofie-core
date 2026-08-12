@@ -1,6 +1,7 @@
 import type { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import Moment from 'react-moment'
-import { TimingDataResolution, TimingTickResolution, useTiming } from './RundownTiming/withTiming.js'
+import { TimingTickResolution } from './RundownTiming/withTiming.js'
+import { useTimingNow } from './RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../lib/rundown.js'
 import { useTranslation } from 'react-i18next'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
@@ -25,11 +26,11 @@ interface MarkerCountdownProps {
 function MarkerCountdownText(props: MarkerCountdownProps) {
 	const { t } = useTranslation()
 
-	const timingDurations = useTiming(TimingTickResolution.Low, TimingDataResolution.Synced, 'currentTime')
+	const now = useTimingNow(TimingTickResolution.Low)
 
 	if (props.markerTimestamp === undefined) return null
 
-	const time = props.markerTimestamp - (timingDurations.currentTime || 0)
+	const time = props.markerTimestamp - now
 
 	if (time < QUATER_DAY) {
 		return (

@@ -3,7 +3,7 @@ import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment
 import type { PartUi } from '../SegmentTimeline/SegmentTimelineContainer.js'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import type { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
-import { useTiming } from '../RundownView/RundownTiming/withTiming.js'
+import { TimerValueMode, usePlaylistTimingValue } from '../RundownView/RundownTiming/usePlaylistTimingValue.js'
 import {
 	useSubscription,
 	useSubscriptions,
@@ -35,7 +35,6 @@ import { RundownLayoutsAPI } from '../../lib/rundownLayouts.js'
 import { ShelfDashboardLayout } from '../Shelf/ShelfDashboardLayout.js'
 import { parse as queryStringParse } from 'query-string'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
-import type { RundownTimingContext } from '../../lib/rundownTiming.js'
 import { UIShowStyleBases, UIStudios } from '../Collections.js'
 import {
 	PieceInstances,
@@ -331,8 +330,6 @@ export function PresenterScreen({ playlistId, studioId }: PresenterScreenProps):
 		[studioId, playlistId]
 	)
 
-	const timing = useTiming()
-
 	let selectedPresenterLayout: RundownLayoutBase | undefined = undefined
 
 	if (presenterScreenProps?.rundownLayouts) {
@@ -399,7 +396,6 @@ export function PresenterScreen({ playlistId, studioId }: PresenterScreenProps):
 				fontSize={presenterScreenProps?.fontSize}
 				studio={presenterScreenProps?.studio}
 				studioId={studioId}
-				timingDurations={timing}
 			/>
 		)
 	}
@@ -504,14 +500,17 @@ function PresenterScreenContentDefaultLayout({
 	playlistId,
 	currentPartInstance,
 	currentSegment,
-	timingDurations,
+
 	nextPartInstance,
 	nextSegment,
 	rundownIds,
-}: Readonly<PresenterScreenProps & PresenterScreenTrackedProps & { timingDurations: RundownTimingContext }>) {
+}: Readonly<PresenterScreenProps & PresenterScreenTrackedProps>) {
+	// The segment budget takes precedence when the on-air segment has one
+	const remainingBudget = usePlaylistTimingValue(playlistId, 'remainingBudgetOnCurrentSegment', TimerValueMode.Duration)
+	const remainingOnPart = usePlaylistTimingValue(playlistId, 'remainingOnCurrentPart', TimerValueMode.Duration)
+
 	if (playlist && playlistId && segments) {
-		const currentPartOrSegmentCountdown =
-			timingDurations.remainingBudgetOnCurrentSegment ?? timingDurations.remainingTimeOnCurrentPart ?? 0
+		const currentPartOrSegmentCountdown = remainingBudget ?? remainingOnPart ?? 0
 
 		const expectedStart = PlaylistTiming.getExpectedStart(playlist.timing)
 

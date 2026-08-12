@@ -152,8 +152,30 @@ function useTimingStateValue<TDoc extends TimingStateDoc>(
 		undefined
 	)
 
-	// Re-render on each tick, so the value stays current between published states
+	// so the value stays current between published states
+	const now = useTimingNow(tickResolution)
+
+	if (!state) return null
+
+	return mode === TimerValueMode.Duration ? timerStateToDuration(state, now) : timerStateToZeroTime(state, now)
+}
+
+/**
+ * The current time, re-rendering the caller on each timing tick.
+ *
+ * This is the clock the rest of the timing UI runs on, without any of the calculator's data - for
+ * a component that only needs to know what time it is, such as a wall clock or a countdown to a
+ * timestamp it already has.
+ *
+ * Note: the tick comes from the RundownTimingProvider, so this must be used within a view that
+ * mounts one (as all the rundown views do).
+ *
+ * @param tickResolution How often to re-render. Defaults to Synced (1Hz, aligned with the rest of
+ * the timing UI).
+ */
+export function useTimingNow(tickResolution: TimingTickResolution = TimingTickResolution.Synced): number {
 	const [now, setNow] = useState(() => getCurrentTime())
+
 	useEffect(() => {
 		const eventName = rundownTimingEventFromTickResolution(tickResolution)
 		const handler = (e: Event) => setNow((e as TimingEvent).detail?.currentTime ?? getCurrentTime())
@@ -162,7 +184,5 @@ function useTimingStateValue<TDoc extends TimingStateDoc>(
 		return () => window.removeEventListener(eventName, handler)
 	}, [tickResolution])
 
-	if (!state) return null
-
-	return mode === TimerValueMode.Duration ? timerStateToDuration(state, now) : timerStateToZeroTime(state, now)
+	return now
 }

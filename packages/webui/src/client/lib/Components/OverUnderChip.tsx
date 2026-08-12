@@ -2,8 +2,7 @@ import type { CSSProperties } from 'react'
 import classNames from 'classnames'
 import { RundownUtils } from '../rundown.js'
 import './OverUnderChip.scss'
-import { useTiming } from '../../ui/RundownView/RundownTiming/withTiming.js'
-import { getPlaylistTimingDiff } from '../rundownTiming.js'
+import { TimerValueMode, usePlaylistTimingValue } from '../../ui/RundownView/RundownTiming/usePlaylistTimingValue.js'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/src/dataModel/RundownPlaylist/RundownPlaylist.js'
 
 export type OverUnderChipFormat = 'playlistDiff' | 'timerPostfix'
@@ -41,8 +40,9 @@ export function OverUnderChip(props: Readonly<OverUnderChipBaseProps & OverUnder
 function OverUnderChipFromPlaylist(
 	props: Readonly<OverUnderChipBaseProps & { rundownPlaylist: DBRundownPlaylist }>
 ): JSX.Element | null {
-	const timingDurations = useTiming()
-	const valueMs = getPlaylistTimingDiff(props.rundownPlaylist, timingDurations)
+	const timeInHand = usePlaylistTimingValue(props.rundownPlaylist._id, 'overUnder', TimerValueMode.Duration)
+	// the published value is the time in hand; this display is over-positive
+	const valueMs = timeInHand === null ? undefined : 0 - timeInHand
 	return <OverUnderChipInner {...props} valueMs={valueMs} />
 }
 
