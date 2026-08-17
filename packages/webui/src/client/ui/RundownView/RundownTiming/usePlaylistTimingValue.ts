@@ -228,6 +228,83 @@ export function useOrderedPartIds(playlistId: RundownPlaylistId | undefined): Pa
 	)
 }
 
+/** One Part's geometry numbers, taken from the publication and evaluated against the current time */
+export interface SegmentPartTiming {
+	partId: PartId
+	/**
+	 * Offset from the start of the Segment: the running sum of the display durations of the Parts
+	 * before this one, within this Segment.
+	 */
+	displayStartsAt: number
+	/** How much room the Part takes up, growing while it is on air and overrunning */
+	displayDuration: number
+	/** As-run once played, as-planned before that, likewise growing while overrunning */
+	duration: number
+	isInQuickLoop: boolean
+}
+
+/**
+ * A Segment's Parts in playout order, with their published geometry values evaluated and the
+ * within-Segment offsets accumulated.
+ *
+ * The offsets are relative to the Segment rather than the playlist because that is all any consumer
+ * needs - every place the old client-side `partDisplayStartsAt` was read, it was read as a difference
+ * between two Parts of the same Segment. Keeping it segment-relative also means one Segment's
+ * geometry never depends on another's.
+ *
+ * This is deliberately nothing but published data plus a running total: it is exactly what an
+ * external consumer of the publication would do, so if this is not enough to render the timeline,
+ * the publication is missing something.
+ *
+ * @param tickResolution How often to re-evaluate, since the on-air Part's values grow with the clock
+ */
+export function useSegmentPartTimings(
+	segmentId: SegmentId | undefined,
+	tickResolution: TimingTickResolution = TimingTickResolution.High
+): Map<PartId, SegmentPartTiming> {
+	const docs = useTracker(
+		() => {
+			if (!segmentId) return []
+
+			return PlaylistTimingStates.find({ type: 'part', segmentId } as never, {
+				fields: {
+					partId: 1,
+					rank: 1,
+					isInQuickLoop: 1,
+					liveDisplayDuration: 1,
+					duration: 1,
+				} satisfies MongoFieldSpecifierOnes<PartTimingStateDoc>,
+				sort: { rank: 1 },
+			}).fetch() as unknown as PartTimingStateDoc[]
+		},
+		[segmentId],
+		[]
+	)
+
+	const now = useTimingNow(tickResolution)
+
+	const timings = new Map<PartId, SegmentPartTiming>()
+	if (!docs) return timings
+
+	let displayStartsAt = 0
+	for (const doc of docs) {
+		// the count-ups are published negated, per the convention on PartTimingStateDoc.played
+		const displayDuration = doc.liveDisplayDuration ? 0 - timerStateToDuration(doc.liveDisplayDuration, now) : 0
+		const duration = doc.duration ? 0 - timerStateToDuration(doc.duration, now) : 0
+
+		timings.set(doc.partId, {
+			partId: doc.partId,
+			displayStartsAt,
+			displayDuration,
+			duration,
+			isInQuickLoop: doc.isInQuickLoop,
+		})
+		displayStartsAt += displayDuration
+	}
+
+	return timings
+}
+
 /**
  * The sum of every part's resolved expected duration.
  *
