@@ -1,5 +1,3 @@
-import type { RundownTimingContext } from '../../../lib/rundownTiming.js'
-
 export interface TimeEventArgs {
 	currentTime: number
 }
@@ -29,14 +27,5 @@ export namespace RundownTiming {
 		 * hooking up Components to it will cause a lot of renders
 		 */
 		'timeupdateHighResolution' = 'sofie:rundownTimeUpdateHighResolution',
-	}
-
-	/**
-	 * This are the properties that will be injected by the withTiming HOC.
-	 * @export
-	 * @interface InjectedROTimingProps
-	 */
-	export interface InjectedROTimingProps {
-		timingDurations: RundownTimingContext
 	}
 }

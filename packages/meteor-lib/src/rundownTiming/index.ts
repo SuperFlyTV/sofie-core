@@ -21,7 +21,7 @@ import {
 } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { unprotectString } from '@sofie-automation/corelib/dist/protectedString'
-import type { DBPart, PartExtended } from '@sofie-automation/corelib/dist/dataModel/Part'
+import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import {
 	type DBRundownPlaylist,
 	QuickLoopMarkerType,
@@ -754,54 +754,6 @@ export interface RundownTimingContext {
 	currentTime?: number
 	/** Was this time context calculated during a high-resolution tick */
 	isLowResolution: boolean
-}
-
-/**
- * Fallback used by `computeSegmentDuration` when the timing context has no partDisplayDurations yet.
- * (Ported from the webui `RundownUtils.getSegmentDuration` to keep this module free of client dependencies.)
- * @param displayDuration When provided, parts with no duration of their own fall back to this duration
- */
-function getSegmentDurationFallback(parts: PartExtended[], displayDuration?: number): number {
-	return parts.reduce((memo, part) => {
-		return (
-			memo +
-			(part.instance.timings?.duration ||
-				calculatePartInstanceExpectedDurationWithTransition(part.instance) ||
-				part.renderedDuration ||
-				(displayDuration ?? 0))
-		)
-	}, 0)
-}
-
-/**
- * Computes the actual (as-played fallbacking to expected) duration of a segment, consisting of given parts
- * @export
- * @param  {RundownTimingContext} timingDurations The timing durations calculated for the Rundown
- * @param  {Array<string>} partIds The IDs of parts that are members of the segment
- * @return number
- */
-/**
- * @param displayDuration When provided, parts with no duration of their own fall back to this duration
- * (the Studio's configured `defaultDisplayDuration`). Omit to not apply any fallback (renders as 0).
- */
-export function computeSegmentDuration(
-	timingDurations: RundownTimingContext,
-	parts: PartExtended[],
-	displayDuration?: number
-): number {
-	const partDisplayDurations = timingDurations?.partDisplayDurations
-
-	if (!partDisplayDurations) return getSegmentDurationFallback(parts, displayDuration)
-
-	return parts.reduce((memo, partExtended) => {
-		// total += durations.partDurations ? durations.partDurations[item._id] : (item.duration || item.renderedDuration || 1)
-		const partInstanceTimingId = getPartInstanceTimingId(partExtended.instance)
-		const duration = Math.max(
-			partExtended.instance.timings?.duration || partExtended.renderedDuration || 0,
-			partDisplayDurations?.[partInstanceTimingId] || (displayDuration ?? 0)
-		)
-		return memo + duration
-	}, 0)
 }
 
 export function getPartInstanceTimingId(
