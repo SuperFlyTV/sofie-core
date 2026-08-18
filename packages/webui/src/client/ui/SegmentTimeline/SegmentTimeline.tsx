@@ -1164,6 +1164,7 @@ export class SegmentTimelineClass extends React.Component<Translated<IProps & Wi
 					defaultDisplayDuration={this.props.studio.settings.defaultDisplayDuration ?? DEFAULT_DISPLAY_DURATION}
 					isLiveSegment={this.props.isLiveSegment}
 					partInstances={this.props.parts}
+					segmentPartTimings={this.props.segmentPartTimings}
 					currentPartInstanceId={
 						this.props.isLiveSegment ? (this.props.playlist.currentPartInfo?.partInstanceId ?? null) : null
 					}
