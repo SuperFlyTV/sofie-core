@@ -29,6 +29,7 @@ import { documentTitle } from '../../lib/DocumentTitleProvider.js'
 import { Spinner } from '../../lib/Spinner.js'
 import { UIStudios } from '../Collections.js'
 import { RundownTimingProvider } from '../RundownView/RundownTiming/RundownTimingProvider.js'
+import { RundownPlaylistProvider } from '../RundownPlaylistContext.js'
 import { StudioScreenSaver } from '../StudioScreenSaver/StudioScreenSaver.js'
 import { PrompterControlManager } from './controller/manager.js'
 import { RundownStatusBar } from '../ClockView/RundownStatusBar.js'
@@ -600,25 +601,27 @@ export class PrompterViewContent extends React.Component<Translated<IProps & ITr
 					</div>
 				) : this.props.rundownPlaylist ? (
 					<>
-						<RundownTimingProvider playlist={this.props.rundownPlaylist}>
-							<Prompter
-								rundownPlaylistId={this.props.rundownPlaylist._id}
-								config={this.configOptions}
-								allowTestingAdlibsToPersist={this.props.studio?.settings.allowTestingAdlibsToPersist ?? false}
-							>
-								{this.configOptions.showOverUnder && (
-									<OverUnderChip
-										className="screen-timing-clock over-under-chip--overlay"
-										rundownPlaylist={this.props.rundownPlaylist}
-									/>
-								)}
-							</Prompter>
-							<RundownStatusBar
-								playlist={this.props.rundownPlaylist}
-								className="prompter-rundown-status-bar"
-								showPlaylistName={this.configOptions.showPlaylistName}
-							/>
-						</RundownTimingProvider>
+						<RundownPlaylistProvider playlistId={this.props.rundownPlaylist._id}>
+							<RundownTimingProvider playlist={this.props.rundownPlaylist}>
+								<Prompter
+									rundownPlaylistId={this.props.rundownPlaylist._id}
+									config={this.configOptions}
+									allowTestingAdlibsToPersist={this.props.studio?.settings.allowTestingAdlibsToPersist ?? false}
+								>
+									{this.configOptions.showOverUnder && (
+										<OverUnderChip
+											className="screen-timing-clock over-under-chip--overlay"
+											rundownPlaylist={this.props.rundownPlaylist}
+										/>
+									)}
+								</Prompter>
+								<RundownStatusBar
+									playlist={this.props.rundownPlaylist}
+									className="prompter-rundown-status-bar"
+									showPlaylistName={this.configOptions.showPlaylistName}
+								/>
+							</RundownTimingProvider>
+						</RundownPlaylistProvider>
 						{this.configOptions.debug ? (
 							<div
 								id="prompter-debug"

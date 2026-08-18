@@ -1,6 +1,6 @@
 import { RundownUtils } from '../../../lib/rundown.js'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
-import { TimingTickResolution } from './withTiming.js'
+import { TimingTickResolution } from './RundownTiming.js'
 import { TimerValueMode, usePartTimingValue } from './usePlaylistTimingValue.js'
 
 interface IPartElapsedProps {

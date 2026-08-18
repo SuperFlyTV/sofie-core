@@ -2,7 +2,7 @@ import classNames from 'classnames'
 import { useTranslation } from 'react-i18next'
 import Moment from 'react-moment'
 import { LoopingIcon } from '../../lib/ui/icons/looping.js'
-import { useTimingPlaylistId } from './RundownTiming/withTiming.js'
+import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
 	TimerValueMode,
 	useOrderedPartIds,
@@ -11,8 +11,7 @@ import {
 } from './RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../lib/rundown.js'
 
-function NextLoopClock({ useWallClock }: { useWallClock?: boolean }) {
-	const playlistId = useTimingPlaylistId()
+function NextLoopClock({ useWallClock, playlistId }: { useWallClock?: boolean; playlistId: RundownPlaylistId }) {
 	// the countdown to the first part of the rundown, which is where the loop returns to
 	const firstPartId = useOrderedPartIds(playlistId)[0]
 	const thisPartCountdown = usePartTimingValue(firstPartId, 'countdown', TimerValueMode.Duration)
@@ -35,8 +34,14 @@ interface ILoopingHeaderProps {
 	position: 'start' | 'end'
 	multiRundown?: boolean
 	showCountdowns?: boolean
+	playlistId: RundownPlaylistId
 }
-export function PlaylistLoopingHeader({ position, multiRundown, showCountdowns }: ILoopingHeaderProps): JSX.Element {
+export function PlaylistLoopingHeader({
+	position,
+	multiRundown,
+	showCountdowns,
+	playlistId,
+}: ILoopingHeaderProps): JSX.Element {
 	const { t } = useTranslation()
 
 	return (
@@ -53,10 +58,10 @@ export function PlaylistLoopingHeader({ position, multiRundown, showCountdowns }
 			{showCountdowns ? (
 				<>
 					<div className="playlist-looping-header__countdown playlist-looping-header__countdown--time-of-day">
-						<NextLoopClock useWallClock={true} />
+						<NextLoopClock useWallClock={true} playlistId={playlistId} />
 					</div>
 					<div className="playlist-looping-header__countdown playlist-looping-header__countdown--countdown">
-						<NextLoopClock />
+						<NextLoopClock playlistId={playlistId} />
 					</div>
 				</>
 			) : null}

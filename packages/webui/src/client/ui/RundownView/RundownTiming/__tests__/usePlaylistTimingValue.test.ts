@@ -27,8 +27,7 @@ jest.mock('../../../../lib/systemTime.js', () => ({
 }))
 
 import { TimerValueMode, usePlaylistTimingValue } from '../usePlaylistTimingValue.js'
-import { RundownTiming } from '../RundownTiming.js'
-import { TimingTickResolution } from '../withTiming.js'
+import { RundownTiming, TimingTickResolution } from '../RundownTiming.js'
 
 function makeDoc(fields: Partial<PlaylistTimingStateDoc>): PlaylistTimingStateDoc {
 	return {

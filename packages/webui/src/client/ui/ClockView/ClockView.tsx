@@ -2,6 +2,7 @@ import { Switch, Route } from 'react-router-dom'
 import { useSubscription, useTracker } from '../../lib/ReactMeteorData/react-meteor-data.js'
 
 import { RundownTimingProvider } from '../RundownView/RundownTiming/RundownTimingProvider.js'
+import { RundownPlaylistProvider } from '../RundownPlaylistContext.js'
 
 import { StudioScreenSaver } from '../StudioScreenSaver/StudioScreenSaver.js'
 import { PresenterScreen } from './PresenterScreen.js'
@@ -34,35 +35,43 @@ export function ClockView({ studioId }: Readonly<{ studioId: StudioId }>): JSX.E
 		<Switch>
 			<Route exact path="/countdowns/:studioId/presenter">
 				{playlist ? (
-					<RundownTimingProvider playlist={playlist}>
-						<PresenterScreen playlistId={playlist._id} studioId={studioId} />
-					</RundownTimingProvider>
+					<RundownPlaylistProvider playlistId={playlist?._id}>
+						<RundownTimingProvider playlist={playlist}>
+							<PresenterScreen playlistId={playlist._id} studioId={studioId} />
+						</RundownTimingProvider>
+					</RundownPlaylistProvider>
 				) : (
 					<StudioScreenSaver studioId={studioId} ownBackground={true} screenName={t('Presenter Screen')} />
 				)}
 			</Route>
 			<Route exact path="/countdowns/:studioId/director">
 				{playlist ? (
-					<RundownTimingProvider playlist={playlist}>
-						<DirectorScreen playlistId={playlist._id} studioId={studioId} />
-					</RundownTimingProvider>
+					<RundownPlaylistProvider playlistId={playlist?._id}>
+						<RundownTimingProvider playlist={playlist}>
+							<DirectorScreen playlistId={playlist._id} studioId={studioId} />
+						</RundownTimingProvider>
+					</RundownPlaylistProvider>
 				) : (
 					<StudioScreenSaver studioId={studioId} ownBackground={true} screenName={t("Director's Screen")} />
 				)}
 			</Route>
 			<Route exact path="/countdowns/:studioId/overlay">
 				{playlist ? (
-					<RundownTimingProvider playlist={playlist}>
-						<OverlayScreen playlistId={playlist._id} studioId={studioId} />
-					</RundownTimingProvider>
+					<RundownPlaylistProvider playlistId={playlist?._id}>
+						<RundownTimingProvider playlist={playlist}>
+							<OverlayScreen playlistId={playlist._id} studioId={studioId} />
+						</RundownTimingProvider>
+					</RundownPlaylistProvider>
 				) : (
 					<OverlayScreenSaver studioId={studioId} />
 				)}
 			</Route>
 			<Route exact path="/countdowns/:studioId/camera">
-				<RundownTimingProvider playlist={playlist}>
-					<CameraScreen playlist={playlist} studioId={studioId} />
-				</RundownTimingProvider>
+				<RundownPlaylistProvider playlistId={playlist?._id}>
+					<RundownTimingProvider playlist={playlist}>
+						<CameraScreen playlist={playlist} studioId={studioId} />
+					</RundownTimingProvider>
+				</RundownPlaylistProvider>
 			</Route>
 			<Route exact path="/countdowns/:studioId/multiview">
 				<MultiviewScreen studioId={studioId} />

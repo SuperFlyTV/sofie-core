@@ -3,7 +3,6 @@ import { Meteor } from 'meteor/meteor'
 import type { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { RundownTiming, type TimeEventArgs } from './RundownTiming.js'
 import { getCurrentTime } from '../../../lib/systemTime.js'
-import { type IRundownTimingProviderValues, RundownTimingProviderContext } from './withTiming.js'
 
 const TIMING_DEFAULT_REFRESH_INTERVAL = 1000 / 60 // the interval for high-resolution events (timeupdateHR)
 const LOW_RESOLUTION_TIMING_DECIMATOR = 15
@@ -41,22 +40,6 @@ export class RundownTimingProvider extends React.Component<
 	PropsWithChildren<IRundownTimingProviderProps>,
 	IRundownTimingProviderState
 > {
-	/**
-	 * A constant value which is mutated in place, so that the components below only re-render when
-	 * the playlist itself changes rather than on every tick.
-	 */
-	private childContextValue: IRundownTimingProviderValues = {
-		playlistId: undefined,
-	}
-
-	private contextValue(): IRundownTimingProviderValues {
-		const playlistId = this.props.playlist?._id
-		if (this.childContextValue.playlistId !== playlistId) {
-			this.childContextValue = { ...this.childContextValue, playlistId }
-		}
-		return this.childContextValue
-	}
-
 	private refreshTimer: number | undefined
 	private refreshTimerInterval: number
 	private refreshDecimator: number
@@ -155,10 +138,6 @@ export class RundownTimingProvider extends React.Component<
 	}
 
 	render(): React.ReactNode {
-		return (
-			<RundownTimingProviderContext.Provider value={this.contextValue()}>
-				{this.props.children}
-			</RundownTimingProviderContext.Provider>
-		)
+		return this.props.children
 	}
 }

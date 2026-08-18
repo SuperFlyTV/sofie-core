@@ -23,8 +23,7 @@ import { assertNever } from '@sofie-automation/corelib/dist/lib'
 import { PlaylistTimingStates } from '../../Collections.js'
 import { useTracker } from '../../../lib/ReactMeteorData/ReactMeteorData.js'
 import { getCurrentTime } from '../../../lib/systemTime.js'
-import { TimingTickResolution, rundownTimingEventFromTickResolution } from './withTiming.js'
-import type { TimingEvent } from './RundownTiming.js'
+import { TimingTickResolution, rundownTimingEventFromTickResolution, type TimingEvent } from './RundownTiming.js'
 
 /** How to read a published TimerState as a number */
 export enum TimerValueMode {

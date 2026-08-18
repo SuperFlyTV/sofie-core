@@ -29,3 +29,26 @@ export namespace RundownTiming {
 		'timeupdateHighResolution' = 'sofie:rundownTimeUpdateHighResolution',
 	}
 }
+
+/** How often a component wants to be re-rendered by the timing clock */
+export enum TimingTickResolution {
+	/** Used for things that we want to "tick" at the same time (every full second) for all things in the GUI. */
+	Synced = 0,
+	/** Updated with Low accuracy (ie about 4 times a second - based on LOW_RESOLUTION_TIMING_DECIMATOR). */
+	Low = 1,
+	/** Updated with high accuracy (ie many times per second), to be used for things like countdowns. */
+	High = 2,
+}
+
+/** The window event that fires at the requested rate */
+export function rundownTimingEventFromTickResolution(tickResolution: TimingTickResolution): RundownTiming.Events {
+	switch (tickResolution) {
+		case TimingTickResolution.High:
+			return RundownTiming.Events.timeupdateHighResolution
+		case TimingTickResolution.Low:
+			return RundownTiming.Events.timeupdateLowResolution
+		case TimingTickResolution.Synced:
+		default:
+			return RundownTiming.Events.timeupdateSynced
+	}
+}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { TimingTickResolution } from '../../RundownView/RundownTiming/withTiming.js'
+import { TimingTickResolution } from '../../RundownView/RundownTiming/RundownTiming.js'
 import { TimerValueMode, usePartTimingValue } from '../../RundownView/RundownTiming/usePlaylistTimingValue.js'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 

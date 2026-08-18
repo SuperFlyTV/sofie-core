@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { TimingTickResolution } from '../RundownView/RundownTiming/withTiming.js'
+import { TimingTickResolution } from '../RundownView/RundownTiming/RundownTiming.js'
 import { useTimingNow } from '../RundownView/RundownTiming/usePlaylistTimingValue.js'
 import { SIMULATED_PLAYBACK_HARD_MARGIN } from '../SegmentTimeline/Constants.js'
 import { useTranslation } from 'react-i18next'

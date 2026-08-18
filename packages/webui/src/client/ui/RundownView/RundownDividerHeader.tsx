@@ -1,6 +1,6 @@
 import type { Rundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import Moment from 'react-moment'
-import { TimingTickResolution } from './RundownTiming/withTiming.js'
+import { TimingTickResolution } from './RundownTiming/RundownTiming.js'
 import { useTimingNow } from './RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../lib/rundown.js'
 import { useTranslation } from 'react-i18next'

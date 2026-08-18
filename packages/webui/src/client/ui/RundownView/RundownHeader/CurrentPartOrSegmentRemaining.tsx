@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import ClassNames from 'classnames'
-import { useTimingPlaylistId } from '../RundownTiming/withTiming.js'
+import { useRundownPlaylistId } from '../../RundownPlaylistContext.js'
 import { TimerValueMode, usePlaylistTimingValue } from '../RundownTiming/usePlaylistTimingValue.js'
 import { RundownUtils } from '../../../lib/rundown.js'
 import { SpeechSynthesiser } from '../../../lib/speechSynthesis.js'
@@ -79,7 +79,7 @@ function vibrate(displayTime: number) {
 }
 
 function usePartRemaining(props: IPartRemainingProps) {
-	const playlistId = useTimingPlaylistId()
+	const playlistId = useRundownPlaylistId()
 	// The hook discards a state that is about a different part, which is the same guard the
 	// timing context needed - the published state and this component's prop can disagree for a
 	// moment after a take

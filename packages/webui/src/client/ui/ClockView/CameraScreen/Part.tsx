@@ -7,7 +7,7 @@ import { AutoNextStatus } from '../../RundownView/RundownTiming/AutoNextStatus.j
 import { CurrentPartOrSegmentRemaining } from '../../RundownView/RundownHeader/CurrentPartOrSegmentRemaining.js'
 import { PartCountdown } from '../../RundownView/RundownTiming/PartCountdown.js'
 import { PartDisplayDuration } from '../../RundownView/RundownTiming/PartDuration.js'
-import { TimingTickResolution } from '../../RundownView/RundownTiming/withTiming.js'
+import { TimingTickResolution } from '../../RundownView/RundownTiming/RundownTiming.js'
 import {
 	TimerValueMode,
 	usePartTimingValue,

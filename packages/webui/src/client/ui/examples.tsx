@@ -1,6 +1,6 @@
 import { useTracker } from '../lib/ReactMeteorData/ReactMeteorData.js'
 import * as React from 'react'
-import { TimingTickResolution } from './RundownView/RundownTiming/withTiming.js'
+import { TimingTickResolution } from './RundownView/RundownTiming/RundownTiming.js'
 import { useTimingNow } from './RundownView/RundownTiming/usePlaylistTimingValue.js'
 import { useTranslation } from 'react-i18next'
 import { Meteor } from 'meteor/meteor'

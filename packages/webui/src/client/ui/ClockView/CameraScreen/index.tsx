@@ -230,7 +230,7 @@ export function CameraScreen({ playlist, studioId }: Readonly<IProps>): JSX.Elem
 		<StudioContext.Provider value={studio}>
 			<RundownToShowStyleContext.Provider value={rundownToShowStyle}>
 				<PieceFilter.Provider value={pieceFilterFunction}>
-					<OrderedPartsProvider>
+					<OrderedPartsProvider playlistId={playlist?._id}>
 						<ActivePartInstancesContext.Provider value={partInstanceContext}>
 							<AreaZoom.Provider value={0.01}>
 								<CanvasSizeContext.Provider value={canvasWidth}>
