@@ -8,8 +8,8 @@ import { protectString, unprotectString } from '@sofie-automation/shared-lib/dis
 import { PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
 import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
-import { RundownTimingCalculator, getPartInstanceTimingId, type RundownTimingContext } from '../index.js'
-import { calculatePartTimingStates, type PartTimingStateValues } from '../partTimingState.js'
+import { RundownTimingCalculator, getPartInstanceTimingId, type RundownTimingContext } from '../index'
+import { calculatePartTimingStates, type PartTimingStateValues } from '../partTimingState'
 
 const DEFAULT_DURATION = 0
 const RUNDOWN_ID = 'rundown1'

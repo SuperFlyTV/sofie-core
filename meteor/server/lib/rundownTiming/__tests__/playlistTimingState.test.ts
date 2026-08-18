@@ -16,8 +16,8 @@ import {
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
 import { QuickLoopMarkerType } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { ForceQuickLoopAutoNext } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
-import { RundownTimingCalculator, findPartInstancesInQuickLoop } from '../index.js'
-import { calculatePlaylistTimingStates, getPlaylistTimingDiff } from '../playlistTimingState.js'
+import { RundownTimingCalculator, findPartInstancesInQuickLoop } from '../index'
+import { calculatePlaylistTimingStates, getPlaylistTimingDiff } from '../playlistTimingState'
 
 const DEFAULT_DURATION = 0
 

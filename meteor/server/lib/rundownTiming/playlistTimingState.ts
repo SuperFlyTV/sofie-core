@@ -25,7 +25,7 @@ import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment
 import type { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
-import { RundownTimingCalculator, type RundownTimingContext, type TimingId } from './index.js'
+import { RundownTimingCalculator, type RundownTimingContext, type TimingId } from './index'
 
 type CalculateTimingsPartInstance = Pick<
 	PartInstance,

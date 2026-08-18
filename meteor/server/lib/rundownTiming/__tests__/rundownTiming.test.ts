@@ -8,8 +8,8 @@ import type { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment
 
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { unprotectString, protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
-import { RundownTimingCalculator, type RundownTimingContext, findPartInstancesInQuickLoop } from '../index.js'
-import { getPlaylistTimingDiff } from '../playlistTimingState.js'
+import { RundownTimingCalculator, type RundownTimingContext, findPartInstancesInQuickLoop } from '../index'
+import { getPlaylistTimingDiff } from '../playlistTimingState'
 import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { PlaylistTimingType, type SegmentTimingInfo } from '@sofie-automation/blueprints-integration'
 import type { PartId, RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'

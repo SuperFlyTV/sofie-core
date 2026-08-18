@@ -8,7 +8,7 @@ import {
 	wrapPartToTemporaryInstance,
 	deduplicatePartInstancesForQuickLoop,
 } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
-import { findPartInstancesInQuickLoop, type MinimalPartInstance, type TimingId } from './index.js'
+import { findPartInstancesInQuickLoop, type MinimalPartInstance, type TimingId } from './index'
 
 export interface PreparedTimingPartInstances {
 	/** All Parts of the playlist as PartInstances (temporary ones for the unplayed), in playout order */

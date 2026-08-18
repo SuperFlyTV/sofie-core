@@ -9,7 +9,7 @@ import { unprotectString, protectString } from '@sofie-automation/shared-lib/dis
 import { PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { ForceQuickLoopAutoNext } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
-import { prepareTimingPartInstances } from '../prepareTimingInputs.js'
+import { prepareTimingPartInstances } from '../prepareTimingInputs'
 
 const RUNDOWN_ID = 'rundown0'
 

@@ -36,7 +36,7 @@ import {
 	isEntirePlaylistLooping,
 } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
 
-import { type CalculateTimingsPartInstance, PartDurationResolver } from './resolvePartTimings.js'
+import { type CalculateTimingsPartInstance, PartDurationResolver } from './resolvePartTimings'
 
 export type { CalculateTimingsPartInstance }
 

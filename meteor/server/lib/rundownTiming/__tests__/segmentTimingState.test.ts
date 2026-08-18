@@ -9,8 +9,8 @@ import { CountdownType, PlaylistTimingType, type SegmentTimingInfo } from '@sofi
 import { wrapPartToTemporaryInstance } from '@sofie-automation/corelib/dist/playout/stateCacheResolver'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { timerStateToDuration, type TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
-import { RundownTimingCalculator, getPartInstanceTimingId, type RundownTimingContext } from '../index.js'
-import { calculateSegmentTimingStates, type SegmentTimingStateValues } from '../segmentTimingState.js'
+import { RundownTimingCalculator, getPartInstanceTimingId, type RundownTimingContext } from '../index'
+import { calculateSegmentTimingStates, type SegmentTimingStateValues } from '../segmentTimingState'
 
 const DEFAULT_DURATION = 0
 const RUNDOWN_ID = 'rundown1'

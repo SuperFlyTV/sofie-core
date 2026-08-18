@@ -14,8 +14,8 @@ import type { TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerS
 import type { PartTimingStateDoc } from '@sofie-automation/corelib/dist/dataModel/TimingState'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { unprotectString } from '@sofie-automation/corelib/dist/protectedString'
-import { type RundownTimingContext, getPartInstanceTimingId } from './index.js'
-import type { CalculateTimingsPartInstance } from './resolvePartTimings.js'
+import { type RundownTimingContext, getPartInstanceTimingId } from './index'
+import type { CalculateTimingsPartInstance } from './resolvePartTimings'
 
 /** The timing value fields of a PartTimingStateDoc (without the document envelope) */
 export type PartTimingStateValues = Omit<

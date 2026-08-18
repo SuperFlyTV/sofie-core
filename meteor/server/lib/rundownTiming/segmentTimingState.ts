@@ -13,7 +13,7 @@ import type { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { calculatePartInstanceExpectedDurationWithTransition } from '@sofie-automation/corelib/dist/playout/timings'
 import { CountdownType } from '@sofie-automation/blueprints-integration'
-import { type RundownTimingContext, getPartInstanceTimingId } from './index.js'
+import { type RundownTimingContext, getPartInstanceTimingId } from './index'
 
 type CalculateTimingsPartInstance = Pick<
 	PartInstance,
