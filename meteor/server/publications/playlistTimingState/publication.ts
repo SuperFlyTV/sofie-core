@@ -20,11 +20,11 @@ import { SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { literal } from '@sofie-automation/corelib/dist/lib'
 import { sortSegmentsInRundowns } from '@sofie-automation/corelib/dist/playout/playlist'
 import { DEFAULT_DISPLAY_DURATION } from '@sofie-automation/shared-lib/dist/core/constants'
-import { calculatePlaylistTimingStatesFromContext } from '../../lib/rundownTiming/playlistTimingState'
-import { calculateSegmentTimingStates } from '../../lib/rundownTiming/segmentTimingState'
-import { calculatePartTimingStates } from '../../lib/rundownTiming/partTimingState'
-import { prepareTimingPartInstances } from '../../lib/rundownTiming/prepareTimingInputs'
-import { RundownTimingCalculator } from '../../lib/rundownTiming/index'
+import { calculatePlaylistTimingStatesFromContext } from './rundownTiming/playlistTimingState'
+import { calculateSegmentTimingStates } from './rundownTiming/segmentTimingState'
+import { calculatePartTimingStates } from './rundownTiming/partTimingState'
+import { prepareTimingPartInstances } from './rundownTiming/prepareTimingInputs'
+import { RundownTimingCalculator } from './rundownTiming/index'
 import { setUpOptimizedObserverArray, SetupObserversResult, TriggerUpdate } from '../../lib/customPublication'
 import { logger } from '../../logging'
 import { getCurrentTime } from '../../lib/lib'
@@ -189,7 +189,7 @@ export function createPlaylistTimingStateDoc(
 }
 
 /**
- * All the timing math lives in ../../lib/rundownTiming (server-only); this only feeds it the
+ * All the timing math lives in ./rundownTiming (server-only); this only feeds it the
  * cached documents, and runs the calculator once for both the playlist and the segments.
  */
 function computeTimingState(
