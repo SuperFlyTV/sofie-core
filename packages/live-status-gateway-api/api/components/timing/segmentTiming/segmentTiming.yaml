@@ -6,7 +6,10 @@ $defs:
     title: SegmentTiming
     properties:
       expectedDurationMs:
-        description: Expected duration of the segment (milliseconds)
+        description: >-
+          Expected duration of the segment (milliseconds). The sum of its Parts' expected durations
+          as Sofie resolves them - including transition durations, and excluding Parts that are
+          untimed or orphaned - so this is the same number the Sofie UI shows.
         type: number
       budgetDurationMs:
         description: Budget duration of the segment (milliseconds)
@@ -14,6 +17,23 @@ $defs:
       countdownType:
         description: 'Countdown type within the segment. Default: `part_expected_duration`'
         $ref: '../segmentCountdownType.yaml'
+      playedOut:
+        description: >-
+          How much of the segment has played, as a timer the client evaluates against its own clock.
+          Counts up, so the duration read is *negative* and the elapsed time is its negation - a
+          timer's duration read can hold or fall but never rise. Null for a segment that is not the
+          one on air.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      remaining:
+        description: >-
+          What is left of the segment, as a timer. For a segment with a budget duration this is the
+          budget counting down; otherwise it is the expected duration less what has played. Goes
+          negative once the segment overruns. Null for a segment that is not the one on air.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
     required: [expectedDurationMs]
     examples:
       - ref: './segmentTiming-example.yaml'

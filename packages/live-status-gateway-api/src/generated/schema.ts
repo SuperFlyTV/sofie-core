@@ -313,7 +313,7 @@ interface CurrentSegment {
  */
 interface CurrentSegmentTiming {
 	/**
-	 * Expected duration of the segment (milliseconds)
+	 * Expected duration of the segment (milliseconds). The sum of its Parts' expected durations as Sofie resolves them - including transition durations, and excluding Parts that are untimed or orphaned - so this is the same number the Sofie UI shows.
 	 */
 	expectedDurationMs: number
 	/**
@@ -324,6 +324,14 @@ interface CurrentSegmentTiming {
 	 * Countdown type within the segment. Default: `part_expected_duration`
 	 */
 	countdownType?: SegmentCountdownType
+	/**
+	 * How much of the segment has played, as a timer the client evaluates against its own clock. Counts up, so the duration read is *negative* and the elapsed time is its negation - a timer's duration read can hold or fall but never rise. Null for a segment that is not the one on air.
+	 */
+	playedOut?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * What is left of the segment, as a timer. For a segment with a budget duration this is the budget counting down; otherwise it is the expected duration less what has played. Goes negative once the segment overruns. Null for a segment that is not the one on air.
+	 */
+	remaining?: TimerStateRunning | TimerStatePaused | null
 	/**
 	 * Unix timestamp of when the segment is projected to end (milliseconds). The time this segment started, offset by its budget duration, if the segment has a defined budget duration. Otherwise, the time the current part started, offset by the difference between expected durations of all parts in this segment and the as-played durations of the parts that already stopped.
 	 */
@@ -337,6 +345,50 @@ interface CurrentSegmentTiming {
 enum SegmentCountdownType {
 	PART_EXPECTED_DURATION = 'part_expected_duration',
 	SEGMENT_BUDGET_DURATION = 'segment_budget_duration',
+}
+
+/**
+ * Timer state when running (progressing with real time)
+ */
+interface TimerStateRunning {
+	/**
+	 * Whether the timer is paused
+	 */
+	paused: boolean
+	/**
+	 * Unix timestamp (ms) when the timer reaches/reached zero. For countdown timers, this is when time runs out. For free-run timers, this is when the timer started. Client calculates current value relative to this timestamp.
+	 */
+	zeroTime: number
+	/**
+	 * Optional timestamp when the timer should automatically pause (e.g., when current part ends and overrun begins).
+	 */
+	pauseTime?: number | null
+	/**
+	 * Not applicable while running - a running timer has no scheduled start. Always null when present.
+	 */
+	resumesAt?: number | null
+}
+
+/**
+ * Timer state when paused (frozen at a specific duration)
+ */
+interface TimerStatePaused {
+	/**
+	 * Whether the timer is paused
+	 */
+	paused: boolean
+	/**
+	 * Frozen duration value in milliseconds. For countdown timers, this is remaining time. For free-run timers, this is elapsed time.
+	 */
+	duration: number
+	/**
+	 * Not applicable while paused - a paused timer has already stopped. Always null when present.
+	 */
+	pauseTime?: number | null
+	/**
+	 * Optional timestamp when the timer should start running, if that is known in advance (e.g. a scheduled start). Once this timestamp has passed the timer is running, and its current value is `duration - (now - resumesAt)`. Null or absent means it stays frozen until a new state is published.
+	 */
+	resumesAt?: number | null
 }
 
 interface CurrentSegmentPart {
@@ -416,6 +468,18 @@ interface ActivePlaylistTiming {
 	 * Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
 	 */
 	expectedEnd?: number
+	/**
+	 * How much of the playlist's content is left to play, as a timer the client evaluates against its own clock. Counts down while the on-air Part is within its planned duration and holds once it overruns. Null when the playlist is not active.
+	 */
+	remainingDuration?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * When the playlist is now projected to end, as a timer. Read its zero time for the timestamp. Unlike `expectedEnd` this accounts for what has actually been played, and it pushes later in real time while the on-air Part overruns. Null when the playlist is not active.
+	 */
+	estimatedEnd?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * How the playlist is running against its planned duration, as a timer. The duration read is the time in hand: positive is under (ahead of schedule), negative is over. Holds while on schedule and burns down once the show starts pushing. Null when the playlist has no planned duration and has never been played.
+	 */
+	overUnder?: TimerStateRunning | TimerStatePaused | null
 }
 
 /**
@@ -562,50 +626,6 @@ interface TimerModeTimeOfDay {
 	 * Whether timer stops at zero or continues into negative values
 	 */
 	stopAtZero: boolean
-}
-
-/**
- * Timer state when running (progressing with real time)
- */
-interface TimerStateRunning {
-	/**
-	 * Whether the timer is paused
-	 */
-	paused: boolean
-	/**
-	 * Unix timestamp (ms) when the timer reaches/reached zero. For countdown timers, this is when time runs out. For free-run timers, this is when the timer started. Client calculates current value relative to this timestamp.
-	 */
-	zeroTime: number
-	/**
-	 * Optional timestamp when the timer should automatically pause (e.g., when current part ends and overrun begins).
-	 */
-	pauseTime?: number | null
-	/**
-	 * Not applicable while running - a running timer has no scheduled start. Always null when present.
-	 */
-	resumesAt?: number | null
-}
-
-/**
- * Timer state when paused (frozen at a specific duration)
- */
-interface TimerStatePaused {
-	/**
-	 * Whether the timer is paused
-	 */
-	paused: boolean
-	/**
-	 * Frozen duration value in milliseconds. For countdown timers, this is remaining time. For free-run timers, this is elapsed time.
-	 */
-	duration: number
-	/**
-	 * Not applicable while paused - a paused timer has already stopped. Always null when present.
-	 */
-	pauseTime?: number | null
-	/**
-	 * Optional timestamp when the timer should start running, if that is known in advance (e.g. a scheduled start). Once this timestamp has passed the timer is running, and its current value is `duration - (now - resumesAt)`. Null or absent means it stays frozen until a new state is published.
-	 */
-	resumesAt?: number | null
 }
 
 /**
@@ -1117,7 +1137,7 @@ interface Segment {
 
 interface SegmentTiming {
 	/**
-	 * Expected duration of the segment (milliseconds)
+	 * Expected duration of the segment (milliseconds). The sum of its Parts' expected durations as Sofie resolves them - including transition durations, and excluding Parts that are untimed or orphaned - so this is the same number the Sofie UI shows.
 	 */
 	expectedDurationMs: number
 	/**
@@ -1128,6 +1148,14 @@ interface SegmentTiming {
 	 * Countdown type within the segment. Default: `part_expected_duration`
 	 */
 	countdownType?: SegmentCountdownType
+	/**
+	 * How much of the segment has played, as a timer the client evaluates against its own clock. Counts up, so the duration read is *negative* and the elapsed time is its negation - a timer's duration read can hold or fall but never rise. Null for a segment that is not the one on air.
+	 */
+	playedOut?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * What is left of the segment, as a timer. For a segment with a budget duration this is the budget counting down; otherwise it is the expected duration less what has played. Goes negative once the segment overruns. Null for a segment that is not the one on air.
+	 */
+	remaining?: TimerStateRunning | TimerStatePaused | null
 	additionalProperties?: Record<string, any>
 }
 
@@ -1520,6 +1548,8 @@ export {
 	CurrentSegment,
 	CurrentSegmentTiming,
 	SegmentCountdownType,
+	TimerStateRunning,
+	TimerStatePaused,
 	CurrentSegmentPart,
 	CurrentSegmentPartTiming,
 	PartStatus,
@@ -1533,8 +1563,6 @@ export {
 	TimerModeCountdown,
 	TimerModeFreeRun,
 	TimerModeTimeOfDay,
-	TimerStateRunning,
-	TimerStatePaused,
 	ResolvedPlaylistEvent,
 	ResolvedPlaylistTiming,
 	ResolvedPlaylistTimingType,

@@ -1,3 +1,14 @@
 timingMode: 'forward-time'
 expectedStart: 1728895750727
 expectedDurationMs: 180000
+remainingDuration:
+  paused: false
+  zeroTime: 1728895900727
+  pauseTime: 1728895800727
+estimatedEnd:
+  paused: false
+  zeroTime: 1728895930727
+  pauseTime: 1728895800727
+overUnder:
+  paused: true
+  duration: -12000

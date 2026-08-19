@@ -18,6 +18,32 @@ $defs:
       expectedEnd:
         description: Unix timestamp of when the playlist is expected to end (milliseconds) Required when the timingMode is set to back-time.
         type: number
+      remainingDuration:
+        description: >-
+          How much of the playlist's content is left to play, as a timer the client evaluates
+          against its own clock. Counts down while the on-air Part is within its planned duration
+          and holds once it overruns. Null when the playlist is not active.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      estimatedEnd:
+        description: >-
+          When the playlist is now projected to end, as a timer. Read its zero time for the
+          timestamp. Unlike `expectedEnd` this accounts for what has actually been played, and it
+          pushes later in real time while the on-air Part overruns. Null when the playlist is not
+          active.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      overUnder:
+        description: >-
+          How the playlist is running against its planned duration, as a timer. The duration read is
+          the time in hand: positive is under (ahead of schedule), negative is over. Holds while on
+          schedule and burns down once the show starts pushing. Null when the playlist has no
+          planned duration and has never been played.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
     required: [timingMode]
     additionalProperties: false
     examples:

@@ -367,11 +367,11 @@ channels:
                   oneOf:
                     - title: CurrentPartStatus
                       allOf:
-                        - &a21
+                        - &a22
                           type: object
                           title: PartStatus
                           allOf:
-                            - &a17
+                            - &a18
                               type: object
                               title: PartBase
                               properties:
@@ -493,7 +493,7 @@ channels:
                               title: CurrentPartTiming
                               description: Timing information about the current part
                               allOf:
-                                - &a18
+                                - &a19
                                   type: object
                                   title: CurrentSegmentPartTiming
                                   properties:
@@ -562,7 +562,12 @@ channels:
                                   title: SegmentTiming
                                   properties:
                                     expectedDurationMs:
-                                      description: Expected duration of the segment (milliseconds)
+                                      description: Expected duration of the segment (milliseconds). The sum of its
+                                        Parts' expected durations as Sofie
+                                        resolves them - including transition
+                                        durations, and excluding Parts that are
+                                        untimed or orphaned - so this is the
+                                        same number the Sofie UI shows.
                                       type: number
                                     budgetDurationMs:
                                       description: Budget duration of the segment (milliseconds)
@@ -575,6 +580,125 @@ channels:
                                       enum:
                                         - part_expected_duration
                                         - segment_budget_duration
+                                    playedOut:
+                                      description: How much of the segment has played, as a timer the client evaluates
+                                        against its own clock. Counts up, so the
+                                        duration read is *negative* and the
+                                        elapsed time is its negation - a timer's
+                                        duration read can hold or fall but never
+                                        rise. Null for a segment that is not the
+                                        one on air.
+                                      oneOf:
+                                        - type: "null"
+                                        - &a17
+                                          title: TimerState
+                                          description: Runtime state of a timer, optimized for efficient client rendering.
+                                            When running, the client calculates
+                                            current time from zeroTime. When
+                                            paused, the duration is frozen and
+                                            sent directly.
+                                          oneOf:
+                                            - type: object
+                                              title: TimerStateRunning
+                                              description: Timer state when running (progressing with real time)
+                                              properties:
+                                                paused:
+                                                  type: boolean
+                                                  const: false
+                                                  description: Whether the timer is paused
+                                                zeroTime:
+                                                  type: number
+                                                  description: Unix timestamp (ms) when the timer reaches/reached zero. For
+                                                    countdown timers, this is
+                                                    when time runs out. For
+                                                    free-run timers, this is
+                                                    when the timer started.
+                                                    Client calculates current
+                                                    value relative to this
+                                                    timestamp.
+                                                pauseTime:
+                                                  description: Optional timestamp when the timer should automatically pause (e.g.,
+                                                    when current part ends and
+                                                    overrun begins).
+                                                  oneOf:
+                                                    - type: number
+                                                    - type: "null"
+                                                resumesAt:
+                                                  description: Not applicable while running - a running timer has no scheduled
+                                                    start. Always null when
+                                                    present.
+                                                  oneOf:
+                                                    - type: number
+                                                    - type: "null"
+                                              required:
+                                                - paused
+                                                - zeroTime
+                                              additionalProperties: false
+                                              examples:
+                                                - paused: false
+                                                  zeroTime: 1706371920000
+                                                  pauseTime: 1706371900000
+                                            - type: object
+                                              title: TimerStatePaused
+                                              description: Timer state when paused (frozen at a specific duration)
+                                              properties:
+                                                paused:
+                                                  type: boolean
+                                                  const: true
+                                                  description: Whether the timer is paused
+                                                duration:
+                                                  type: integer
+                                                  description: Frozen duration value in milliseconds. For countdown timers, this
+                                                    is remaining time. For
+                                                    free-run timers, this is
+                                                    elapsed time.
+                                                pauseTime:
+                                                  description: Not applicable while paused - a paused timer has already stopped.
+                                                    Always null when present.
+                                                  oneOf:
+                                                    - type: integer
+                                                    - type: "null"
+                                                resumesAt:
+                                                  description: Optional timestamp when the timer should start running, if that is
+                                                    known in advance (e.g. a
+                                                    scheduled start). Once this
+                                                    timestamp has passed the
+                                                    timer is running, and its
+                                                    current value is `duration -
+                                                    (now - resumesAt)`. Null or
+                                                    absent means it stays frozen
+                                                    until a new state is
+                                                    published.
+                                                  oneOf:
+                                                    - type: integer
+                                                    - type: "null"
+                                              required:
+                                                - paused
+                                                - duration
+                                              additionalProperties: false
+                                              examples:
+                                                - paused: true
+                                                  duration: 45000
+                                                  pauseTime: null
+                                          examples:
+                                            - &a48
+                                              paused: false
+                                              zeroTime: 1706371920000
+                                              pauseTime: 1706371900000
+                                            - paused: true
+                                              duration: 35000
+                                              pauseTime: null
+                                    remaining:
+                                      description: What is left of the segment, as a timer. For a segment with a
+                                        budget duration this is the budget
+                                        counting down; otherwise it is the
+                                        expected duration less what has played.
+                                        Goes negative once the segment overruns.
+                                        Null for a segment that is not the one
+                                        on air.
+                                      oneOf:
+                                        - type: "null"
+                                        - *a17
                                   required:
                                     - expectedDurationMs
                                   examples:
@@ -598,28 +722,34 @@ channels:
                                 - expectedDurationMs
                                 - projectedEndTime
                               examples:
-                                - &a19
+                                - &a20
                                   projectedEndTime: 1600000075000
                                   expectedDurationMs: 15000
                                   budgetDurationMs: 20000
                                   countdownType: segment_budget_duration
+                                  playedOut: &a55
+                                    paused: false
+                                    zeroTime: 1728895740727
+                                  remaining: &a56
+                                    paused: false
+                                    zeroTime: 1728895760727
                             parts:
                               type: array
                               items:
                                 title: CurrentSegmentPart
                                 type: object
                                 allOf:
-                                  - *a17
+                                  - *a18
                                   - type: object
                                     title: CurrentSegmentPart
                                     properties:
-                                      timing: *a18
+                                      timing: *a19
                                 required:
                                   - id
                                   - name
                                   - timing
                                 examples:
-                                  - &a20
+                                  - &a21
                                     timing:
                                       expectedDurationMs: 15000
                                     id: H5CBGYjThrMSmaYvRaa5FVKJIzk_
@@ -634,14 +764,14 @@ channels:
                         - parts
                       examples:
                         - &a26
-                          timing: *a19
+                          timing: *a20
                           parts:
-                            - *a20
+                            - *a21
                           id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
                     - type: "null"
                 nextPart:
                   oneOf:
-                    - *a21
+                    - *a22
                     - type: "null"
                 publicData:
                   description: Optional arbitrary data
@@ -678,6 +808,34 @@ channels:
                         (milliseconds) Required when the timingMode is set to
                         back-time.
                       type: number
+                    remainingDuration:
+                      description: How much of the playlist's content is left to play, as a timer the
+                        client evaluates against its own clock. Counts down
+                        while the on-air Part is within its planned duration and
+                        holds once it overruns. Null when the playlist is not
+                        active.
+                      oneOf:
+                        - type: "null"
+                        - *a17
+                    estimatedEnd:
+                      description: When the playlist is now projected to end, as a timer. Read its
+                        zero time for the timestamp. Unlike `expectedEnd` this
+                        accounts for what has actually been played, and it
+                        pushes later in real time while the on-air Part
+                        overruns. Null when the playlist is not active.
+                      oneOf:
+                        - type: "null"
+                        - *a17
+                    overUnder:
+                      description: "How the playlist is running against its planned duration, as a
+                        timer. The duration read is the time in hand: positive
+                        is under (ahead of schedule), negative is over. Holds
+                        while on schedule and burns down once the show starts
+                        pushing. Null when the playlist has no planned duration
+                        and has never been played."
+                      oneOf:
+                        - type: "null"
+                        - *a17
                   required:
                     - timingMode
                   additionalProperties: false
@@ -686,6 +844,17 @@ channels:
                       timingMode: forward-time
                       expectedStart: 1728895750727
                       expectedDurationMs: 180000
+                      remainingDuration:
+                        paused: false
+                        zeroTime: 1728895900727
+                        pauseTime: 1728895800727
+                      estimatedEnd:
+                        paused: false
+                        zeroTime: 1728895930727
+                        pauseTime: 1728895800727
+                      overUnder:
+                        paused: true
+                        duration: -12000
                 quickLoop: &a33
                   description: Information about the current quickLoop, if any
                   type: object
@@ -698,7 +867,7 @@ channels:
                     running:
                       description: Whether the loop has two valid markers and is currently running
                       type: boolean
-                    start: &a22
+                    start: &a23
                       type: object
                       title: QuickLoopMarker
                       description: Represents a positional marker used to define the start or end of a
@@ -728,10 +897,10 @@ channels:
                       required:
                         - markerType
                       examples:
-                        - &a23
+                        - &a24
                           markerType: rundown
                           rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
-                    end: *a22
+                    end: *a23
                   required:
                     - locked
                     - running
@@ -739,8 +908,8 @@ channels:
                     - &a29
                       locked: false
                       running: true
-                      start: *a23
-                      end: *a23
+                      start: *a24
+                      end: *a24
                 tTimers:
                   description: Status of the 3 T-timers in the playlist
                   type: array
@@ -846,95 +1015,7 @@ channels:
                         description: Current runtime state of the timer. Null if not configured.
                         oneOf:
                           - type: "null"
-                          - &a24
-                            title: TimerState
-                            description: Runtime state of a timer, optimized for efficient client rendering.
-                              When running, the client calculates current time
-                              from zeroTime. When paused, the duration is frozen
-                              and sent directly.
-                            oneOf:
-                              - type: object
-                                title: TimerStateRunning
-                                description: Timer state when running (progressing with real time)
-                                properties:
-                                  paused:
-                                    type: boolean
-                                    const: false
-                                    description: Whether the timer is paused
-                                  zeroTime:
-                                    type: number
-                                    description: Unix timestamp (ms) when the timer reaches/reached zero. For
-                                      countdown timers, this is when time runs
-                                      out. For free-run timers, this is when the
-                                      timer started. Client calculates current
-                                      value relative to this timestamp.
-                                  pauseTime:
-                                    description: Optional timestamp when the timer should automatically pause (e.g.,
-                                      when current part ends and overrun
-                                      begins).
-                                    oneOf:
-                                      - type: number
-                                      - type: "null"
-                                  resumesAt:
-                                    description: Not applicable while running - a running timer has no scheduled
-                                      start. Always null when present.
-                                    oneOf:
-                                      - type: number
-                                      - type: "null"
-                                required:
-                                  - paused
-                                  - zeroTime
-                                additionalProperties: false
-                                examples:
-                                  - paused: false
-                                    zeroTime: 1706371920000
-                                    pauseTime: 1706371900000
-                              - type: object
-                                title: TimerStatePaused
-                                description: Timer state when paused (frozen at a specific duration)
-                                properties:
-                                  paused:
-                                    type: boolean
-                                    const: true
-                                    description: Whether the timer is paused
-                                  duration:
-                                    type: integer
-                                    description: Frozen duration value in milliseconds. For countdown timers, this
-                                      is remaining time. For free-run timers,
-                                      this is elapsed time.
-                                  pauseTime:
-                                    description: Not applicable while paused - a paused timer has already stopped.
-                                      Always null when present.
-                                    oneOf:
-                                      - type: integer
-                                      - type: "null"
-                                  resumesAt:
-                                    description: Optional timestamp when the timer should start running, if that is
-                                      known in advance (e.g. a scheduled start).
-                                      Once this timestamp has passed the timer
-                                      is running, and its current value is
-                                      `duration - (now - resumesAt)`. Null or
-                                      absent means it stays frozen until a new
-                                      state is published.
-                                    oneOf:
-                                      - type: integer
-                                      - type: "null"
-                                required:
-                                  - paused
-                                  - duration
-                                additionalProperties: false
-                                examples:
-                                  - paused: true
-                                    duration: 45000
-                                    pauseTime: null
-                            examples:
-                              - &a48
-                                paused: false
-                                zeroTime: 1706371920000
-                                pauseTime: 1706371900000
-                              - paused: true
-                                duration: 35000
-                                pauseTime: null
+                          - *a17
                       projected:
                         description: Projected timing for when we expect to reach an anchor part. Used
                           to calculate over/under diff. Has the same structure
@@ -942,7 +1023,7 @@ channels:
                           paused means pushing/delaying anchor.
                         oneOf:
                           - type: "null"
-                          - *a24
+                          - *a17
                       anchorPartId:
                         description: The ID of the target Part that this timer is counting towards (the
                           "timing anchor"). Optional - null if no anchor is set.
@@ -1310,7 +1391,7 @@ channels:
                                         title: ResolvedPart
                                         description: A part within a resolved segment
                                         allOf:
-                                          - *a17
+                                          - *a18
                                           - type: object
                                             title: ResolvedPart
                                             description: A part within a resolved segment
@@ -1345,7 +1426,7 @@ channels:
                                                     description: Severity hint for displaying the invalid reason
                                                     type: string
                                                     title: NotificationSeverity
-                                                    enum: &a69
+                                                    enum: &a71
                                                       - warning
                                                       - error
                                                       - info
@@ -1733,7 +1814,7 @@ channels:
                   - name
                   - timing
                 examples:
-                  - &a55
+                  - &a57
                     identifier: Segment 0 identifier
                     rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
                     name: Segment 0
@@ -1741,6 +1822,8 @@ channels:
                       expectedDurationMs: 15000
                       budgetDurationMs: 20000
                       countdownType: segment_budget_duration
+                      playedOut: *a55
+                      remaining: *a56
                     publicData:
                       containsLiveSource: true
                     id: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
@@ -1749,13 +1832,13 @@ channels:
             - rundownPlaylistId
             - segments
           examples:
-            - &a56
+            - &a58
               event: segments
               rundownPlaylistId: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
               segments:
-                - *a55
+                - *a57
         examples:
-          - payload: *a56
+          - payload: *a58
   adLibs:
     description: Topic for AdLibs updates
     subscribe:
@@ -1785,7 +1868,7 @@ channels:
                   items:
                     title: AdLibStatus
                     allOf:
-                      - &a61
+                      - &a63
                         title: AdLibBase
                         type: object
                         properties:
@@ -1820,7 +1903,7 @@ channels:
                                 - label
                               additionalProperties: false
                               examples:
-                                - &a57
+                                - &a59
                                   name: pvw
                                   label: Preview
                           tags:
@@ -1840,15 +1923,15 @@ channels:
                           - sourceLayer
                           - actionType
                         examples:
-                          - &a62
+                          - &a64
                             id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                             name: Music video clip
                             sourceLayer: Video Clip
-                            actionType: &a58
-                              - *a57
-                            tags: &a59
+                            actionType: &a60
+                              - *a59
+                            tags: &a61
                               - music_video
-                            publicData: &a60
+                            publicData: &a62
                               fileName: MV000123.mxf
                             optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                               Video
@@ -1880,15 +1963,15 @@ channels:
                           - segmentId
                           - partId
                     examples:
-                      - &a63
+                      - &a65
                         segmentId: HsD8_QwE1ZmR5vN3XcK_Ab7y
                         partId: JkL3_OpR6WxT1bF8Vq2_Zy9u
                         id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                         name: Music video clip
                         sourceLayer: Video Clip
-                        actionType: *a58
-                        tags: *a59
-                        publicData: *a60
+                        actionType: *a60
+                        tags: *a61
+                        publicData: *a62
                         optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                           Video
                           Clip","type":"object","properties":{"type":"adlib_action_video_clip","label":{"type":"string"},"clipId":{"type":"string"},"vo":{"type":"boolean"},"target":{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Object
@@ -1912,9 +1995,9 @@ channels:
                   items:
                     title: GlobalAdLibStatus
                     allOf:
-                      - *a61
+                      - *a63
                     examples:
-                      - *a62
+                      - *a64
               required:
                 - event
                 - rundownPlaylistId
@@ -1922,15 +2005,15 @@ channels:
                 - globalAdLibs
               additionalProperties: false
               examples:
-                - &a64
+                - &a66
                   event: adLibs
                   rundownPlaylistId: OKAgZmZ0Buc99lE_2uPPSKVbMrQ_
                   adLibs:
-                    - *a63
+                    - *a65
                   globalAdLibs:
-                    - *a62
+                    - *a64
             examples:
-              - payload: *a64
+              - payload: *a66
   packages:
     description: Packages topic for websocket subscriptions. Packages are assets
       that need to be prepared by Sofie Package Manager or third-party systems
@@ -2038,7 +2121,7 @@ channels:
                       - pieceOrAdLibId
                     additionalProperties: false
                     examples:
-                      - &a65
+                      - &a67
                         packageName: MV000123.mxf
                         status: ok
                         rundownId: y9HauyWkcxQS3XaAOsW40BRLLsI_
@@ -2056,7 +2139,7 @@ channels:
                 - event: packages
                   rundownPlaylistId: y9HauyWkcxQS3XaAOsW40BRLLsI_
                   packages:
-                    - *a65
+                    - *a67
   buckets:
     description: Buckets schema for websocket subscriptions
     subscribe:
@@ -2092,7 +2175,7 @@ channels:
                         items:
                           title: BucketAdLibStatus
                           allOf:
-                            - *a61
+                            - *a63
                             - type: object
                               title: BucketAdLibStatus
                               properties:
@@ -2103,14 +2186,14 @@ channels:
                               required:
                                 - externalId
                           examples:
-                            - &a66
+                            - &a68
                               externalId: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                               id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                               name: Music video clip
                               sourceLayer: Video Clip
-                              actionType: *a58
-                              tags: *a59
-                              publicData: *a60
+                              actionType: *a60
+                              tags: *a61
+                              publicData: *a62
                               optionsSchema: '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Play
                                 Video
                                 Clip","type":"object","properties":{"type":"adlib_action_video_clip","label":{"type":"string"},"clipId":{"type":"string"},"vo":{"type":"boolean"},"target":{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Object
@@ -2134,22 +2217,22 @@ channels:
                       - adLibs
                     additionalProperties: false
                     examples:
-                      - &a67
+                      - &a69
                         id: C6K_yIMuGFUk8X_L9A9_jRT6aq4_
                         name: My Bucket
                         adLibs:
-                          - *a66
+                          - *a68
               required:
                 - event
                 - buckets
               additionalProperties: false
               examples:
-                - &a68
+                - &a70
                   event: buckets
                   buckets:
-                    - *a67
+                    - *a69
             examples:
-              - payload: *a68
+              - payload: *a70
   notifications:
     description: Notifications topic for websocket subscriptions.
     subscribe:
@@ -2190,7 +2273,7 @@ channels:
                         type: string
                         title: NotificationSeverity
                         description: Severity level of the notification.
-                        enum: *a69
+                        enum: *a71
                       message:
                         type: string
                         description: The message of the notification
@@ -2210,7 +2293,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: &a70
+                                enum: &a72
                                   - rundown
                                   - playlist
                                   - partInstance
@@ -2222,7 +2305,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a71
+                              - &a73
                                 type: rundown
                                 studioId: studio01
                                 rundownId: rd123
@@ -2238,14 +2321,14 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a70
+                                enum: *a72
                               studioId:
                                 type: string
                               playlistId:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a72
+                              - &a74
                                 type: playlist
                                 studioId: studio01
                                 playlistId: pl456
@@ -2262,7 +2345,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a70
+                                enum: *a72
                               studioId:
                                 type: string
                               rundownId:
@@ -2271,7 +2354,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a73
+                              - &a75
                                 type: partInstance
                                 studioId: studio01
                                 rundownId: rd123
@@ -2290,7 +2373,7 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a70
+                                enum: *a72
                               studioId:
                                 type: string
                               rundownId:
@@ -2301,7 +2384,7 @@ channels:
                                 type: string
                             additionalProperties: false
                             examples:
-                              - &a74
+                              - &a76
                                 type: pieceInstance
                                 studioId: studio01
                                 rundownId: rd123
@@ -2317,17 +2400,17 @@ channels:
                                 type: string
                                 title: NotificationTargetType
                                 description: Possible NotificationTarget types
-                                enum: *a70
+                                enum: *a72
                             additionalProperties: false
                             examples:
-                              - &a75
+                              - &a77
                                 type: unknown
                         examples:
-                          - *a71
-                          - *a72
                           - *a73
                           - *a74
                           - *a75
+                          - *a76
+                          - *a77
                       created:
                         type: integer
                         format: int64
@@ -2338,11 +2421,11 @@ channels:
                         description: Unix timestamp of last modification
                     additionalProperties: false
                     examples:
-                      - &a76
+                      - &a78
                         _id: notif123
                         severity: error
                         message: disk.space.low
-                        relatedTo: *a74
+                        relatedTo: *a76
                         created: 1694784932
                         modified: 1694784950
               required:
@@ -2350,9 +2433,9 @@ channels:
                 - activeNotifications
               additionalProperties: false
               examples:
-                - &a77
+                - &a79
                   event: notifications
                   activeNotifications:
-                    - *a76
+                    - *a78
             examples:
-              - payload: *a77
+              - payload: *a79
