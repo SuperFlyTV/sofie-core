@@ -3,7 +3,14 @@ import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protected
 import { ResolvedPlaylistConversionContext } from '../context/conversionContext.js'
 import type { PartExtended } from '@sofie-automation/corelib/dist/dataModel/Part'
 import type { PartInvalidReason as CorePartInvalidReason } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { PartInvalidReason, ResolvedPart, ResolvedPartState } from '@sofie-automation/live-status-gateway-api'
+import {
+	PartInvalidReason,
+	PartRundownTiming,
+	ResolvedPart,
+	ResolvedPartState,
+} from '@sofie-automation/live-status-gateway-api'
+import type { PartTimingStateDoc } from '@sofie-automation/corelib/dist/dataModel/TimingState'
+import { timerStateToDuration } from '@sofie-automation/corelib/dist/dataModel/TimerState'
 import { interpollateTranslation } from '@sofie-automation/corelib/dist/TranslatableMessage'
 import { toNotificationSeverity } from '../../notification/toNotificationStatus.js'
 
@@ -23,6 +30,9 @@ export function toResolvedPartStatus(ctx: ResolvedPlaylistConversionContext, par
 	) {
 		state = ResolvedPartState.NEXT
 	}
+
+	const partId = part.partId ?? basePart._id
+	const rundownTiming = toPartRundownTiming(partId ? ctx.timingStates?.parts.get(partId) : undefined)
 
 	const timings = instance?.timings ?? {}
 	const createdByAdLib = instance?.orphaned === 'adlib-part'
@@ -50,6 +60,7 @@ export function toResolvedPartStatus(ctx: ResolvedPlaylistConversionContext, par
 			setAsNext: timings.setAsNext ?? 0,
 			take: timings.take ?? 0,
 		},
+		rundownTiming,
 		pieces: part.pieces?.map((piece) => toResolvedPieceStatus(piece)) ?? [],
 	}
 }
@@ -61,5 +72,26 @@ function toApiPartInvalidReason(invalidReason: CorePartInvalidReason): PartInval
 		message: interpollateTranslation(msg.key, msg.args ?? {}),
 		severity: invalidReason.severity ? toNotificationSeverity(invalidReason.severity) : undefined,
 		color: invalidReason.color,
+	}
+}
+
+/**
+ * A Part's rundown timing, as Sofie resolved and published it.
+ *
+ * The timers are forwarded rather than evaluated: the client reads them against its own clock, so
+ * the gateway sends on playout events instead of on a tick. The durations are constant states, so
+ * evaluating them to plain numbers costs nothing and matches the plain-number fields around them.
+ */
+function toPartRundownTiming(timing: PartTimingStateDoc | undefined): PartRundownTiming {
+	return {
+		// constant states, so any instant reads the same value
+		expectedDurationMs: timing?.expectedDuration ? timerStateToDuration(timing.expectedDuration, 0) : 0,
+		displayDurationMs: timing?.displayDuration ? timerStateToDuration(timing.displayDuration, 0) : 0,
+		isInQuickLoop: timing?.isInQuickLoop ?? false,
+		countsTowardsTiming: timing?.countsTowardsTiming ?? false,
+		countdown: timing?.countdown,
+		played: timing?.played,
+		duration: timing?.duration,
+		liveDisplayDuration: timing?.liveDisplayDuration,
 	}
 }

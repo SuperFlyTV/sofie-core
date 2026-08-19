@@ -11,6 +11,9 @@ import {
 	makeTestShowStyleBaseExt,
 } from './resolvedPlaylistConversionTestUtils.js'
 import { createResolvedPlaylistConversionContext } from '../context/conversionContext.js'
+import { splitTimingStates } from '../../../../collections/playlistTimingStatesHandler.js'
+import type { PartTimingStateDoc } from '@sofie-automation/corelib/dist/dataModel/TimingState'
+import type { PartId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
 describe('toResolvedPartStatus', () => {
 	it('maps current part state and nested pieces', () => {
@@ -104,5 +107,68 @@ describe('toResolvedPartStatus', () => {
 		expect(result.timing.startMs).toBe(0)
 		expect(result.timing.durationMs).toBe(0)
 		expect(result.pieces).toEqual([])
+	})
+})
+
+describe('toResolvedPartStatus rundown timing', () => {
+	const partId = protectString<PartId>('part0')
+	const segmentId = protectString<SegmentId>('segment0')
+
+	function contextWithTiming(timing: Partial<PartTimingStateDoc> | undefined) {
+		return createResolvedPlaylistConversionContext({
+			playlistState: makePlaylist({}),
+			rundownsState: [makeRundown('rundown0')],
+			showStyleBaseExtState: makeTestShowStyleBaseExt(),
+			segmentsState: [makeSegment('segment0', 'rundown0', 0)],
+			partsState: [],
+			partInstancesInPlaylistState: [],
+			piecesInPlaylistState: [],
+			pieceInstancesInPlaylistState: [],
+			timingStatesState: timing
+				? splitTimingStates([{ type: 'part', partId, segmentId, ...timing } as PartTimingStateDoc])
+				: undefined,
+		})
+	}
+
+	const partExtended = { partId, instance: makePartInstance('pi0', 'part0', 'segment0', 'rundown0') } as any
+
+	it('forwards the published timers untouched, so the client evaluates them itself', () => {
+		const countdown = { paused: false as const, zeroTime: 1600000070000, pauseTime: 1600000060000 }
+		const played = { paused: true as const, duration: 0, resumesAt: 1600000060000 }
+
+		const result = toResolvedPartStatus(contextWithTiming({ countdown, played }), partExtended)
+
+		expect(result.rundownTiming).toMatchObject({ countdown, played })
+	})
+
+	it('evaluates the resolved durations, which are constant', () => {
+		const result = toResolvedPartStatus(
+			contextWithTiming({
+				expectedDuration: { paused: true, duration: 10000 },
+				displayDuration: { paused: true, duration: 12000 },
+				isInQuickLoop: true,
+				countsTowardsTiming: true,
+			}),
+			partExtended
+		)
+
+		expect(result.rundownTiming).toMatchObject({
+			expectedDurationMs: 10000,
+			displayDurationMs: 12000,
+			isInQuickLoop: true,
+			countsTowardsTiming: true,
+		})
+	})
+
+	it('reports zeroes rather than nothing while the publication has not arrived', () => {
+		const result = toResolvedPartStatus(contextWithTiming(undefined), partExtended)
+
+		expect(result.rundownTiming).toMatchObject({
+			expectedDurationMs: 0,
+			displayDurationMs: 0,
+			isInQuickLoop: false,
+			countsTowardsTiming: false,
+		})
+		expect(result.rundownTiming?.countdown).toBeUndefined()
 	})
 })

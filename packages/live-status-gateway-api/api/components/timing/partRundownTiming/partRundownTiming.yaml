@@ -1,0 +1,65 @@
+title: Part Rundown Timing
+description: Rundown timing for a part, as Sofie resolves it
+$defs:
+  partRundownTiming:
+    type: object
+    title: PartRundownTiming
+    description: >-
+      A Part's rundown timing, as Sofie resolves it. These are the numbers the Sofie UI shows -
+      the whole cascade of fallbacks (an as-played duration where the Part has played, the expected
+      duration with transition where it has not, the Part's share of a display-duration group where
+      it has neither, the Studio default) has already been applied.
+    properties:
+      expectedDurationMs:
+        description: The Part's expected duration, resolved (milliseconds)
+        type: number
+      displayDurationMs:
+        description: >-
+          How much room the Part takes up in a rundown display, resolved, as if it were not playing
+          (milliseconds). See `liveDisplayDuration` for the value that grows while it is on air.
+        type: number
+      isInQuickLoop:
+        description: Whether the Part is inside the QuickLoop
+        type: boolean
+      countsTowardsTiming:
+        description: >-
+          Whether the Part contributes to the playlist and rundown totals. False for Parts that will
+          be skipped if the rundown is played in order, unless the playlist allows out-of-order timing.
+        type: boolean
+      countdown:
+        description: >-
+          Time until this Part goes on air, as a timer the client evaluates against its own clock.
+          Holds at the Part's own remaining wait once the on-air Part overruns - a countdown cannot
+          fall below the waits that still have to happen. Absent when the Part will probably not be
+          played out if the rundown is played in order, which is what a display uses to decide not
+          to show a countdown at all.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      played:
+        description: >-
+          How much of the Part has played, as a timer. Counts up, so the duration read is *negative*
+          and the elapsed time is its negation - a timer's duration read can hold or fall but never
+          rise. Free-running while the Part is on air, frozen at the recorded duration once it is done.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      duration:
+        description: >-
+          The Part's duration - as-run once it has played, as-planned before that, and growing past
+          the planned value while it overruns. Counts up, so reads *negative*; see `played`.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+      liveDisplayDuration:
+        description: >-
+          `displayDurationMs` while the Part is on air: it grows once the Part passes its planned
+          end, so an overrunning Part keeps taking up more room rather than being drawn as finished.
+          Counts up, so reads *negative*; see `played`.
+        oneOf:
+          - type: 'null'
+          - $ref: '../../tTimers/timerState.yaml#/$defs/timerState'
+    required: [expectedDurationMs, displayDurationMs, isInQuickLoop, countsTowardsTiming]
+    additionalProperties: false
+    examples:
+      - $ref: './partRundownTiming-example.yaml'

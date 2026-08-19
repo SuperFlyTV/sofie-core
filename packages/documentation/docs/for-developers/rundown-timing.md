@@ -120,6 +120,30 @@ Note that offsets are only ever needed *within* a segment — every place the So
 uses the difference between two Parts of the same Segment — so there is no need to accumulate across
 the whole playlist.
 
+### Through the Live Status Gateway
+
+The gateway is the supported route for an external system, and it carries the same values. Rather
+than mirroring the publication's documents it hangs them off the topics that already describe those
+things:
+
+| Topic | Field |
+|---|---|
+| `activePlaylist` | `timing.remainingDuration`, `timing.estimatedEnd`, `timing.overUnder` |
+| `activePlaylist`, `segments` | `timing.playedOut`, `timing.remaining` on a segment |
+| `resolvedPlaylist` | `rundownTiming` on each part - durations, `countdown`, `played` |
+
+The timers are forwarded as `TimerState`s, so the gateway sends on playout events and your clock
+does the rest; the resolved durations arrive as plain milliseconds because they do not move.
+
+Two things to know when reading them:
+
+- The generated TypeScript union is **not** discriminable by `paused` - the schema generator cannot
+  express `const: true` as a literal type, so both branches declare `paused: boolean`. Narrow with
+  `'zeroTime' in state` instead.
+- `segment.timing.expectedDurationMs` is the length of the segment's *content*. For a segment with a
+  budget duration that is deliberately not the budget, which is reported separately in
+  `budgetDurationMs`.
+
 ### From the Sofie web UI
 
 Hooks in

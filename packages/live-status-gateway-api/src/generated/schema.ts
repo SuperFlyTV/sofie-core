@@ -934,6 +934,10 @@ interface ResolvedPart {
 	 */
 	timing: ResolvedPartTiming
 	/**
+	 * The Part's rundown timing as Sofie resolves it - durations and countdowns. Distinct from `timing`, which describes where this Part sits in the resolved playout.
+	 */
+	rundownTiming?: PartRundownTiming
+	/**
 	 * Pieces in this part
 	 */
 	pieces: ResolvedPiece[]
@@ -1007,6 +1011,44 @@ interface ResolvedPartTiming {
 	 * Unix timestamp (ms) when the part was taken
 	 */
 	take?: number
+}
+
+/**
+ * The Part's rundown timing as Sofie resolves it - durations and countdowns. Distinct from `timing`, which describes where this Part sits in the resolved playout.
+ */
+interface PartRundownTiming {
+	/**
+	 * The Part's expected duration, resolved (milliseconds)
+	 */
+	expectedDurationMs: number
+	/**
+	 * How much room the Part takes up in a rundown display, resolved, as if it were not playing (milliseconds). See `liveDisplayDuration` for the value that grows while it is on air.
+	 */
+	displayDurationMs: number
+	/**
+	 * Whether the Part is inside the QuickLoop
+	 */
+	isInQuickLoop: boolean
+	/**
+	 * Whether the Part contributes to the playlist and rundown totals. False for Parts that will be skipped if the rundown is played in order, unless the playlist allows out-of-order timing.
+	 */
+	countsTowardsTiming: boolean
+	/**
+	 * Time until this Part goes on air, as a timer the client evaluates against its own clock. Holds at the Part's own remaining wait once the on-air Part overruns - a countdown cannot fall below the waits that still have to happen. Absent when the Part will probably not be played out if the rundown is played in order, which is what a display uses to decide not to show a countdown at all.
+	 */
+	countdown?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * How much of the Part has played, as a timer. Counts up, so the duration read is *negative* and the elapsed time is its negation - a timer's duration read can hold or fall but never rise. Free-running while the Part is on air, frozen at the recorded duration once it is done.
+	 */
+	played?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * The Part's duration - as-run once it has played, as-planned before that, and growing past the planned value while it overruns. Counts up, so reads *negative*; see `played`.
+	 */
+	duration?: TimerStateRunning | TimerStatePaused | null
+	/**
+	 * `displayDurationMs` while the Part is on air: it grows once the Part passes its planned end, so an overrunning Part keeps taking up more room rather than being drawn as finished. Counts up, so reads *negative*; see `played`.
+	 */
+	liveDisplayDuration?: TimerStateRunning | TimerStatePaused | null
 }
 
 /**
@@ -1576,6 +1618,7 @@ export {
 	NotificationSeverity,
 	ResolvedPartState,
 	ResolvedPartTiming,
+	PartRundownTiming,
 	ResolvedPiece,
 	ResolvedPieceTiming,
 	ActivePiecesEvent,

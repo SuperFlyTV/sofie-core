@@ -1497,6 +1497,110 @@ channels:
                                                     playOffsetMs: 1000
                                                     setAsNext: 1706371804000
                                                     take: 1706371806000
+                                              rundownTiming:
+                                                description: The Part's rundown timing as Sofie resolves it - durations and
+                                                  countdowns. Distinct from
+                                                  `timing`, which describes
+                                                  where this Part sits in the
+                                                  resolved playout.
+                                                type: object
+                                                title: PartRundownTiming
+                                                properties:
+                                                  expectedDurationMs:
+                                                    description: The Part's expected duration, resolved (milliseconds)
+                                                    type: number
+                                                  displayDurationMs:
+                                                    description: How much room the Part takes up in a rundown display, resolved, as
+                                                      if it were not playing
+                                                      (milliseconds). See
+                                                      `liveDisplayDuration` for
+                                                      the value that grows while
+                                                      it is on air.
+                                                    type: number
+                                                  isInQuickLoop:
+                                                    description: Whether the Part is inside the QuickLoop
+                                                    type: boolean
+                                                  countsTowardsTiming:
+                                                    description: Whether the Part contributes to the playlist and rundown totals.
+                                                      False for Parts that will
+                                                      be skipped if the rundown
+                                                      is played in order, unless
+                                                      the playlist allows
+                                                      out-of-order timing.
+                                                    type: boolean
+                                                  countdown:
+                                                    description: Time until this Part goes on air, as a timer the client evaluates
+                                                      against its own clock.
+                                                      Holds at the Part's own
+                                                      remaining wait once the
+                                                      on-air Part overruns - a
+                                                      countdown cannot fall
+                                                      below the waits that still
+                                                      have to happen. Absent
+                                                      when the Part will
+                                                      probably not be played out
+                                                      if the rundown is played
+                                                      in order, which is what a
+                                                      display uses to decide not
+                                                      to show a countdown at
+                                                      all.
+                                                    oneOf:
+                                                      - type: "null"
+                                                      - *a17
+                                                  played:
+                                                    description: How much of the Part has played, as a timer. Counts up, so the
+                                                      duration read is
+                                                      *negative* and the elapsed
+                                                      time is its negation - a
+                                                      timer's duration read can
+                                                      hold or fall but never
+                                                      rise. Free-running while
+                                                      the Part is on air, frozen
+                                                      at the recorded duration
+                                                      once it is done.
+                                                    oneOf:
+                                                      - type: "null"
+                                                      - *a17
+                                                  duration:
+                                                    description: The Part's duration - as-run once it has played, as-planned before
+                                                      that, and growing past the
+                                                      planned value while it
+                                                      overruns. Counts up, so
+                                                      reads *negative*; see
+                                                      `played`.
+                                                    oneOf:
+                                                      - type: "null"
+                                                      - *a17
+                                                  liveDisplayDuration:
+                                                    description: "`displayDurationMs` while the Part is on air: it grows once the
+                                                      Part passes its planned
+                                                      end, so an overrunning
+                                                      Part keeps taking up more
+                                                      room rather than being
+                                                      drawn as finished. Counts
+                                                      up, so reads *negative*;
+                                                      see `played`."
+                                                    oneOf:
+                                                      - type: "null"
+                                                      - *a17
+                                                required:
+                                                  - expectedDurationMs
+                                                  - displayDurationMs
+                                                  - isInQuickLoop
+                                                  - countsTowardsTiming
+                                                additionalProperties: false
+                                                examples:
+                                                  - expectedDurationMs: 10000
+                                                    displayDurationMs: 10000
+                                                    isInQuickLoop: false
+                                                    countsTowardsTiming: true
+                                                    countdown:
+                                                      paused: false
+                                                      zeroTime: 1728895760727
+                                                      pauseTime: 1728895750727
+                                                    played:
+                                                      paused: true
+                                                      duration: 0
                                               pieces:
                                                 description: Pieces in this part
                                                 type: array

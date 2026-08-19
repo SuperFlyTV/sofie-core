@@ -10,6 +10,7 @@ import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/Pie
 import type { StateCacheResolverDataAccess } from '@sofie-automation/corelib/dist/playout/stateCacheResolverTypes'
 import { RundownId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { ShowStyleBaseExt } from '../../../../collections/showStyleBaseHandler.js'
+import type { PlaylistTimingStates } from '../../../../collections/playlistTimingStatesHandler.js'
 
 type PlaylistState = Pick<
 	DBRundownPlaylist,
@@ -43,6 +44,7 @@ export type ToResolvedPlaylistStatusProps = {
 	partInstancesInPlaylistState: PartInstance[]
 	piecesInPlaylistState: Piece[]
 	pieceInstancesInPlaylistState: PieceInstance[]
+	timingStatesState?: PlaylistTimingStates
 }
 
 export type ResolvedPlaylistConversionContext = Readonly<{
@@ -59,6 +61,9 @@ export type ResolvedPlaylistConversionContext = Readonly<{
 
 	currentPartInstance: PartInstance | undefined
 	nextPartInstance: PartInstance | undefined
+
+	/** Rundown timing as Sofie resolved and published it. Undefined until the publication arrives. */
+	timingStates: PlaylistTimingStates | undefined
 
 	accessors: ReturnType<typeof createQueryAdapters>
 }>
@@ -107,6 +112,7 @@ export function createResolvedPlaylistConversionContext(
 		playlist,
 		rundownsById,
 		showStyleBaseExt,
+		timingStates: props.timingStatesState,
 		rundownsToShowStyles,
 		rundownsToShowStyleBaseExt,
 		orderedRundownIds,
