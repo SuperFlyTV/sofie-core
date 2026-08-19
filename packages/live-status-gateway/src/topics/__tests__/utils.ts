@@ -75,6 +75,7 @@ export function makeMockHandlers(): CollectionHandlers {
 		pieceContentStatusesHandler: makeMockHandler(),
 		pieceInstancesHandler: makeMockHandler(),
 		playlistHandler: makeMockHandler(),
+		playlistTimingStatesHandler: makeMockHandler(),
 		playlistsHandler: makeMockHandler(),
 		rundownHandler: makeMockHandler(),
 		rundownsHandler: makeMockHandler(),
