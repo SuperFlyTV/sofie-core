@@ -7,6 +7,15 @@ import { Logger } from 'winston'
 import { WebSocket } from 'ws'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { CollectionHandlers } from '../../liveStatusServer.js'
+import type {
+	PartTimingStateDoc,
+	PlaylistTimingStateDoc,
+	SegmentTimingStateDoc,
+	TimingStateDoc,
+} from '@sofie-automation/corelib/dist/dataModel/TimingState'
+import type { TimerState } from '@sofie-automation/corelib/dist/dataModel/TimerState'
+import type { PartId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { splitTimingStates, type PlaylistTimingStates } from '../../collections/playlistTimingStatesHandler.js'
 
 const RUNDOWN_1_ID = 'RUNDOWN_1'
 const RUNDOWN_2_ID = 'RUNDOWN_2'
@@ -98,4 +107,51 @@ function makeMockHandler() {
 			})
 		},
 	}
+}
+
+/**
+ * A `playlistTimingState` snapshot, as the PlaylistTimingStatesHandler hands it to a topic.
+ *
+ * Timing is resolved by Sofie and published; a topic under test is fed the result rather than the
+ * inputs it used to compute from. Parts are declared under their Segment so the grouping cannot be
+ * declared inconsistently, and the docs are run through the real `splitTimingStates` so this cannot
+ * drift from what the handler produces.
+ */
+export function makeTestTimingStates(states: {
+	playlist?: Partial<PlaylistTimingStateDoc>
+	segments?: Record<string, Partial<SegmentTimingStateDoc> & { parts?: Record<string, Partial<PartTimingStateDoc>> }>
+}): PlaylistTimingStates {
+	const docs: TimingStateDoc[] = []
+
+	if (states.playlist) {
+		docs.push({ type: 'playlist', currentPartWillAutoNext: false, ...states.playlist } as PlaylistTimingStateDoc)
+	}
+
+	type SegmentFixture = Partial<SegmentTimingStateDoc> & { parts?: Record<string, Partial<PartTimingStateDoc>> }
+	for (const [segmentIdStr, { parts, ...segment }] of Object.entries<SegmentFixture>(states.segments ?? {})) {
+		const segmentId = protectString<SegmentId>(segmentIdStr)
+		docs.push({ type: 'segment', segmentId, ...segment } as SegmentTimingStateDoc)
+
+		for (const [partIdStr, part] of Object.entries<Partial<PartTimingStateDoc>>(parts ?? {})) {
+			docs.push({
+				type: 'part',
+				segmentId,
+				partId: protectString<PartId>(partIdStr),
+				...part,
+			} as PartTimingStateDoc)
+		}
+	}
+
+	return splitTimingStates(docs)
+}
+
+/**
+ * A constant timer, as the publication expresses a resolved duration.
+ *
+ * Typed from corelib rather than the generated API types: the generator cannot express `const: true`
+ * as a literal, so the generated `TimerStatePaused` has `paused: boolean` and is not assignable to
+ * the published shape.
+ */
+export function constantMs(durationMs: number): TimerState {
+	return { paused: true, duration: durationMs }
 }

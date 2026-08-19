@@ -16,6 +16,7 @@ import { calculateCurrentSegmentTiming } from './helpers/segmentTiming.js'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import _ from 'underscore'
 import { calculateCurrentPartTiming } from './helpers/partTiming.js'
+import type { PlaylistTimingStates } from '../collections/playlistTimingStatesHandler.js'
 import { getCurrentSegmentParts } from './helpers/segmentParts.js'
 import { SelectedPieceInstances, PieceInstanceMin } from '../collections/pieceInstancesHandler.js'
 import { toPieceStatus } from './helpers/pieceStatus.js'
@@ -80,7 +81,6 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 	private _activePlaylist: Playlist | undefined
 	private _currentPartInstance: DBPartInstance | undefined
 	private _nextPartInstance: DBPartInstance | undefined
-	private _firstInstanceInSegmentPlayout: DBPartInstance | undefined
 	private _partInstancesInCurrentSegment: DBPartInstance[] = []
 	private _partsBySegmentId: Record<string, DBPart[]> = {}
 	private _partsById: Record<string, DBPart | undefined> = {}
@@ -89,11 +89,13 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 	private _pieceInstancesInNextPartInstance: PieceInstanceMin[] | undefined
 	private _showStyleBaseExt: ShowStyleBaseExt | undefined
 	private _currentSegment: Segment | undefined
+	private _timingStates: PlaylistTimingStates | undefined
 
 	constructor(logger: Logger, handlers: CollectionHandlers) {
 		super(ActivePlaylistTopic.name, logger, THROTTLE_PERIOD_MS)
 
 		handlers.playlistHandler.subscribe(this.onPlaylistUpdate, PLAYLIST_KEYS)
+		handlers.playlistTimingStatesHandler.subscribe(this.onTimingStatesUpdate)
 		handlers.partsHandler.subscribe(this.onPartsUpdate)
 		handlers.partInstancesHandler.subscribe(this.onPartInstancesUpdate, PART_INSTANCES_KEYS)
 		handlers.pieceInstancesHandler.subscribe(this.onPieceInstancesUpdate, PIECE_INSTANCES_KEYS)
@@ -108,6 +110,9 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 			this._logger.debug('Encountered inconsistent data.')
 			return
 		}
+
+		// one instant for the whole message, so its timestamps agree with each other
+		const now = Date.now()
 
 		const currentPart = this._currentPartInstance ? this._currentPartInstance.part : null
 		const nextPart = this._nextPartInstance ? this._nextPartInstance.part : null
@@ -130,7 +135,9 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 									segmentId: unprotectString(currentPart.segmentId),
 									timing: calculateCurrentPartTiming(
 										this._currentPartInstance,
-										this._partInstancesInCurrentSegment
+										this._timingStates?.parts.get(currentPart._id),
+										this._timingStates?.playlist,
+										now
 									),
 									pieces:
 										this._pieceInstancesInCurrentPartInstance?.map((piece) =>
@@ -145,10 +152,9 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 									id: unprotectString(currentPart.segmentId),
 									timing: calculateCurrentSegmentTiming(
 										this._currentSegment.segmentTiming,
-										this._currentPartInstance,
-										this._firstInstanceInSegmentPlayout,
-										this._partInstancesInCurrentSegment,
-										currentSegmentParts
+										this._timingStates?.segments.get(currentPart.segmentId),
+										this._timingStates?.partsBySegment.get(currentPart.segmentId),
+										now
 									),
 									parts: getCurrentSegmentParts(
 										this._partInstancesInCurrentSegment,
@@ -328,6 +334,12 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 		)
 	}
 
+	private onTimingStatesUpdate = (timingStates: PlaylistTimingStates | undefined): void => {
+		this.logUpdateReceived('playlistTimingStates')
+		this._timingStates = timingStates
+		this.throttledSendStatusToAll()
+	}
+
 	private onPlaylistUpdate = (rundownPlaylist: Playlist | undefined): void => {
 		this.logUpdateReceived(
 			'playlist',
@@ -362,7 +374,6 @@ export class ActivePlaylistTopic extends WebSocketTopicBase implements WebSocket
 		if (!partInstances) return
 		this._currentPartInstance = partInstances.current
 		this._nextPartInstance = partInstances.next
-		this._firstInstanceInSegmentPlayout = partInstances.firstInSegmentPlayout
 		this._partInstancesInCurrentSegment = partInstances.inCurrentSegment
 		this.throttledSendStatusToAll()
 	}

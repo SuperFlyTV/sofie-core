@@ -5,6 +5,8 @@ import {
 	makeMockSubscriber,
 	makeTestPlaylist,
 	makeTestShowStyleBase,
+	makeTestTimingStates,
+	constantMs,
 } from './utils.js'
 import { ShowStyleBaseExt } from '../../collections/showStyleBaseHandler.js'
 import { SelectedPartInstances } from '../../collections/partInstancesHandler.js'
@@ -127,6 +129,20 @@ describe('ActivePlaylistTopic', () => {
 
 		handlers.partsHandler.notify([part1] as DBPart[])
 
+		// Sofie resolves the durations and publishes them; the gateway does no timing arithmetic
+		handlers.playlistTimingStatesHandler.notify(
+			makeTestTimingStates({
+				playlist: { remainingOnCurrentPart: { paused: true, duration: 10000, resumesAt: 1600000060000 } },
+				segments: {
+					SEGMENT_1: {
+						plannedDuration: constantMs(10000),
+						remaining: { paused: true, duration: 10000, resumesAt: 1600000060000 },
+						parts: { PART_1: { expectedDuration: constantMs(10000) } },
+					},
+				},
+			})
+		)
+
 		handlers.segmentHandler.notify({
 			_id: segment1id,
 		} as DBSegment)
@@ -230,6 +246,20 @@ describe('ActivePlaylistTopic', () => {
 		handlers.partInstancesHandler.notify(testPartInstances as SelectedPartInstances)
 
 		handlers.partsHandler.notify([part1] as DBPart[])
+
+		// Sofie resolves the durations and publishes them; the gateway does no timing arithmetic
+		handlers.playlistTimingStatesHandler.notify(
+			makeTestTimingStates({
+				playlist: { remainingOnCurrentPart: { paused: true, duration: 10000, resumesAt: 1600000060000 } },
+				segments: {
+					SEGMENT_1: {
+						plannedDuration: constantMs(12300),
+						remaining: { paused: true, duration: 12300, resumesAt: 1600000060000 },
+						parts: { PART_1: { expectedDuration: constantMs(10000) } },
+					},
+				},
+			})
+		)
 
 		handlers.segmentHandler.notify({
 			_id: segment1id,

@@ -1,7 +1,14 @@
 import { SegmentsTopic } from '../segmentsTopic.js'
 import { protectString, unprotectString } from '@sofie-automation/server-core-integration'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
-import { makeMockHandlers, makeMockLogger, makeMockSubscriber, makeTestPlaylist } from './utils.js'
+import {
+	constantMs,
+	makeMockHandlers,
+	makeMockLogger,
+	makeMockSubscriber,
+	makeTestPlaylist,
+	makeTestTimingStates,
+} from './utils.js'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { SegmentsEvent } from '@sofie-automation/live-status-gateway-api'
 
@@ -316,29 +323,16 @@ describe('SegmentsTopic', () => {
 			makeTestSegment(segment_1_1_id, 1, RUNDOWN_1_ID),
 		])
 		mockSubscriber.send.mockClear()
-		handlers.partsHandler.notify([
-			makeTestPart('1_2_1', 1, RUNDOWN_1_ID, segment_1_2_id, {
-				expectedDurationWithTransition: 10000,
-			}),
-			makeTestPart('2_2_1', 1, RUNDOWN_1_ID, segment_2_2_id, {
-				expectedDurationWithTransition: 40000,
-			}),
-			makeTestPart('1_2_2', 2, RUNDOWN_1_ID, segment_1_2_id, {
-				expectedDurationWithTransition: 5000,
-			}),
-			makeTestPart('1_1_2', 2, RUNDOWN_1_ID, segment_1_1_id, {
-				expectedDurationWithTransition: 1000,
-			}),
-			makeTestPart('1_1_1', 1, RUNDOWN_1_ID, segment_1_1_id, {
-				expectedDurationWithTransition: 3000,
-			}),
-			makeTestPart('2_2_2', 2, RUNDOWN_1_ID, segment_2_2_id, {
-				expectedDurationWithTransition: 11000,
-			}),
-			makeTestPart('1_1_2', 2, RUNDOWN_1_ID, segment_1_1_id, {
-				expectedDurationWithTransition: 1000,
-			}),
-		])
+		// Sofie resolves the durations and publishes them; the gateway no longer sums parts itself
+		handlers.playlistTimingStatesHandler.notify(
+			makeTestTimingStates({
+				segments: {
+					[segment_1_1_id]: { parts: { '1_1_1': { expectedDuration: constantMs(5000) } } },
+					[segment_1_2_id]: { parts: { '1_2_1': { expectedDuration: constantMs(15000) } } },
+					[segment_2_2_id]: { parts: { '2_2_1': { expectedDuration: constantMs(51000) } } },
+				},
+			})
+		)
 		jest.advanceTimersByTime(THROTTLE_PERIOD_MS)
 
 		const expectedStatus: SegmentsEvent = {
