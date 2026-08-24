@@ -17,7 +17,7 @@ import {
 import { convertAdLibToGenericPiece } from './pieces.js'
 import { getResolvedPiecesForCurrentPartInstance } from './resolvedPieces.js'
 import { updateTimeline } from './timeline/generate.js'
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { updatePartInstanceRanksAfterAdlib } from '../updatePartInstanceRanksAndOrphanedState.js'
 import { setNextPart } from './setNext.js'
@@ -302,9 +302,9 @@ export function innerStopPieces(
 		if (pieceInstance.plannedStoppedPlayback && pieceInstance.plannedStoppedPlayback <= stopAt) continue
 
 		switch (pieceInstance.piece.lifespan) {
-			case PieceLifespan.WithinPart:
-			case PieceLifespan.OutOnSegmentChange:
-			case PieceLifespan.OutOnRundownChange: {
+			case LegacyPieceLifespan.WithinPart:
+			case LegacyPieceLifespan.OutOnSegmentChange:
+			case LegacyPieceLifespan.OutOnRundownChange: {
 				logger.info(`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt}`)
 
 				const pieceInstanceModel = playoutModel.findPieceInstance(pieceInstance._id)
@@ -322,9 +322,9 @@ export function innerStopPieces(
 
 				break
 			}
-			case PieceLifespan.OutOnSegmentEnd:
-			case PieceLifespan.OutOnRundownEnd:
-			case PieceLifespan.OutOnShowStyleEnd: {
+			case LegacyPieceLifespan.OutOnSegmentEnd:
+			case LegacyPieceLifespan.OutOnRundownEnd:
+			case LegacyPieceLifespan.OutOnShowStyleEnd: {
 				logger.info(
 					`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt} with a virtual`
 				)

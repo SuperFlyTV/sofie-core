@@ -1,4 +1,4 @@
-import { PieceLifespan, type SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan, type SourceLayerType } from '@sofie-automation/blueprints-integration'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceStatusCode, type PieceUi } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import classNames from 'classnames'
@@ -33,14 +33,14 @@ export function pieceUiClassNames(
 
 		'super-infinite':
 			!innerPiece.enable.isAbsolute &&
-			innerPiece.lifespan !== PieceLifespan.WithinPart &&
-			innerPiece.lifespan !== PieceLifespan.OutOnSegmentChange &&
-			innerPiece.lifespan !== PieceLifespan.OutOnSegmentEnd,
+			innerPiece.lifespan !== LegacyPieceLifespan.WithinPart &&
+			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentChange &&
+			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentEnd,
 		'infinite-starts':
 			!innerPiece.enable.isAbsolute &&
-			innerPiece.lifespan !== PieceLifespan.WithinPart &&
-			innerPiece.lifespan !== PieceLifespan.OutOnSegmentChange &&
-			innerPiece.lifespan !== PieceLifespan.OutOnSegmentEnd &&
+			innerPiece.lifespan !== LegacyPieceLifespan.WithinPart &&
+			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentChange &&
+			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentEnd &&
 			innerPiece.startPartId === partId,
 
 		'not-in-vision': innerPiece.notInVision,

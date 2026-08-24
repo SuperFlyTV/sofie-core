@@ -1,6 +1,6 @@
 import {
 	IBlueprintPieceType,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	Time,
 	TimelineObjClassesCore,
 	TSR,
@@ -135,7 +135,7 @@ export function buildTimelineObjsForRundown(
 
 	const [currentInfinitePieces, currentNormalItems] = _.partition(
 		partInstancesInfo.current.pieceInstances,
-		(l) => !!(l.infinite && (l.piece.lifespan !== PieceLifespan.WithinPart || l.infinite.fromHold))
+		(l) => !!(l.infinite && (l.piece.lifespan !== LegacyPieceLifespan.WithinPart || l.infinite.fromHold))
 	)
 
 	// Find all the infinites in each of the selected parts

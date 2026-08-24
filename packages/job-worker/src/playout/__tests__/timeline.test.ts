@@ -19,7 +19,7 @@ import { fixSnapshot } from '../../__mocks__/helpers/snapshot.js'
 import { runJobWithPlayoutModel } from '../lock.js'
 import { updateTimeline } from '../timeline/generate.js'
 import { getSelectedPartInstances, getSortedPartsForRundown } from './lib.js'
-import { PieceLifespan, IBlueprintPieceType, Time } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan, IBlueprintPieceType, Time } from '@sofie-automation/blueprints-integration'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
 import { RundownPlaylistId, RundownId, PartId, PartInstanceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import {
@@ -210,7 +210,7 @@ function checkTimingsRaw(
 		if (entryId.startsWith(unprotectString(rundownId)))
 			entryId = entryId.substring(unprotectString(rundownId).length + 1)
 
-		if (piece.pieceInstance.piece.lifespan === PieceLifespan.WithinPart) {
+		if (piece.pieceInstance.piece.lifespan === LegacyPieceLifespan.WithinPart) {
 			const pieceObj = objs.get(getPieceGroupId(piece.pieceInstance))
 			const controlObj = objs.get(getPieceControlObjectId(piece.pieceInstance))
 
@@ -1247,7 +1247,7 @@ describe('Timeline', () => {
 								rundownId: currentPartInstance!.partInstance.rundownId,
 								externalId: 'fake',
 								name: 'Adlibbed piece',
-								lifespan: PieceLifespan.WithinPart,
+								lifespan: LegacyPieceLifespan.WithinPart,
 								sourceLayerId: sourceLayerIds[0],
 								outputLayerId: outputLayerIds[0],
 								content: {},
@@ -1413,7 +1413,7 @@ describe('Timeline', () => {
 								rundownId: currentPartInstance!.partInstance.rundownId,
 								externalId: 'fake',
 								name: 'Adlibbed piece',
-								lifespan: PieceLifespan.WithinPart,
+								lifespan: LegacyPieceLifespan.WithinPart,
 								sourceLayerId: sourceLayerIds[0],
 								outputLayerId: outputLayerIds[0],
 								content: {},
@@ -1534,7 +1534,7 @@ describe('Timeline', () => {
 								piece1: {
 									prerollDuration: 50,
 									sourceLayerId: sourceLayerIds[3],
-									lifespan: PieceLifespan.OutOnSegmentEnd,
+									lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 								},
 							}
 						)
@@ -1928,7 +1928,7 @@ describe('Timeline', () => {
 								piece1: {
 									prerollDuration: 50,
 									sourceLayerId: sourceLayerIds[3],
-									lifespan: PieceLifespan.OutOnSegmentEnd,
+									lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 								},
 							}
 						)
