@@ -2,7 +2,7 @@ import { findLookaheadObjectsForPart } from '../findObjects.js'
 import {
 	IBlueprintPieceType,
 	OnGenerateTimelineObj,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	TimelineObjHoldMode,
 	TimelineObjOnAirMode,
 	TSR,
@@ -72,7 +72,7 @@ describe('findLookaheadObjectsForPart', () => {
 			name: '',
 			enable: { start: 0 },
 			invalid: false,
-			lifespan: PieceLifespan.WithinPart,
+			lifespan: LegacyPieceLifespan.WithinPart,
 			pieceType: IBlueprintPieceType.Normal,
 			sourceLayerId: '',
 			outputLayerId: '',

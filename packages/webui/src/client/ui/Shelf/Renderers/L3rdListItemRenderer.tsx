@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import ClassNames from 'classnames'
 import type { ILayerItemRendererProps } from './ItemRendererFactory.js'
-import { type NoraContent, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { type NoraContent, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { getElementDocumentOffset, type OffsetPosition } from '../../../utils/positions.js'
 import { getElementWidth } from '../../../utils/dimensions.js'
 import { StyledTimecode } from '../../../lib/StyledTimecode.js'
@@ -31,25 +31,25 @@ export const L3rdListItemRenderer: React.FunctionComponent<ILayerItemRendererPro
 
 	if (noraContent) {
 		switch (props.adLibListItem.lifespan) {
-			case PieceLifespan.WithinPart:
+			case LegacyPieceLifespan.WithinPart:
 				sourceDuration = t('Until next take')
 				if (itemAsPieceUi.expectedDuration) {
 					sourceDuration = itemAsPieceUi.expectedDuration!
 				}
 				break
-			case PieceLifespan.OutOnSegmentChange:
+			case LegacyPieceLifespan.OutOnSegmentChange:
 				sourceDuration = t('Until next segment')
 				break
-			case PieceLifespan.OutOnSegmentEnd:
+			case LegacyPieceLifespan.OutOnSegmentEnd:
 				sourceDuration = t('Until end of segment')
 				break
-			case PieceLifespan.OutOnRundownChange:
+			case LegacyPieceLifespan.OutOnRundownChange:
 				sourceDuration = t('Until next rundown')
 				break
-			case PieceLifespan.OutOnRundownEnd:
+			case LegacyPieceLifespan.OutOnRundownEnd:
 				sourceDuration = t('Until end of rundown')
 				break
-			case PieceLifespan.OutOnShowStyleEnd:
+			case LegacyPieceLifespan.OutOnShowStyleEnd:
 				sourceDuration = t('Until end of showstyle')
 				break
 			default:

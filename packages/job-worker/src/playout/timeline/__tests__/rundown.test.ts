@@ -18,7 +18,7 @@ import {
 	PieceInstanceWithTimings,
 } from '@sofie-automation/corelib/dist/playout/processAndPrune'
 import { EmptyPieceTimelineObjectsBlob } from '@sofie-automation/corelib/dist/dataModel/Piece'
-import { IBlueprintPieceType, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { getPartGroupId } from '@sofie-automation/corelib/dist/playout/ids'
 
 const DEFAULT_PART_TIMINGS: PartCalculatedTimings = Object.freeze({
@@ -144,7 +144,7 @@ describe('buildTimelineObjsForRundown', () => {
 		return createMockPieceInstance(
 			id,
 			{
-				lifespan: PieceLifespan.OutOnSegmentEnd,
+				lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				...pieceProps,
 			},
 			{

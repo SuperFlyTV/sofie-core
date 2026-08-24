@@ -8,7 +8,7 @@ import {
 import {
 	IBlueprintAdLibPiece,
 	IBlueprintPiece,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	TimelineObjectCoreExt,
 	TSR,
 	IBlueprintPieceType,
@@ -327,7 +327,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: PieceLifespan.WithinPart,
+					lifespan: LegacyPieceLifespan.WithinPart,
 				},
 				{
 					_rank: 1,
@@ -338,7 +338,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: PieceLifespan.WithinPart,
+					lifespan: LegacyPieceLifespan.WithinPart,
 				},
 				{
 					_rank: 9,
@@ -349,7 +349,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: PieceLifespan.WithinPart,
+					lifespan: LegacyPieceLifespan.WithinPart,
 				},
 			])
 
@@ -380,7 +380,7 @@ describe('Test blueprint post-process', () => {
 				rundownId: protectString(''),
 				content: {},
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			})
 			ensureAllKeysDefined(tmpObj, res)
 
@@ -420,7 +420,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			})
 
 			const res = postProcessAdLibPieces(jobContext, blueprintId, rundownId, undefined, [piece])
@@ -467,7 +467,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				},
 				{
 					name: 'test2',
@@ -478,7 +478,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: PieceLifespan.WithinPart,
+					lifespan: LegacyPieceLifespan.WithinPart,
 				},
 			])
 
@@ -516,7 +516,7 @@ describe('Test blueprint post-process', () => {
 				startPartId: protectString(''),
 				startSegmentId: protectString(''),
 				startRundownId: protectString(''),
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 				pieceType: IBlueprintPieceType.Normal,
 				content: {},
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
@@ -556,7 +556,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: PieceLifespan.OutOnRundownEnd,
+				lifespan: LegacyPieceLifespan.OutOnRundownEnd,
 			})
 
 			const res = postProcessPieces(
@@ -602,7 +602,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: PieceLifespan.OutOnRundownEnd,
+				lifespan: LegacyPieceLifespan.OutOnRundownEnd,
 			})
 
 			expect(() => {

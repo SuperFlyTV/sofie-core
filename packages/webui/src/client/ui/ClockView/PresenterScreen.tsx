@@ -17,7 +17,7 @@ import { PieceIconContainer } from '../PieceIcons/PieceIcon.js'
 import { PieceNameContainer } from '../PieceIcons/PieceName.js'
 import { Timediff } from './Timediff.js'
 import { RundownUtils } from '../../lib/rundown.js'
-import { CountdownType, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { CountdownType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PieceCountdownContainer } from '../PieceIcons/PieceCountdown.js'
 import { PlaylistTiming } from '@sofie-automation/corelib/dist/playout/rundownTiming'
@@ -255,7 +255,11 @@ export const getPresenterScreenReactive = (
 				},
 				'infinite.fromPreviousPart': false,
 				'piece.lifespan': {
-					$in: [PieceLifespan.OutOnRundownEnd, PieceLifespan.OutOnRundownChange, PieceLifespan.OutOnShowStyleEnd],
+					$in: [
+						LegacyPieceLifespan.OutOnRundownEnd,
+						LegacyPieceLifespan.OutOnRundownChange,
+						LegacyPieceLifespan.OutOnShowStyleEnd,
+					],
 				},
 				reset: {
 					$ne: true,

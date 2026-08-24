@@ -12,7 +12,7 @@ import { BucketsTopic } from '../bucketsTopic.js'
 import { BucketAdLibAction } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibAction'
 import { RundownImportVersions } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { BucketAdLib, BucketAdLibIngestInfo } from '@sofie-automation/corelib/dist/dataModel/BucketAdLibPiece'
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { Bucket } from '@sofie-automation/corelib/dist/dataModel/Bucket'
 import { BucketsEvent } from '@sofie-automation/live-status-gateway-api'
 
@@ -120,7 +120,7 @@ function makeTestAdLibs(): BucketAdLib[] {
 			externalId: 'BUCKET_ADLIB_0',
 			_rank: 0,
 			content: {},
-			lifespan: PieceLifespan.WithinPart,
+			lifespan: LegacyPieceLifespan.WithinPart,
 			name: 'Bucket AdLib',
 			outputLayerId: 'pgm',
 			sourceLayerId: 'layer0',

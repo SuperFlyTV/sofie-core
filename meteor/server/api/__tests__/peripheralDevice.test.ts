@@ -16,7 +16,7 @@ import { IngestDeviceSecretSettings } from '@sofie-automation/corelib/dist/dataM
 import { MediaObject } from '@sofie-automation/shared-lib/dist/core/model/MediaObjects'
 import {
 	IBlueprintPieceType,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	PlaylistTimingType,
 	StatusCode,
 } from '@sofie-automation/blueprints-integration'
@@ -140,7 +140,7 @@ describe('test peripheralDevice general API methods', () => {
 			startPartId: protectString('part000'),
 			startSegmentId: segmentID,
 			startRundownId: rundownID,
-			lifespan: PieceLifespan.WithinPart,
+			lifespan: LegacyPieceLifespan.WithinPart,
 			pieceType: IBlueprintPieceType.Normal,
 			invalid: false,
 			content: {},

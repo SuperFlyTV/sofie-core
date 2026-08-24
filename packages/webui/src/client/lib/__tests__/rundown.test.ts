@@ -8,7 +8,7 @@ import { RundownUtils } from '../rundown.js'
 import type { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { defaultPartInstance, defaultPiece, defaultPieceInstance } from '../../../__mocks__/defaultCollectionObjects.js'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceInstances, Pieces, RundownPlaylists } from '../../collections/index.js'
@@ -105,7 +105,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: PieceLifespan.OutOnSegmentEnd,
+				lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 			}
 
 			mockPiecesCollection.insert(infinitePiece)
@@ -178,7 +178,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: PieceLifespan.OutOnSegmentChange,
+				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -192,7 +192,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			}
 			mockPiecesCollection.insert(croppingPiece)
 
@@ -274,7 +274,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: PieceLifespan.OutOnSegmentChange,
+				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -288,7 +288,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			}
 			mockPiecesCollection.insert(followingPiece)
 

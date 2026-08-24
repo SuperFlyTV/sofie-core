@@ -2,7 +2,7 @@ import type * as React from 'react'
 import type { ISourceLayerUi, IOutputLayerUi, PartUi } from './SegmentTimelineContainer.js'
 import {
 	SourceLayerType,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	IBlueprintPieceType,
 	UserEditingType,
 	DefaultUserOperationsTypes,
@@ -370,7 +370,7 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 		}
 
 		if (
-			(innerPiece.lifespan !== PieceLifespan.WithinPart ||
+			(innerPiece.lifespan !== LegacyPieceLifespan.WithinPart ||
 				(innerPiece.enable.start !== undefined &&
 					innerPiece.enable.duration === undefined &&
 					piece.instance.userDuration === undefined)) &&
@@ -564,7 +564,7 @@ export const SourceLayerItem = (props: Readonly<ISourceLayerItemProps>): JSX.Ele
 
 		const inPoint = piece.renderedInPoint || 0
 		const duration =
-			innerPiece.lifespan !== PieceLifespan.WithinPart || piece.renderedDuration === 0
+			innerPiece.lifespan !== LegacyPieceLifespan.WithinPart || piece.renderedDuration === 0
 				? partDuration - inPoint
 				: Math.min(piece.renderedDuration || 0, partDuration - inPoint)
 		const outPoint = inPoint + duration

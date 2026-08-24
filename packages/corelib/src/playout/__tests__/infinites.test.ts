@@ -1,4 +1,4 @@
-import { IBlueprintPieceType, PieceLifespan, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, LegacyPieceLifespan, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { DBPartInstance } from '../../dataModel/PartInstance.js'
 import { PartId, PartInstanceId, RundownId, RundownPlaylistId } from '../../dataModel/Ids.js'
 import { DBPart } from '../../dataModel/Part.js'
@@ -50,7 +50,7 @@ describe('Infinites', () => {
 			partId: PartId,
 			enable: Piece['enable'],
 			sourceLayerId: string,
-			lifespan: PieceLifespan,
+			lifespan: LegacyPieceLifespan,
 			clear?: boolean
 		): PieceInstance {
 			return literal<PieceInstance>({
@@ -129,7 +129,7 @@ describe('Infinites', () => {
 					partId,
 					{ start: 0 },
 					'one',
-					PieceLifespan.OutOnRundownEnd
+					LegacyPieceLifespan.OutOnRundownEnd
 				),
 				createPieceInstanceAsInfinite(
 					'two',
@@ -137,7 +137,7 @@ describe('Infinites', () => {
 					partId,
 					{ start: 0 },
 					'one',
-					PieceLifespan.OutOnRundownEnd,
+					LegacyPieceLifespan.OutOnRundownEnd,
 					true
 				),
 				{
@@ -147,7 +147,7 @@ describe('Infinites', () => {
 						partId,
 						{ start: 0 },
 						'one',
-						PieceLifespan.OutOnRundownChange
+						LegacyPieceLifespan.OutOnRundownChange
 					),
 					dynamicallyInserted: Date.now() + 5000,
 				},
@@ -192,7 +192,7 @@ describe('Infinites', () => {
 						partId,
 						{ start: 0 },
 						'one',
-						PieceLifespan.OutOnRundownEnd
+						LegacyPieceLifespan.OutOnRundownEnd
 					),
 					dynamicallyConvertedToInfinite: Date.now(),
 				},
@@ -232,7 +232,7 @@ describe('Infinites', () => {
 					partId,
 					{ start: 1000 },
 					'one',
-					PieceLifespan.OutOnRundownChange
+					LegacyPieceLifespan.OutOnRundownChange
 				),
 				{
 					...createPieceInstanceAsInfinite(
@@ -241,7 +241,7 @@ describe('Infinites', () => {
 						partId,
 						{ start: 2000 },
 						'two',
-						PieceLifespan.OutOnRundownChange,
+						LegacyPieceLifespan.OutOnRundownChange,
 						true
 					),
 					userDuration: { endRelativeToPart: 5000 },
@@ -253,7 +253,7 @@ describe('Infinites', () => {
 						partId,
 						{ start: 3000 },
 						'three',
-						PieceLifespan.OutOnRundownChange
+						LegacyPieceLifespan.OutOnRundownChange
 					),
 					plannedStoppedPlayback: 5000,
 				},
@@ -293,7 +293,7 @@ describe('Infinites', () => {
 					partId,
 					{ start: 0 },
 					'one',
-					PieceLifespan.OutOnRundownEnd,
+					LegacyPieceLifespan.OutOnRundownEnd,
 					true
 				),
 			]

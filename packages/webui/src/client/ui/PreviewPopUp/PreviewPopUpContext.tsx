@@ -6,7 +6,7 @@ import { PreviewPopUpContent } from './PreviewPopUpContent.js'
 import {
 	JSONBlobParse,
 	type NoraPayload,
-	type PieceLifespan,
+	type LegacyPieceLifespan,
 	type PreviewContent,
 	PreviewType,
 	type ScriptContent,
@@ -352,7 +352,7 @@ export type PreviewContentUI =
 			type: 'timing'
 			timeAsRendered?: { in?: number | null; dur?: number | null }
 			enable?: ReadonlyObjectDeep<PieceInstancePiece>['enable']
-			lifespan: PieceLifespan
+			lifespan: LegacyPieceLifespan
 	  }
 
 export interface IPreviewPopUpSession {

@@ -6,7 +6,7 @@ import {
 	IRundownPlaylistFilterLink,
 	ISourceLayer,
 	ITranslatableMessage,
-	PieceLifespan,
+	LegacyPieceLifespan,
 } from '@sofie-automation/blueprints-integration'
 import { AdLibAction } from '@sofie-automation/corelib/dist/dataModel/AdlibAction'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -64,7 +64,7 @@ interface IWrappedAdLibType<T extends SomeAdLib, typeName extends MountedAdLibTr
 	label: string | ITranslatableMessage
 	sourceLayerId?: ISourceLayer['_id']
 	outputLayerId?: IOutputLayer['_id']
-	expectedDuration?: number | PieceLifespan
+	expectedDuration?: number | LegacyPieceLifespan
 	currentPieceTags?: string[]
 	item: T
 }
