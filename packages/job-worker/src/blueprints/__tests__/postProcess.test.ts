@@ -11,6 +11,7 @@ import {
 	TimelineObjectCoreExt,
 	TSR,
 	IBlueprintPieceType,
+	LegacyPieceLifespan,
 } from '@sofie-automation/blueprints-integration'
 import { setupDefaultJobEnvironment } from '../../__mocks__/context.js'
 import { clone, literal, omit } from '@sofie-automation/corelib/dist/lib'
@@ -437,6 +438,35 @@ describe('Test blueprint post-process', () => {
 	})
 
 	describe('postProcessPieces', () => {
+		test('normalizes legacy lifespan', () => {
+			const jobContext = setupDefaultJobEnvironment()
+			const piece = literal<IBlueprintPiece>({
+				name: 'legacy',
+				externalId: 'legacy-id',
+				enable: { start: 0 },
+				sourceLayerId: 'sl0',
+				outputLayerId: 'ol0',
+				content: { timelineObjects: [] },
+				lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+			})
+
+			const [processedPiece] = postProcessPieces(
+				jobContext,
+				[piece],
+				protectString('blueprint9'),
+				protectString('fakeRo'),
+				protectString('segment5'),
+				protectString('part8'),
+				false
+			)
+
+			expect(processedPiece.lifespan).toEqual({
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			})
+		})
+
 		test('no pieces', () => {
 			const jobContext = setupDefaultJobEnvironment()
 

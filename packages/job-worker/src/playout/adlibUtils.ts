@@ -26,6 +26,7 @@ import { PlayoutRundownModel } from './model/PlayoutRundownModel.js'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { QuickLoopMarkerType } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 export async function innerStartOrQueueAdLibPiece(
 	context: JobContext,
@@ -300,10 +301,11 @@ export function innerStopPieces(
 		// If there end time of the piece is already known, make sure it is in the future
 		if (pieceInstance.plannedStoppedPlayback && pieceInstance.plannedStoppedPlayback <= stopAt) continue
 
-		switch (pieceInstance.piece.lifespan) {
-			case { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }:
-			case { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }:
-			case { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' }: {
+		const lifespan = PieceLifespan.from(pieceInstance.piece.lifespan)
+		switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
+			case 'part:forward-scope:stop':
+			case 'segment:follow-playhead:stop':
+			case 'rundown:follow-playhead:stop': {
 				logger.info(`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt}`)
 
 				const pieceInstanceModel = playoutModel.findPieceInstance(pieceInstance._id)
@@ -321,16 +323,16 @@ export function innerStopPieces(
 
 				break
 			}
-			case { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }:
-			case { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }:
-			case { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }: {
+			case 'segment:forward-scope:persist':
+			case 'rundown:forward-scope:persist':
+			case 'showstyle:forward-scope:persist': {
 				logger.info(
 					`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt} with a virtual`
 				)
 
 				currentPartInstance.insertVirtualPiece(
 					relativeStopAt,
-					pieceInstance.piece.lifespan,
+					lifespan.definition(),
 					pieceInstance.piece.sourceLayerId,
 					pieceInstance.piece.outputLayerId
 				)
