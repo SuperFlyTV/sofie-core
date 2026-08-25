@@ -1,4 +1,4 @@
-import { LegacyPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
+import type { PieceLifespanInfo } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 import type { UserEditingDefinition, UserEditingProperties } from '../userEditing.js'
 import type { PieceAbSessionInfo } from '../abPlayback.js'
 import type { ActionUserData } from '../action.js'
@@ -6,7 +6,7 @@ import type { SomeContent, WithTimeline } from '../content.js'
 import type { ExpectedPackage } from '../package.js'
 import type { ExpectedPlayoutItemGeneric } from './expectedPlayoutItem.js'
 
-export { LegacyPieceLifespan }
+export { LegacyPieceLifespan, PieceLifespanInfo } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 
 export enum IBlueprintDirectPlayType {
 	AdLibPiece = 'adlib',
@@ -44,7 +44,7 @@ export interface IBlueprintPieceGeneric<TPrivateData = unknown, TPublicData = un
 	publicData?: TPublicData
 
 	/** Whether and how the piece is infinite */
-	lifespan: LegacyPieceLifespan
+	lifespan: PieceLifespanInfo
 
 	/** Source layer the timeline item belongs to */
 	sourceLayerId: string

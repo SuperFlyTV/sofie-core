@@ -221,15 +221,15 @@ export function getPlayheadTrackingInfinitesForPart(
 		if (canContinueAdlibOnEnds) {
 			const piecesByInfiniteMode = groupByToMapFunc(
 				pieceInstances.filter((p) => p.dynamicallyInserted || p.dynamicallyConvertedToInfinite),
-				(p) => p.piece.lifespan.scope
+				(p) => PieceLifespan.from(p.piece.lifespan).scope
 			)
 			for (const expectedScope of ['rundown', 'segment', 'showstyle']) {
 				const scope = expectedScope as 'rundown' | 'segment' | 'showstyle' // TODO: use the actual type here, but this is a temporary workaround to make TS happy
 				const pieces = (piecesByInfiniteMode.get(scope) || []).filter(
 					(p) =>
 						// TODO: only handle legacy onEnd cases for now, but we should handle all cases in the future
-						p.piece.lifespan.presence === 'forward-scope' &&
-						p.piece.lifespan.inShadow === 'persist' &&
+						PieceLifespan.from(p.piece.lifespan).presence === 'forward-scope' &&
+						PieceLifespan.from(p.piece.lifespan).inShadow === 'persist' &&
 						p.infinite &&
 						(p.infinite.fromPreviousPlayhead || p.dynamicallyInserted || p.dynamicallyConvertedToInfinite)
 				)
@@ -341,17 +341,18 @@ export function isPiecePotentiallyActiveInPart(
 		return true
 	}
 
-	switch (pieceToCheck.lifespan) {
-		case { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }:
+	const lifespan = PieceLifespan.from(pieceToCheck.lifespan)
+	switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
+		case 'part:forward-scope:stop':
 			// This must be from another part
 			return false
-		case { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }:
+		case 'segment:forward-scope:persist':
 			return (
 				!!pieceToCheck.startPartId &&
 				pieceToCheck.startSegmentId === part.segmentId &&
 				partsToReceiveOnSegmentEndFrom.has(pieceToCheck.startPartId)
 			)
-		case { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }:
+		case 'rundown:forward-scope:persist':
 			if (
 				pieceToCheck.startRundownId === part.rundownId &&
 				pieceToCheck.startPartId &&
@@ -365,7 +366,7 @@ export function isPiecePotentiallyActiveInPart(
 			} else {
 				return false
 			}
-		case { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }:
+		case 'segment:follow-playhead:stop':
 			if (previousPartInstance !== undefined) {
 				// This gets handled by getPlayheadTrackingInfinitesForPart
 				// We will only copy the pieceInstance from the previous, never using the original piece
@@ -378,7 +379,7 @@ export function isPiecePotentiallyActiveInPart(
 					partsToReceiveOnSegmentEndFrom.has(pieceToCheck.startPartId)
 				)
 			}
-		case { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' }:
+		case 'rundown:follow-playhead:stop':
 			if (previousPartInstance !== undefined) {
 				// This gets handled by getPlayheadTrackingInfinitesForPart
 				// We will only copy the pieceInstance from the previous, never using the original piece
@@ -391,7 +392,7 @@ export function isPiecePotentiallyActiveInPart(
 					segmentsToReceiveOnRundownEndFrom.has(pieceToCheck.startSegmentId)
 				)
 			}
-		case { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }:
+		case 'showstyle:forward-scope:persist':
 			return !!(
 				previousPartInstance &&
 				continueShowStyleEndInfinites(
@@ -468,7 +469,10 @@ export function getPieceInstancesForPart(
 
 	// Filter down to the last starting onEnd infinite per layer
 	for (const candidatePiece of possiblePieces) {
-		if (candidatePiece.startPartId !== part._id && candidatePiece.lifespan.presence === 'forward-scope') {
+		if (
+			candidatePiece.startPartId !== part._id &&
+			PieceLifespan.from(candidatePiece.lifespan).presence === 'forward-scope'
+		) {
 			const useIt = isPiecePotentiallyActiveInPart(
 				playingPartInstance,
 				partsToReceiveOnSegmentEndFromSet,
@@ -532,7 +536,7 @@ export function getPieceInstancesForPart(
 		)
 
 		// TODO: we are excluding all part scopes here, but we might want to handle these separately.
-		if (instance.piece.lifespan.scope !== 'part') {
+		if (PieceLifespan.from(instance.piece.lifespan).scope !== 'part') {
 			const existingPiece = nextPartIsAfterCurrentPart
 				? playingPieceInstancesMap.get(instance.piece._id)
 				: undefined

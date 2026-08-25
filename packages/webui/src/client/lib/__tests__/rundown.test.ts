@@ -8,7 +8,6 @@ import { RundownUtils } from '../rundown.js'
 import type { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { defaultPartInstance, defaultPiece, defaultPieceInstance } from '../../../__mocks__/defaultCollectionObjects.js'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import type { RundownPlaylistId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceInstances, Pieces, RundownPlaylists } from '../../collections/index.js'
@@ -105,7 +104,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+				lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 			}
 
 			mockPiecesCollection.insert(infinitePiece)
@@ -178,7 +177,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -192,7 +191,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: LegacyPieceLifespan.WithinPart,
+				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 			}
 			mockPiecesCollection.insert(croppingPiece)
 
@@ -274,7 +273,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -288,7 +287,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: LegacyPieceLifespan.WithinPart,
+				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 			}
 			mockPiecesCollection.insert(followingPiece)
 

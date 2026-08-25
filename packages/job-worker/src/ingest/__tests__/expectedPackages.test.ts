@@ -5,7 +5,7 @@ import { literal } from '@sofie-automation/corelib/dist/lib'
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { defaultPart, defaultPiece, defaultAdLibPiece } from '../../__mocks__/defaultCollectionObjects.js'
 import { LAYER_IDS } from '../../__mocks__/presetCollections.js'
-import { ExpectedPackage, LegacyPieceLifespan, VTContent } from '@sofie-automation/blueprints-integration'
+import { ExpectedPackage, VTContent } from '@sofie-automation/blueprints-integration'
 import { updateExpectedMediaAndPlayoutItemsForPartModel } from '../expectedPackages.js'
 import { MockJobContext, setupDefaultJobEnvironment } from '../../__mocks__/context.js'
 import { ReadonlyDeep } from 'type-fest'
@@ -61,7 +61,7 @@ describe('Expected Playout Items', () => {
 				name: '',
 				outputLayerId: LAYER_IDS.OUTPUT_PGM,
 				sourceLayerId: LAYER_IDS.SOURCE_VT0,
-				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 				content: literal<VTContent>({
 					fileName: mockFileName0,
 					path: mockPath0,
@@ -80,7 +80,7 @@ describe('Expected Playout Items', () => {
 				name: '',
 				outputLayerId: LAYER_IDS.OUTPUT_PGM,
 				sourceLayerId: LAYER_IDS.SOURCE_VT0,
-				lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 				content: literal<VTContent>({
 					fileName: mockFileName1,
 					path: mockPath1,
@@ -96,7 +96,7 @@ describe('Expected Playout Items', () => {
 				...defaultAdLibPiece(protectString('mockAdLib0'), protectString(''), protectString('mockPart0')),
 				name: '',
 				_rank: 0,
-				lifespan: LegacyPieceLifespan.WithinPart,
+				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 				outputLayerId: LAYER_IDS.OUTPUT_PGM,
 				sourceLayerId: LAYER_IDS.SOURCE_VT0,
 				content: literal<VTContent>({

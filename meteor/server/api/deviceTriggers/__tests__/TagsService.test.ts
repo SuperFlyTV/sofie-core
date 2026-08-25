@@ -13,7 +13,7 @@ import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/Rund
 import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { literal, normalizeArray } from '@sofie-automation/corelib/dist/lib'
-import { ISourceLayer, LegacyPieceLifespan, SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { ISourceLayer, SourceLayerType } from '@sofie-automation/blueprints-integration'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { IWrappedAdLib } from '@sofie-automation/meteor-lib/dist/triggers/actionFilterChainCompilers'
@@ -97,7 +97,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag0, tag2],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: LegacyPieceLifespan.WithinPart,
+			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		},
 		partInstanceId: partInstanceId0,
 	} as PieceInstance)
@@ -107,7 +107,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag1],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: LegacyPieceLifespan.WithinPart,
+			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		},
 		partInstanceId: partInstanceId1,
 	} as PieceInstance)
@@ -117,7 +117,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag2],
 			sourceLayerId: sourceLayerId1,
 			enable: { start: 0 },
-			lifespan: LegacyPieceLifespan.WithinPart,
+			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		},
 		partInstanceId: partInstanceId1,
 	} as PieceInstance)
@@ -127,7 +127,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag3],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: LegacyPieceLifespan.WithinPart,
+			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		},
 		partInstanceId: partInstanceId2,
 	} as PieceInstance)

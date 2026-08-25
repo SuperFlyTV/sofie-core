@@ -16,6 +16,7 @@ import { RundownBaselineAdLibItem } from '@sofie-automation/corelib/dist/dataMod
 import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { sortAdlibs } from '../adlibs.js'
@@ -121,7 +122,7 @@ function wrapAdLibPiece<
 		label: adLib.name,
 		sourceLayerId: adLib.sourceLayerId,
 		outputLayerId: adLib.outputLayerId,
-		expectedDuration: adLib.expectedDuration || adLib.lifespan,
+		expectedDuration: adLib.expectedDuration || PieceLifespan.from(adLib.lifespan).legacyLifespan,
 		item: adLib,
 	}
 }

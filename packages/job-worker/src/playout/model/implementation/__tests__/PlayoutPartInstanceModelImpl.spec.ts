@@ -3,7 +3,7 @@ import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartIns
 import { getRandomId, literal } from '@sofie-automation/corelib/dist/lib'
 import { PlayoutPartInstanceModelImpl } from '../PlayoutPartInstanceModelImpl.js'
 import { PieceInstance, PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
-import { IBlueprintPieceType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType } from '@sofie-automation/blueprints-integration'
 
 describe('PlayoutPartInstanceModelImpl', () => {
 	function createBasicDBPartInstance(): DBPartInstance {
@@ -42,7 +42,7 @@ describe('PlayoutPartInstanceModelImpl', () => {
 				startPartId: protectString(''),
 				enable: { start: 0 },
 				name: '',
-				lifespan: LegacyPieceLifespan.OutOnRundownChange,
+				lifespan: { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
 				sourceLayerId: '',
 				outputLayerId: '',
 				invalid: false,

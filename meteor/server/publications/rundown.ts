@@ -41,7 +41,6 @@ import { PeripheralDevicePubSub } from '@sofie-automation/shared-lib/dist/pubsub
 import { RundownBaselineAdLibAction } from '@sofie-automation/corelib/dist/dataModel/RundownBaselineAdLibAction'
 import { RundownBaselineAdLibItem } from '@sofie-automation/corelib/dist/dataModel/RundownBaselineAdLibPiece'
 import { AdLibAction } from '@sofie-automation/corelib/dist/dataModel/AdlibAction'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { triggerWriteAccessBecauseNoCheckNecessary } from '../security/securityVerify'
 import { checkAccessAndGetPeripheralDevice } from '../security/check'
 import type { PublicationRegistry } from '../publicationRegistry'
@@ -296,7 +295,6 @@ export function registerRundownPublications(registry: PublicationRegistry): void
 
 			triggerWriteAccessBecauseNoCheckNecessary()
 
-			// TODO: this seem off, mongo queries should no longer have LegacyPieceLifespan, but this is still used in the query below. Should this be updated to use PieceLifespan instead?
 			const selector: MongoQuery<Piece> = {
 				invalid: {
 					$ne: true,
@@ -308,9 +306,9 @@ export function registerRundownPublications(registry: PublicationRegistry): void
 						startSegmentId: { $in: segmentsIdsBefore },
 						lifespan: {
 							$in: [
-								LegacyPieceLifespan.OutOnRundownEnd,
-								LegacyPieceLifespan.OutOnRundownChange,
-								LegacyPieceLifespan.OutOnShowStyleEnd,
+								{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+								{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+								{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
 							],
 						},
 					},
@@ -318,7 +316,7 @@ export function registerRundownPublications(registry: PublicationRegistry): void
 					{
 						startRundownId: { $in: rundownIdsBefore },
 						lifespan: {
-							$in: [LegacyPieceLifespan.OutOnShowStyleEnd],
+							$in: [{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }],
 						},
 					},
 				],

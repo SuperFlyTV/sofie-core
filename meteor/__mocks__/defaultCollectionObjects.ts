@@ -5,7 +5,7 @@ import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/Rund
 import { DBRundown } from '@sofie-automation/corelib/dist/dataModel/Rundown'
 import { DBSegment } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { IBlueprintPieceType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType } from '@sofie-automation/blueprints-integration'
 import { ShelfButtonSize } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 import { Piece, EmptyPieceTimelineObjectsBlob } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -167,7 +167,7 @@ export function defaultPiece(_id: PieceId, rundownId: RundownId, segmentId: Segm
 		startSegmentId: segmentId,
 		startPartId: partId,
 		name: 'Default Piece',
-		lifespan: LegacyPieceLifespan.WithinPart,
+		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		pieceType: IBlueprintPieceType.Normal,
 		invalid: false,
 		enable: {
@@ -187,7 +187,7 @@ export function defaultAdLibPiece(_id: PieceId, rundownId: RundownId, partId: Pa
 		partId: partId,
 		_rank: 0,
 		name: 'Default Adlib',
-		lifespan: LegacyPieceLifespan.WithinPart,
+		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		sourceLayerId: '',
 		outputLayerId: '',
 		content: {},
