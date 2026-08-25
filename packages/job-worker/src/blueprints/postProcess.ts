@@ -50,6 +50,11 @@ import { logger } from '../logging.js'
 import { validateTimeline } from 'superfly-timeline'
 import { ReadonlyDeep } from 'type-fest'
 import { translateUserEditPropertiesFromBlueprint, translateUserEditsFromBlueprint } from './context/lib.js'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+
+function normalizePieceLifespan(lifespan: IBlueprintPiece['lifespan']): IBlueprintPiece['lifespan'] {
+	return PieceLifespan.from(lifespan).definition()
+}
 
 function getIdHash(docType: string, usedIds: Map<string, number>, uniqueId: string): string {
 	const count = usedIds.get(uniqueId)
@@ -106,6 +111,7 @@ export function postProcessPieces(
 			pieceType: IBlueprintPieceType.Normal,
 
 			...orgPiece,
+			lifespan: normalizePieceLifespan(orgPiece.lifespan),
 			content: omit(orgPiece.content, 'timelineObjects'),
 
 			_id: protectString(docId),
@@ -250,6 +256,7 @@ export function postProcessAdLibPieces(
 
 		const piece: AdLibPiece = {
 			...orgAdlib,
+			lifespan: normalizePieceLifespan(orgAdlib.lifespan),
 			content: omit(orgAdlib.content, 'timelineObjects'),
 			_id: protectString(docId),
 			rundownId: rundownId,
