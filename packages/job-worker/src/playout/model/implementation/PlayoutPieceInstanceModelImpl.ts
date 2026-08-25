@@ -2,12 +2,13 @@ import { ExpectedPackageId, PieceInstanceInfiniteId, RundownId } from '@sofie-au
 import { ReadonlyDeep } from 'type-fest'
 import { PieceInstance, PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { clone, getRandomId } from '@sofie-automation/corelib/dist/lib'
-import { ExpectedPackage, Time, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { ExpectedPackage, Time } from '@sofie-automation/blueprints-integration'
 import { PlayoutPieceInstanceModel } from '../PlayoutPieceInstanceModel.js'
 import _ from 'underscore'
 import { getExpectedPackageId } from '@sofie-automation/corelib/dist/dataModel/ExpectedPackages'
 import { setupPieceInstanceInfiniteProperties } from '../../pieces.js'
 import { getCurrentTime } from '../../../lib/time.js'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 export class PlayoutPieceInstanceModelImpl implements PlayoutPieceInstanceModel {
 	/**
@@ -163,7 +164,11 @@ export class PlayoutPieceInstanceModelImpl implements PlayoutPieceInstanceModel 
 		)
 		if (
 			props.lifespan !== undefined &&
-			props.lifespan !== LegacyPieceLifespan.WithinPart &&
+			!PieceLifespan.from(props.lifespan).equals({
+				scope: 'part',
+				presence: 'forward-scope',
+				inShadow: 'stop',
+			}) &&
 			!this.PieceInstanceImpl.infinite
 		) {
 			setupPieceInstanceInfiniteProperties(this.PieceInstanceImpl)

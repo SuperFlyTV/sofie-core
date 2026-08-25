@@ -14,7 +14,7 @@ import {
 	calculatePartExpectedDurationWithTransition,
 	PartCalculatedTimings,
 } from '@sofie-automation/corelib/dist/playout/timings'
-import { IBlueprintPieceType, LegacyPieceLifespan, Time } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, Time } from '@sofie-automation/blueprints-integration'
 import {
 	PlayoutMutatablePart,
 	PlayoutPartInstanceModel,
@@ -28,6 +28,7 @@ import _ from 'underscore'
 import { DBPart, PartInvalidReason } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { PlayoutMutatablePartSampleKeys } from '../../../blueprints/context/lib.js'
 import { QuickLoopService } from '../services/QuickLoopService.js'
+import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 
 /**
  * time in ms before an autotake when we don't accept takes/updates
@@ -324,7 +325,7 @@ export class PlayoutPartInstanceModelImpl implements PlayoutPartInstanceModel {
 
 	insertVirtualPiece(
 		start: number,
-		lifespan: LegacyPieceLifespan,
+		lifespan: IPieceLifespan,
 		sourceLayerId: string,
 		outputLayerId: string
 	): PlayoutPieceInstanceModel {

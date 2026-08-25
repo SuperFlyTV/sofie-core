@@ -1,7 +1,6 @@
 import _ from 'underscore'
 
 import {
-	LegacyPieceLifespan,
 	IBlueprintActionManifestDisplay,
 	IBlueprintActionManifestDisplayContent,
 	IOutputLayer,
@@ -417,7 +416,7 @@ export function getResolvedSegment({
 						// const possibleBuddyPiece = lastPartPiecesBySourceLayer[layerId]
 						// if (
 						// 	possibleBuddyPiece &&
-						// 	possibleBuddyPiece.instance.piece.lifespan !== LegacyPieceLifespan.WithinPart &&
+						// 	possibleBuddyPiece.instance.piece.lifespan !== { scope: 'part', presence: 'forward-scope', inShadow: 'stop' } &&
 						// 	currentItem.instance.infinite &&
 						// 	possibleBuddyPiece.instance.infinite &&
 						// 	(possibleBuddyPiece.instance.infinite.infiniteInstanceId ===
@@ -442,8 +441,11 @@ export function getResolvedSegment({
 						) {
 							// if previousItem is infinite, currentItem caps it within the current part
 							if (previousItem.instance.infinite) {
-								;(previousItem.instance.piece as PieceInstancePiece).lifespan =
-									LegacyPieceLifespan.WithinPart
+								;(previousItem.instance.piece as PieceInstancePiece).lifespan = {
+									scope: 'part',
+									presence: 'forward-scope',
+									inShadow: 'stop',
+								}
 								delete (previousItem.instance as PieceInstance).infinite
 							}
 

@@ -1,4 +1,4 @@
-import { IBlueprintPieceType, LegacyPieceLifespan, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, PlaylistTimingType } from '@sofie-automation/blueprints-integration'
 import { ShelfButtonSize } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
 import {
@@ -164,7 +164,7 @@ export function defaultPiece(_id: PieceId, rundownId: RundownId, segmentId: Segm
 		startSegmentId: segmentId,
 		startPartId: partId,
 		name: 'Default Piece',
-		lifespan: LegacyPieceLifespan.WithinPart,
+		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		invalid: false,
 		enable: {
 			start: 0,
@@ -184,7 +184,7 @@ export function defaultAdLibPiece(_id: PieceId, rundownId: RundownId, partId: Pa
 		partId: partId,
 		_rank: 0,
 		name: 'Default Adlib',
-		lifespan: LegacyPieceLifespan.WithinPart,
+		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		sourceLayerId: '',
 		outputLayerId: '',
 		content: {},

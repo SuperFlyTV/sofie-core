@@ -3,7 +3,6 @@ import {
 	ABResolverOptions,
 	IBlueprintPieceType,
 	PieceAbSessionInfo,
-	LegacyPieceLifespan,
 } from '@sofie-automation/blueprints-integration'
 import { EmptyPieceTimelineObjectsBlob } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { PieceInstancePiece, ResolvedPieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
@@ -40,7 +39,7 @@ function createBasicResolvedPieceInstance(
 		sourceLayerId: '',
 		outputLayerId: '',
 		privateData: {},
-		lifespan: LegacyPieceLifespan.WithinPart,
+		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 		timelineObjectsString: EmptyPieceTimelineObjectsBlob,
 		content: {},
 		invalid: false,

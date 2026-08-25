@@ -33,11 +33,11 @@ export class PieceLifespan implements IPieceLifespan {
 			this.inShadow = input.inShadow ?? 'stop'
 			return
 		} else {
-			// Legacy presets
-			const normalized = PieceLifespan.normalizePreset(input)
-			this.scope = normalized.scope
-			this.presence = normalized.presence
-			this.inShadow = normalized.inShadow
+			// Legacy presets and default finite piece
+			const { scope, presence, inShadow } = input ? PieceLifespan.normalizePreset(input) : {}
+			this.scope = scope ?? 'part'
+			this.presence = presence ?? 'forward-scope'
+			this.inShadow = inShadow ?? 'stop'
 		}
 	}
 
@@ -50,7 +50,7 @@ export class PieceLifespan implements IPieceLifespan {
 	private static normalizePreset(preset: LegacyPieceLifespan): IPieceLifespan {
 		switch (preset) {
 			case LegacyPieceLifespan.WithinPart:
-				return { scope: 'part', presence: 'follow-playhead', inShadow: 'stop' }
+				return { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
 			case LegacyPieceLifespan.OutOnSegmentChange:
 				return { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }
 			case LegacyPieceLifespan.OutOnRundownChange:
@@ -62,24 +62,25 @@ export class PieceLifespan implements IPieceLifespan {
 			case LegacyPieceLifespan.OutOnShowStyleEnd:
 				return { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }
 			default:
-				return { scope: 'part', presence: 'follow-playhead', inShadow: 'stop' }
+				throw new Error(`Unknown legacy piece lifespan preset: ${String(preset)}`)
 		}
 	}
 
 	/** Resolves a new-style definition into a legacy preset if possible. Returns undefined if the behavior cannot be mapped to a legacy preset. */
 	private static resolvePreset(lifespan: IPieceLifespan): LegacyPieceLifespan | undefined {
-		switch (lifespan) {
-			case { scope: 'part', presence: 'follow-playhead', inShadow: 'stop' }:
+		switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
+			case 'part:forward-scope:stop':
+			case 'part:follow-playhead:stop':
 				return LegacyPieceLifespan.WithinPart
-			case { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }:
+			case 'segment:follow-playhead:stop':
 				return LegacyPieceLifespan.OutOnSegmentChange
-			case { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' }:
+			case 'rundown:follow-playhead:stop':
 				return LegacyPieceLifespan.OutOnRundownChange
-			case { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }:
+			case 'segment:forward-scope:persist':
 				return LegacyPieceLifespan.OutOnSegmentEnd
-			case { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }:
+			case 'rundown:forward-scope:persist':
 				return LegacyPieceLifespan.OutOnRundownEnd
-			case { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }:
+			case 'showstyle:forward-scope:persist':
 				return LegacyPieceLifespan.OutOnShowStyleEnd
 			default:
 				return undefined

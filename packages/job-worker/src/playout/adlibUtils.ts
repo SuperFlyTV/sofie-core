@@ -3,7 +3,7 @@ import { BucketAdLib } from '@sofie-automation/corelib/dist/dataModel/BucketAdLi
 import { BucketAdLibId, PartInstanceId, PieceId, PieceInstanceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { PieceInstance, PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
-import { assertNever, getRandomId, getRank } from '@sofie-automation/corelib/dist/lib'
+import { getRandomId, getRank } from '@sofie-automation/corelib/dist/lib'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { getCurrentTime } from '../lib/index.js'
 import { JobContext } from '../jobs/index.js'
@@ -17,7 +17,6 @@ import {
 import { convertAdLibToGenericPiece } from './pieces.js'
 import { getResolvedPiecesForCurrentPartInstance } from './resolvedPieces.js'
 import { updateTimeline } from './timeline/generate.js'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { updatePartInstanceRanksAfterAdlib } from '../updatePartInstanceRanksAndOrphanedState.js'
 import { setNextPart } from './setNext.js'
@@ -302,9 +301,9 @@ export function innerStopPieces(
 		if (pieceInstance.plannedStoppedPlayback && pieceInstance.plannedStoppedPlayback <= stopAt) continue
 
 		switch (pieceInstance.piece.lifespan) {
-			case LegacyPieceLifespan.WithinPart:
-			case LegacyPieceLifespan.OutOnSegmentChange:
-			case LegacyPieceLifespan.OutOnRundownChange: {
+			case { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }:
+			case { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }:
+			case { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' }: {
 				logger.info(`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt}`)
 
 				const pieceInstanceModel = playoutModel.findPieceInstance(pieceInstance._id)
@@ -322,9 +321,9 @@ export function innerStopPieces(
 
 				break
 			}
-			case LegacyPieceLifespan.OutOnSegmentEnd:
-			case LegacyPieceLifespan.OutOnRundownEnd:
-			case LegacyPieceLifespan.OutOnShowStyleEnd: {
+			case { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }:
+			case { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }:
+			case { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }: {
 				logger.info(
 					`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt} with a virtual`
 				)
@@ -340,7 +339,7 @@ export function innerStopPieces(
 				break
 			}
 			default:
-				assertNever(pieceInstance.piece.lifespan)
+				break
 		}
 	}
 

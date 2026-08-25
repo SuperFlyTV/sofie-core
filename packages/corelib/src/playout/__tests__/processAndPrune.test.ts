@@ -1,4 +1,4 @@
-import { IBlueprintPieceType, LegacyPieceLifespan, SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, SourceLayerType } from '@sofie-automation/blueprints-integration'
 import clone from 'fast-clone'
 import { EmptyPieceTimelineObjectsBlob, Piece } from '../../dataModel/Piece.js'
 import { PieceInstance, PieceInstancePiece, ResolvedPieceInstance } from '../../dataModel/PieceInstance.js'
@@ -11,13 +11,14 @@ import {
 	processAndPrunePieceInstanceTimings,
 	resolvePrunedPieceInstance,
 } from '../processAndPrune.js'
+import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 
 describe('processAndPrunePieceInstanceTimings', () => {
 	function createPieceInstance(
 		id: string,
 		enable: Piece['enable'],
 		sourceLayerId: string,
-		lifespan: LegacyPieceLifespan,
+		lifespan: IPieceLifespan,
 		clearOrAdlib?: boolean | number,
 		infinite?: PieceInstance['infinite']
 	): PieceInstance {
@@ -77,8 +78,16 @@ describe('processAndPrunePieceInstanceTimings', () => {
 
 	test('simple seperate layers', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('two', { start: 1000 }, 'two', LegacyPieceLifespan.OutOnRundownEnd),
+			createPieceInstance('one', { start: 0 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000 }, 'two', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -99,8 +108,16 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('basic collision', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
+			createPieceInstance('one', { start: 0 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -121,12 +138,36 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('onEnd type override', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
-			createPieceInstance('one', { start: 500 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd),
-			createPieceInstance('four', { start: 2000, duration: 2000 }, 'one', LegacyPieceLifespan.WithinPart),
-			createPieceInstance('three', { start: 3000 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('five', { start: 4000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
+			createPieceInstance('zero', { start: 0 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('one', { start: 500 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', {
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('four', { start: 2000, duration: 2000 }, 'one', {
+				scope: 'part',
+				presence: 'forward-scope',
+				inShadow: 'stop',
+			}),
+			createPieceInstance('three', { start: 3000 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('five', { start: 4000 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -171,12 +212,42 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('clear onEnd', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
-			createPieceInstance('one', { start: 500 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd),
-			createPieceInstance('three', { start: 3000 }, 'one', LegacyPieceLifespan.OutOnRundownEnd, true),
-			createPieceInstance('two', { start: 5000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, true),
-			createPieceInstance('zero', { start: 6000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd, true),
+			createPieceInstance('zero', { start: 0 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('one', { start: 500 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000 }, 'one', {
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance(
+				'three',
+				{ start: 3000 },
+				'one',
+				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
+			createPieceInstance(
+				'two',
+				{ start: 5000 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
+			createPieceInstance(
+				'zero',
+				{ start: 6000 },
+				'one',
+				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -203,12 +274,42 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('clear onEnd; include virtuals', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
-			createPieceInstance('one', { start: 500 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd),
-			createPieceInstance('three', { start: 3000 }, 'one', LegacyPieceLifespan.OutOnRundownEnd, true),
-			createPieceInstance('four', { start: 5000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, true),
-			createPieceInstance('five', { start: 6000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd, true),
+			createPieceInstance('zero', { start: 0 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('one', { start: 500 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000 }, 'one', {
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance(
+				'three',
+				{ start: 3000 },
+				'one',
+				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
+			createPieceInstance(
+				'four',
+				{ start: 5000 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
+			createPieceInstance(
+				'five',
+				{ start: 6000 },
+				'one',
+				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				true
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0), true)
@@ -253,12 +354,36 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('stop onSegmentChange with onEnd', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
-			createPieceInstance('one', { start: 500 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnSegmentChange),
-			createPieceInstance('three', { start: 2000 }, 'one', LegacyPieceLifespan.OutOnRundownEnd),
-			createPieceInstance('four', { start: 5000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd),
-			createPieceInstance('five', { start: 6000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd),
+			createPieceInstance('zero', { start: 0 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('one', { start: 500 }, 'one', {
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('two', { start: 1000 }, 'one', {
+				scope: 'segment',
+				presence: 'follow-playhead',
+				inShadow: 'stop',
+			}),
+			createPieceInstance('three', { start: 2000 }, 'one', {
+				scope: 'rundown',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('four', { start: 5000 }, 'one', {
+				scope: 'segment',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
+			createPieceInstance('five', { start: 6000 }, 'one', {
+				scope: 'showstyle',
+				presence: 'forward-scope',
+				inShadow: 'persist',
+			}),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -303,8 +428,20 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('prefer newer adlib', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, 6000),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, 5500),
+			createPieceInstance(
+				'one',
+				{ start: 1000 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				6000
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				5500
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -319,10 +456,34 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('prefer newer adlib2', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnRundownChange, 6000),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnRundownChange, 5500),
-			createPieceInstance('three', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnRundownChange, 7000),
-			createPieceInstance('four', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnRundownChange, 4000),
+			createPieceInstance(
+				'one',
+				{ start: 1000 },
+				'one',
+				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				6000
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				5500
+			),
+			createPieceInstance(
+				'three',
+				{ start: 1000 },
+				'one',
+				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				7000
+			),
+			createPieceInstance(
+				'four',
+				{ start: 1000 },
+				'one',
+				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				4000
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -337,8 +498,20 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('prefer newer adlib3', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd, 6000),
-			createPieceInstance('two', { start: 1000 }, 'one', LegacyPieceLifespan.OutOnShowStyleEnd, 5500),
+			createPieceInstance(
+				'one',
+				{ start: 1000 },
+				'one',
+				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				6000
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				5500
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -353,19 +526,33 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('continue onChange when start=0 and onEnd is present, and both are infinite continuations', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentChange, 6000, {
-				fromPreviousPart: true,
-				fromPreviousPlayhead: true,
-				infiniteInstanceId: protectString('one_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('one_b'),
-			}),
-			createPieceInstance('two', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, false, {
-				fromPreviousPart: true,
-				infiniteInstanceId: protectString('two_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('two_b'),
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				6000,
+				{
+					fromPreviousPart: true,
+					fromPreviousPlayhead: true,
+					infiniteInstanceId: protectString('one_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('one_b'),
+				}
+			),
+			createPieceInstance(
+				'two',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				false,
+				{
+					fromPreviousPart: true,
+					infiniteInstanceId: protectString('two_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('two_b'),
+				}
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -386,19 +573,33 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('stop onChange when start=0 and onEnd is present, and both are infinite continuations', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentChange, 6000, {
-				fromPreviousPart: true,
-				fromPreviousPlayhead: true,
-				infiniteInstanceId: protectString('one_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('one_b'),
-			}),
-			createPieceInstance('two', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, false, {
-				fromPreviousPart: false,
-				infiniteInstanceId: protectString('two_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('two_b'),
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				6000,
+				{
+					fromPreviousPart: true,
+					fromPreviousPlayhead: true,
+					infiniteInstanceId: protectString('one_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('one_b'),
+				}
+			),
+			createPieceInstance(
+				'two',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				false,
+				{
+					fromPreviousPart: false,
+					infiniteInstanceId: protectString('two_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('two_b'),
+				}
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -413,18 +614,32 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('stop onRundownEnd continuation when start=0 and onSegmentEnd is present', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnRundownEnd, false, {
-				fromPreviousPart: true,
-				infiniteInstanceId: protectString('one_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('one_b'),
-			}),
-			createPieceInstance('two', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, false, {
-				fromPreviousPart: false,
-				infiniteInstanceId: protectString('two_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('two_b'),
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				false,
+				{
+					fromPreviousPart: true,
+					infiniteInstanceId: protectString('one_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('one_b'),
+				}
+			),
+			createPieceInstance(
+				'two',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				false,
+				{
+					fromPreviousPart: false,
+					infiniteInstanceId: protectString('two_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('two_b'),
+				}
+			),
 		]
 
 		pieceInstances[1].piece.virtual = true
@@ -437,19 +652,33 @@ describe('processAndPrunePieceInstanceTimings', () => {
 
 	test('stop onSegmentChange continuation with planned onSegmentEnd start=0', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentChange, false, {
-				fromPreviousPart: true,
-				fromPreviousPlayhead: true,
-				infiniteInstanceId: protectString('one_a'),
-				infiniteInstanceIndex: 1,
-				infinitePieceId: protectString('one_b'),
-			}),
-			createPieceInstance('two', { start: 0 }, 'one', LegacyPieceLifespan.OutOnSegmentEnd, false, {
-				fromPreviousPart: false,
-				infiniteInstanceId: protectString('two_a'),
-				infiniteInstanceIndex: 0,
-				infinitePieceId: protectString('two_b'),
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				false,
+				{
+					fromPreviousPart: true,
+					fromPreviousPlayhead: true,
+					infiniteInstanceId: protectString('one_a'),
+					infiniteInstanceIndex: 1,
+					infinitePieceId: protectString('one_b'),
+				}
+			),
+			createPieceInstance(
+				'two',
+				{ start: 0 },
+				'one',
+				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				false,
+				{
+					fromPreviousPart: false,
+					infiniteInstanceId: protectString('two_a'),
+					infiniteInstanceIndex: 0,
+					infinitePieceId: protectString('two_b'),
+				}
+			),
 		]
 
 		// Set the first as adlibbed during the previous part
@@ -477,14 +706,21 @@ describe('processAndPrunePieceInstanceTimings', () => {
 			const partStart = 8000
 
 			const pieceInstances = [
-				createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnRundownChange),
-				createPieceInstance(
-					'two',
-					{ start: now + 2000, isAbsolute: true },
-					'one',
-					LegacyPieceLifespan.OutOnRundownChange
-				),
-				createPieceInstance('three', { start: 6000 }, 'one', LegacyPieceLifespan.OutOnRundownChange),
+				createPieceInstance('one', { start: 0 }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
+				createPieceInstance('two', { start: now + 2000, isAbsolute: true }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
+				createPieceInstance('three', { start: 6000 }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
 			]
 
 			const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(now, partStart))
@@ -515,14 +751,21 @@ describe('processAndPrunePieceInstanceTimings', () => {
 			const partStart = 8000
 
 			const pieceInstances = [
-				createPieceInstance('one', { start: 0 }, 'one', LegacyPieceLifespan.OutOnRundownChange),
-				createPieceInstance(
-					'two',
-					{ start: partStart + 2000, isAbsolute: true },
-					'one',
-					LegacyPieceLifespan.OutOnRundownChange
-				),
-				createPieceInstance('three', { start: 2000 }, 'one', LegacyPieceLifespan.OutOnRundownChange),
+				createPieceInstance('one', { start: 0 }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
+				createPieceInstance('two', { start: partStart + 2000, isAbsolute: true }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
+				createPieceInstance('three', { start: 2000 }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
 			]
 
 			const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(now, partStart))
@@ -583,7 +826,7 @@ describe('resolvePrunedPieceInstances', () => {
 				startPartId: protectString(''),
 				enable: enable,
 				name: '',
-				lifespan: LegacyPieceLifespan.WithinPart,
+				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 				sourceLayerId: '',
 				outputLayerId: '',
 				invalid: false,

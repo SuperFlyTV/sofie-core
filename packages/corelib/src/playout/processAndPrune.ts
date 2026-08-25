@@ -1,8 +1,9 @@
-import { ISourceLayer, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { ISourceLayer } from '@sofie-automation/blueprints-integration'
 import { literal } from '@sofie-automation/shared-lib/dist/lib/lib'
 import { PieceInstance, ResolvedPieceInstance } from '../dataModel/PieceInstance.js'
 import { SourceLayers } from '../dataModel/ShowStyleBase.js'
-import { assertNever, groupByToMapFunc } from '../lib.js'
+import { groupByToMapFunc } from '../lib.js'
+import { PieceLifespan } from './pieceLifespan.js'
 import _ from 'underscore'
 import { isCandidateBetterToBeContinued, isCandidateMoreImportant } from './infinites.js'
 import { ReadonlyDeep } from 'type-fest'
@@ -259,8 +260,9 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 	const res: PieceInstanceOnInfiniteLayers = {}
 
 	for (const piece of pieces) {
-		switch (piece.piece.lifespan) {
-			case LegacyPieceLifespan.OutOnShowStyleEnd:
+		const lifespan = PieceLifespan.from(piece.piece.lifespan)
+		switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
+			case 'showstyle:forward-scope:persist':
 				if (!res.onShowStyleEnd || isCandidateBetterToBeContinued(res.onShowStyleEnd, piece)) {
 					res.onShowStyleEnd = {
 						...piece,
@@ -268,7 +270,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case LegacyPieceLifespan.OutOnRundownEnd:
+			case 'rundown:forward-scope:persist':
 				if (!res.onRundownEnd || isCandidateBetterToBeContinued(res.onRundownEnd, piece)) {
 					res.onRundownEnd = {
 						...piece,
@@ -276,7 +278,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case LegacyPieceLifespan.OutOnSegmentEnd:
+			case 'segment:forward-scope:persist':
 				if (!res.onSegmentEnd || isCandidateBetterToBeContinued(res.onSegmentEnd, piece)) {
 					res.onSegmentEnd = {
 						...piece,
@@ -284,9 +286,9 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case LegacyPieceLifespan.OutOnRundownChange:
-			case LegacyPieceLifespan.OutOnSegmentChange:
-			case LegacyPieceLifespan.WithinPart:
+			case 'rundown:follow-playhead:stop':
+			case 'segment:follow-playhead:stop':
+			case 'part:forward-scope:stop':
 				if (!res.other || isCandidateBetterToBeContinued(res.other, piece)) {
 					res.other = {
 						...piece,
@@ -295,7 +297,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 				}
 				break
 			default:
-				assertNever(piece.piece.lifespan)
+				break
 		}
 	}
 

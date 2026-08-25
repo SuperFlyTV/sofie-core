@@ -6,7 +6,7 @@ import { type NoraContent, LegacyPieceLifespan } from '@sofie-automation/bluepri
 import { getElementDocumentOffset, type OffsetPosition } from '../../../utils/positions.js'
 import { getElementWidth } from '../../../utils/dimensions.js'
 import { StyledTimecode } from '../../../lib/StyledTimecode.js'
-import { assertNever } from '@sofie-automation/corelib/dist/lib'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import type { AdLibPieceUi } from '../../../lib/shelf.js'
 import { ActionAdLibHotkeyPreview } from '../../../lib/triggers/ActionAdLibHotkeyPreview.js'
 import {
@@ -30,7 +30,7 @@ export const L3rdListItemRenderer: React.FunctionComponent<ILayerItemRendererPro
 	const itemAsPieceUi = props.adLibListItem as AdLibPieceUi
 
 	if (noraContent) {
-		switch (props.adLibListItem.lifespan) {
+		switch (PieceLifespan.from(props.adLibListItem.lifespan).legacyLifespan) {
 			case LegacyPieceLifespan.WithinPart:
 				sourceDuration = t('Until next take')
 				if (itemAsPieceUi.expectedDuration) {
@@ -53,7 +53,7 @@ export const L3rdListItemRenderer: React.FunctionComponent<ILayerItemRendererPro
 				sourceDuration = t('Until end of showstyle')
 				break
 			default:
-				assertNever(props.adLibListItem.lifespan)
+				break
 		}
 	}
 

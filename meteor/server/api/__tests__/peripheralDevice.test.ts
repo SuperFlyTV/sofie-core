@@ -14,12 +14,7 @@ import { setupDefaultStudioEnvironment, DefaultEnvironment } from '../../../__mo
 import { setLogLevel } from '../../logging'
 import { IngestDeviceSecretSettings } from '@sofie-automation/corelib/dist/dataModel/PeripheralDeviceSettings/ingestDevice'
 import { MediaObject } from '@sofie-automation/shared-lib/dist/core/model/MediaObjects'
-import {
-	IBlueprintPieceType,
-	LegacyPieceLifespan,
-	PlaylistTimingType,
-	StatusCode,
-} from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, PlaylistTimingType, StatusCode } from '@sofie-automation/blueprints-integration'
 import { CreateFakeResult, QueueStudioJobSpy } from '../../../__mocks__/worker'
 import { makeMeteorCallForTest } from '../../../__mocks__/helpers/methods'
 
@@ -140,7 +135,7 @@ describe('test peripheralDevice general API methods', () => {
 			startPartId: protectString('part000'),
 			startSegmentId: segmentID,
 			startRundownId: rundownID,
-			lifespan: LegacyPieceLifespan.WithinPart,
+			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 			pieceType: IBlueprintPieceType.Normal,
 			invalid: false,
 			content: {},
