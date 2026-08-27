@@ -13,7 +13,7 @@ import { DBRundownPlaylist } from '@sofie-automation/corelib/dist/dataModel/Rund
 import { DBShowStyleBase } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { literal, normalizeArray } from '@sofie-automation/corelib/dist/lib'
-import { ISourceLayer, SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { ISourceLayer, LegacyPieceLifespan, SourceLayerType } from '@sofie-automation/blueprints-integration'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { IWrappedAdLib } from '@sofie-automation/meteor-lib/dist/triggers/actionFilterChainCompilers'
@@ -281,7 +281,7 @@ describe('TagsService', () => {
 				tags: [tag5],
 				sourceLayerId: sourceLayerId0,
 				enable: { start: 0 },
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			},
 			partInstanceId: partInstanceId3,
 			plannedStartedPlayback: 1000,
@@ -293,7 +293,7 @@ describe('TagsService', () => {
 				tags: [tag0],
 				sourceLayerId: sourceLayerId0,
 				enable: { start: 0 },
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			},
 			partInstanceId: partInstanceId0,
 		} as PieceInstance)
@@ -353,7 +353,7 @@ describe('TagsService', () => {
 				tags: [tag5],
 				sourceLayerId: sourceLayerId0,
 				enable: { start: 0 },
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			},
 			partInstanceId: partInstanceId3,
 			plannedStartedPlayback: 1000,
@@ -365,7 +365,7 @@ describe('TagsService', () => {
 				tags: [tag6],
 				sourceLayerId: sourceLayerId0,
 				enable: { start: 0 },
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			},
 			partInstanceId: partInstanceId4,
 			plannedStartedPlayback: 500,
@@ -377,7 +377,7 @@ describe('TagsService', () => {
 				tags: [tag0],
 				sourceLayerId: sourceLayerId0,
 				enable: { start: 0 },
-				lifespan: PieceLifespan.WithinPart,
+				lifespan: LegacyPieceLifespan.WithinPart,
 			},
 			partInstanceId: partInstanceId0,
 		} as PieceInstance)
