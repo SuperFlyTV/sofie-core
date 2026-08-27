@@ -1,5 +1,11 @@
 import '../../__mocks__/_extendJest.js'
-import { IBlueprintPiece, IngestPart, IngestRundown, IngestSegment } from '@sofie-automation/blueprints-integration'
+import {
+	IBlueprintPiece,
+	IngestPart,
+	IngestRundown,
+	IngestSegment,
+	LegacyPieceLifespan,
+} from '@sofie-automation/blueprints-integration'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import {
 	PeripheralDevice,
@@ -1051,7 +1057,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: PieceLifespan.WithinPart,
+										lifespan: LegacyPieceLifespan.WithinPart,
 										content: { timelineObjects: [] },
 									}),
 								],
