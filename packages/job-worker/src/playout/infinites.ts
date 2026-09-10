@@ -76,6 +76,7 @@ export function candidatePartIsAfterPreviewPartInstance(
 	}
 }
 
+// TODO: remove this in favor of packages/job-worker/src/playout/infinites/getIdsBeforeThisPart.ts
 /**
  * Get the ids of parts, segments and rundowns before a given part in the playlist.
  * Note: this will return no segments and rundowns if the part is in the AdlibTesting segment.
