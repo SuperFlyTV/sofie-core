@@ -9,17 +9,15 @@ import { PlayoutSegmentModel } from '../model/PlayoutSegmentModel'
 import { PlayoutRundownModel } from '../model/PlayoutRundownModel'
 import { RundownId, SegmentId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 
-/**
- * Get the ids of parts, segments and rundowns before a given part in the playlist.
- * Note: this will return no segments and rundowns if the part is in the AdlibTesting segment.
- */
-export function getIdsBeforeThisPart(context: JobContext, playoutModel: PlayoutModel, nextPart: ReadonlyDeep<DBPart>) {
+// TODO: rename this file, add jsdoc
+
+export function getPrecedingContext(context: JobContext, playoutModel: PlayoutModel, part: ReadonlyDeep<DBPart>) {
 	const span = context.startSpan('getIdsBeforeThisPart')
 
-	const currentRundown = playoutModel.getRundown(nextPart.rundownId)
-	const nextPartSegment = currentRundown?.getSegment(nextPart.segmentId)
+	const rundown = playoutModel.getRundown(part.rundownId)
+	const segment = rundown?.getSegment(part.segmentId)
 
-	const parts = getOrderedPrecedingPartIdsInSegment(nextPartSegment, playoutModel, nextPart)
+	const parts = getPrecedingPartIds(playoutModel, segment, part)
 
 	let segments: SegmentId[] = []
 	let rundowns: {
@@ -28,11 +26,13 @@ export function getIdsBeforeThisPart(context: JobContext, playoutModel: PlayoutM
 	}[] = []
 
 	// AdlibTesting segments are at the begining of the rundownm so segments and rundown do not apply here.
-	if (nextPartSegment?.segment?.orphaned !== SegmentOrphanedReason.ADLIB_TESTING) {
-		segments = getPrecedingSegmentIdsInRundown(currentRundown, nextPartSegment, nextPart)
+	if (segment?.segment?.orphaned !== SegmentOrphanedReason.ADLIB_TESTING) {
+		segments = getPrecedingSegmentIds(rundown, segment, part)
 
-		rundowns = getPrecedingRundownIdsWithShowstyleInPlaylist(playoutModel, nextPart)
-		// this is where we should also group by showstyle. Showstyle can span multiple rundowns in the same playlist.
+		// we are returning the rundowns with their showstyles,
+		// so later we can evaluate forward-scope and playhead-tracking infinites correctly
+		// in the final implementation, the responsibility of identifying the correct showstyle might be moved to another resolution step
+		rundowns = getPrecedingRundowns(playoutModel, part)
 	}
 
 	if (span) span.end()
@@ -43,82 +43,78 @@ export function getIdsBeforeThisPart(context: JobContext, playoutModel: PlayoutM
 	}
 }
 
-function getPrecedingRundownIdsWithShowstyleInPlaylist(playoutModel: PlayoutModel, nextPart: ReadonlyDeep<DBPart>) {
+function getPrecedingRundowns(playoutModel: PlayoutModel, part: ReadonlyDeep<DBPart>) {
 	const sortedRundownIds = sortRundownIDsInPlaylist(
 		playoutModel.playlist.rundownIdsInOrder,
 		playoutModel.rundowns.map((rd) => rd.rundown._id)
 	)
 
-	const currentRundownIndex = sortedRundownIds.indexOf(nextPart.rundownId)
+	const rundownIndex = sortedRundownIds.indexOf(part.rundownId)
 
 	// If we found the rundown and
-	if (currentRundownIndex < 0) {
+	if (rundownIndex < 0) {
 		const sortedRundowns = sortedRundownIds
-			.map((id) => playoutModel.rundowns.find((rd) => rd.rundown._id === id))
-			.filter((rd): rd is (typeof playoutModel.rundowns)[number] => rd !== undefined)
+			.map((id) => playoutModel.rundowns.find((r) => r.rundown._id === id))
+			.filter((r): r is (typeof playoutModel.rundowns)[number] => r !== undefined)
 
-		const precedingRundowns = sortedRundowns.slice(0, currentRundownIndex)
+		const precedingRundowns = sortedRundowns.slice(0, rundownIndex)
 
-		const rundownsWithShowstyles = precedingRundowns.map((rd) => {
+		const rundownsWithShowstyles = precedingRundowns.map((r) => {
 			return {
-				rundownId: rd.rundown._id,
-				showStyleBaseId: rd.rundown.showStyleBaseId,
+				rundownId: r.rundown._id,
+				showStyleBaseId: r.rundown.showStyleBaseId,
 			}
 		})
 
-		// we are returning the rundowns with their showstyles,
-		// so later we can evaluate forward-scope and playhead-tracking infinites correctly
-		// in the final implementation, the responsibility of identifying the correct showstyle might be moved to another resolution step
 		return rundownsWithShowstyles
 	}
 
 	return []
 }
 
-function getPrecedingSegmentIdsInRundown(
-	currentRundown: PlayoutRundownModel | undefined,
-	nextPartSegment: PlayoutSegmentModel | undefined,
-	nextPart: ReadonlyDeep<DBPart>
+function getPrecedingSegmentIds(
+	rundown: PlayoutRundownModel | undefined,
+	segment: PlayoutSegmentModel | undefined,
+	part: ReadonlyDeep<DBPart>
 ): SegmentId[] {
-	if (!currentRundown || !nextPartSegment) return []
+	if (!rundown || !segment) return []
 
-	return currentRundown.segments
+	return rundown.segments
 		.filter(
 			(s) =>
-				s.segment.rundownId === nextPart.rundownId &&
-				s.segment._rank < nextPartSegment.segment._rank &&
+				s.segment.rundownId === part.rundownId &&
+				s.segment._rank < segment.segment._rank &&
 				s.segment.orphaned !== SegmentOrphanedReason.ADLIB_TESTING
 		)
 		.map((p) => p.segment._id)
 }
 
-function getOrderedPrecedingPartIdsInSegment(
-	nextPartSegment: PlayoutSegmentModel | undefined,
+function getPrecedingPartIds(
 	playoutModel: PlayoutModel,
-	nextPart: ReadonlyDeep<DBPart>
+	segment: PlayoutSegmentModel | undefined,
+	part: ReadonlyDeep<DBPart>
 ) {
-	// Find any orphaned parts
-	const orphanedPrecedingPartsInSegment = getOrphanedPrecedingPartsInSegment(playoutModel, nextPart)
-
 	// Get the normal parts
-	const precedingParentPartsInSegment = getPrecedingPartsInSegment(nextPartSegment, nextPart)
+	const normalParts = getPrecedingParts(segment, part)
+	// Find any orphaned parts
+	const orphanedParts = getOrphanedPrecedingParts(playoutModel, part)
 
-	const precedingPartsInSegment = precedingParentPartsInSegment.concat(orphanedPrecedingPartsInSegment)
+	const precedingParts = normalParts.concat(orphanedParts)
 
-	return _.sortBy(precedingPartsInSegment, (p) => p._rank).map((p) => p._id)
+	return _.sortBy(precedingParts, (p) => p._rank).map((p) => p._id)
 }
 
-function getOrphanedPrecedingPartsInSegment(playoutModel: PlayoutModel, nextPart: ReadonlyDeep<DBPart>) {
+function getOrphanedPrecedingParts(playoutModel: PlayoutModel, part: ReadonlyDeep<DBPart>) {
 	const partInstances = playoutModel.loadedPartInstances.filter(
 		(p) =>
-			p.partInstance.segmentId === nextPart.segmentId &&
+			p.partInstance.segmentId === part.segmentId &&
 			!!p.partInstance.orphaned &&
-			p.partInstance.part._rank < nextPart._rank
+			p.partInstance.part._rank < part._rank
 	)
 
 	return partInstances.map((p) => p.partInstance.part)
 }
 
-function getPrecedingPartsInSegment(currentSegment: PlayoutSegmentModel | undefined, nextPart: ReadonlyDeep<DBPart>) {
-	return currentSegment?.parts?.filter((p) => p._rank < nextPart._rank) ?? []
+function getPrecedingParts(currentSegment: PlayoutSegmentModel | undefined, part: ReadonlyDeep<DBPart>) {
+	return currentSegment?.parts?.filter((p) => p._rank < part._rank) ?? []
 }
