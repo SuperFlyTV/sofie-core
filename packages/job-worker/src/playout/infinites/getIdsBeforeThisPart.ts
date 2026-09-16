@@ -1,25 +1,34 @@
-import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { JobContext } from '../../jobs'
 import { ReadonlyDeep } from 'type-fest'
 import _ from 'underscore'
 import { PlayoutSegmentModel } from '../model/PlayoutSegmentModel'
 import { PlayoutRundownModel } from '../model/PlayoutRundownModel'
-import { RundownId, SegmentId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { PartId, RundownId, SegmentId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PlayoutPartInstanceModel } from '../model/PlayoutPartInstanceModel'
+import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 
 // TODO: rename this file, add jsdoc
 
 interface PrecedingLookupContext {
-	part: ReadonlyDeep<DBPart>
+	part: ReadonlyDeep<DBPartInstance>
 	loadedPartInstances: PlayoutPartInstanceModel[]
 	segment: PlayoutSegmentModel | undefined
 	// should be an external responsibility to sort the rundowns.
-	rundowns: PlayoutRundownModel[]
+	rundowns: readonly PlayoutRundownModel[]
 }
 
-export function getPrecedingContext(context: JobContext, lookupContext: PrecedingLookupContext) {
-	const span = context.startSpan('getIdsBeforeThisPart')
+export interface PrecedingContext {
+	parts: PartId[]
+	segments: SegmentId[]
+	rundowns: {
+		rundownId: RundownId
+		showStyleBaseId: ReadonlyDeep<ShowStyleBaseId>
+	}[]
+}
+
+export function getPrecedingContext(context: JobContext, lookupContext: PrecedingLookupContext): PrecedingContext {
+	const span = context.startSpan('getPrecedingContext')
 
 	const segment = lookupContext.segment
 
@@ -98,12 +107,12 @@ function getOrphanedPrecedingParts({ part, segment, loadedPartInstances }: Prece
 		(p) =>
 			p.partInstance.segmentId === segment?.segment._id &&
 			!!p.partInstance.orphaned &&
-			p.partInstance.part._rank < part._rank
+			p.partInstance.part._rank < part.part._rank
 	)
 
 	return partInstances.map((p) => p.partInstance.part)
 }
 
 function getPrecedingParts({ part, segment }: PrecedingLookupContext) {
-	return segment?.parts?.filter((p) => p._rank < part._rank) ?? []
+	return segment?.parts?.filter((p) => p._rank < part.part._rank) ?? []
 }

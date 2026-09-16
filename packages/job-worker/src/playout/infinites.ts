@@ -132,7 +132,7 @@ function getIdsBeforeThisPart(context: JobContext, playoutModel: PlayoutModel, n
 		const currentRundownIndex = sortedRundownIds.indexOf(nextPart.rundownId)
 		const rundownsToReceiveOnShowStyleEndFrom =
 			currentRundownIndex === -1 ? [] : sortedRundownIds.slice(0, currentRundownIndex)
-
+		// this is where we should also group by showstyle. Showstyle can span multiple rundowns in the same playlist.
 		if (span) span.end()
 		return {
 			partsToReceiveOnSegmentEndFrom: partsBeforeThisInSegmentSorted,
