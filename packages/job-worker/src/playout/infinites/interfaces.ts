@@ -1,26 +1,80 @@
+import {
+	PartId,
+	PieceId,
+	RundownId,
+	RundownPlaylistId,
+	SegmentId,
+	ShowStyleBaseId,
+} from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import { PlayoutRundownModel } from '../model/PlayoutRundownModel'
 
 /**
  * Top-level container representing an active playlist in an infinite piece resolution hierarchy.
  */
 export interface InfinitePlaylist {
 	/** Unique identifier for the playlist. */
-	id: string
+	id: RundownPlaylistId
 
 	/**
-	 * Ordered list of rundowns contained within this playlist.
+	 * Ordered list of showstyle groups contained within this playlist.
 	 * Can be either a dynamic lookup or a static array depending on the implementation.
 	 */
+	showstyleGroups: InfiniteShowstyleGroup[]
+
+	/**
+	 * Looks up a list of showstyle groups within this playlist by a showstyle ID.
+	 *
+	 * @param id - The identifier of the groups containing the showstyle to retrieve.
+	 * @returns An array of the matching {@link InfiniteShowstyleGroup}s
+	 */
+	showstyle: (showstyleId: InfiniteShowstyleGroup['showstyleId']) => InfiniteShowstyleGroup[]
+
+	/**
+	 * Looks up a single showstyle group within this playlist by its ID and showstyle ID.
+	 *
+	 * @param id - The identifier of the showstyle group to retrieve.
+	 * @param showstyleId - The identifier of the showstyle to retrieve.
+	 * @returns The matching {@link InfiniteShowstyleGroup}, or `undefined` if not found.
+	 */
+	showstyleGroup: (
+		id: InfiniteShowstyleGroup['id'],
+		showstyleId: InfiniteShowstyleGroup['showstyleId']
+	) => InfiniteShowstyleGroup | undefined
+}
+
+/**
+ * Represents a Showstyle Group within the playlist hierarchy.
+ *
+ * A showstyle group is a collection of rundowns that follow each other and share the same showstyle.
+ *
+ * A showstyle could have multiple groups associated with it when interrupted by another showstyle.
+ */
+export interface InfiniteShowstyleGroup {
+	/** incremental id for the showstyle group.
+	 * When a showstyle group is interrupted by another showstyle, the same showstyle will get a new group instance
+	 * and while the showstyleId is the same, the groupId will be different. */
+	id: number
+
+	/** Unique identifier for the showstyle. */
+	showstyleId: ShowStyleBaseId
+
+	/** Ordered list of rundowns belonging to this showstyle. */
 	rundowns: InfiniteRundown[]
 
 	/**
-	 * Looks up a single rundown within this playlist by its ID.
+	 * Looks up a single rundown within this showstyle by its ID.
 	 *
 	 * @param id - The identifier of the rundown to retrieve.
 	 * @returns The matching {@link InfiniteRundown}, or `undefined` if not found.
 	 */
 	rundown: (id: InfiniteRundown['id']) => InfiniteRundown | undefined
+
+	addRundown: (rundown: PlayoutRundownModel) => InfiniteShowstyleGroup
+
+	/** Direct reference to the parent playlist. */
+	playlist: InfinitePlaylist
 }
 
 /**
@@ -28,10 +82,7 @@ export interface InfinitePlaylist {
  */
 export interface InfiniteRundown {
 	/** Unique identifier for the rundown. */
-	id: string
-
-	/** Identifier of the ShowStyleBase applied to this rundown. */
-	showstyleId: string
+	id: RundownId
 
 	/**
 	 * Ordered list of segments belonging to this rundown.
@@ -48,10 +99,10 @@ export interface InfiniteRundown {
 	segment: (id: InfiniteSegment['id']) => InfiniteSegment | undefined
 
 	/**
-	 * Direct reference to the parent playlist.
+	 * Direct reference to the parent showstyle group.
 	 * In class-based implementations, this is passed directly into the constructor.
 	 */
-	playlist: InfinitePlaylist
+	showstyleGroup: InfiniteShowstyleGroup
 }
 
 /**
@@ -59,7 +110,7 @@ export interface InfiniteRundown {
  */
 export interface InfiniteSegment {
 	/** Unique identifier for the segment. */
-	id: string
+	id: SegmentId
 
 	/**
 	 * Ordered list of parts contained within this segment.
@@ -77,9 +128,6 @@ export interface InfiniteSegment {
 
 	/** Direct reference to the parent rundown. */
 	rundown: InfiniteRundown
-
-	/** Shortcut reference to the root playlist. */
-	playlist: InfinitePlaylist
 }
 
 /**
@@ -87,7 +135,7 @@ export interface InfiniteSegment {
  */
 export interface InfinitePart {
 	/** Unique identifier for the part. */
-	id: string
+	id: PartId
 
 	/**
 	 * List of pieces contained within this part.
@@ -105,12 +153,6 @@ export interface InfinitePart {
 
 	/** Direct reference to the parent segment. */
 	segment: InfiniteSegment
-
-	/** Shortcut reference to the parent rundown. */
-	rundown: InfiniteRundown
-
-	/** Shortcut reference to the root playlist. */
-	playlist: InfinitePlaylist
 }
 
 /**
@@ -119,22 +161,13 @@ export interface InfinitePart {
  */
 export type InfinitePiece = Pick<Piece, 'enable'> & {
 	/** Unique identifier for the piece. */
-	id: string
+	id: PieceId
 
 	/** The lifespan behavior of the piece (e.g., OutOnNextPart, OutOnNextSegment, Infinite). */
 	lifespan: PieceLifespan
 
 	/** Direct reference to the parent part. */
 	part: InfinitePart
-
-	/** Shortcut reference to the parent segment. */
-	segment: InfiniteSegment
-
-	/** Shortcut reference to the parent rundown. */
-	rundown: InfiniteRundown
-
-	/** Shortcut reference to the root playlist. */
-	playlist: InfinitePlaylist
 }
 
 /**
