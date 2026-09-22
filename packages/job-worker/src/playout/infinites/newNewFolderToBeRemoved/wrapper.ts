@@ -32,11 +32,13 @@ export function resolvePieces(
 		partId: unprotectString(part._id),
 	})
 
-	const loadedPartInstances = playoutModel.loadedPartInstances
-
-	const loadedPartIds = Object.values(loadedPartInstances).map((instance) =>
-		unprotectString(instance.partInstance.part._id)
+	const inTreePartIds = new Set(playlist.parts.map((p) => unprotectString(p.id)))
+	const overlayInstances = playoutModel.loadedPartInstances.filter(
+		(instance) =>
+			inTreePartIds.has(unprotectString(instance.partInstance.part._id)) && instance.pieceInstances.length > 0
 	)
+
+	const loadedPartIds = overlayInstances.map((instance) => unprotectString(instance.partInstance.part._id))
 
 	const piecesQuery = buildPiecesQuery(playlist, loadedPartIds)
 
@@ -54,7 +56,7 @@ export function resolvePieces(
 				})) ?? [])
 		: []
 
-	const loadedPieces: PartialInfinitePiece[] = loadedPartInstances.flatMap((instance) =>
+	const loadedPieces: PartialInfinitePiece[] = overlayInstances.flatMap((instance) =>
 		instance.pieceInstances
 			.map((piece) => piece.pieceInstance)
 			// filter to infinite pieces

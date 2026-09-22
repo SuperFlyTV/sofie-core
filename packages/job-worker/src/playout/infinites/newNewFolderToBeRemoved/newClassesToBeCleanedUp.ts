@@ -24,6 +24,20 @@ import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 
+function sliceThrough<T>(items: readonly T[], pred: (item: T) => boolean, inclusive: boolean): T[] {
+	const idx = items.findIndex(pred)
+	if (idx === -1) return [...items]
+	return items.slice(0, inclusive ? idx + 1 : idx)
+}
+
+function targetForRundown(target: TargetPartCursor | undefined, rundownId: RundownId): TargetPartCursor | undefined {
+	return target && unprotectString(rundownId) === target.rundownId ? target : undefined
+}
+
+function targetForSegment(target: TargetPartCursor | undefined, segmentId: SegmentId): TargetPartCursor | undefined {
+	return target && unprotectString(segmentId) === target.segmentId ? target : undefined
+}
+
 // TODO: Class names here are placeholders, proper names should be used when everything else is in place
 export class PieceResolutionPlaylist implements InfinitePlaylist {
 	id: RundownPlaylistId
@@ -34,10 +48,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 		this.id = id
 
 		const slicedRundowns = target
-			? sortedRundowns.slice(
-					0,
-					sortedRundowns.findIndex((r) => unprotectString(r.rundown._id) === target.rundownId)
-				)
+			? sliceThrough(sortedRundowns, (r) => unprotectString(r.rundown._id) === target.rundownId, true)
 			: sortedRundowns
 
 		// TODO: clean up this chaos
@@ -57,7 +68,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 					rundown.rundown.showStyleBaseId,
 					this,
 					[rundown],
-					target
+					targetForRundown(target, rundown.rundown._id)
 				)
 				this.showstyleGroups.push(showstyleGroup)
 			}
@@ -72,7 +83,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 
 					// add the rundown to the showstyle group
 					// Todo: the showstyle group should be responsible for creating the abstracted rundown object.
-					showstyleGroup.addRundown(rundown, target)
+					showstyleGroup.addRundown(rundown, targetForRundown(target, rundown.rundown._id))
 				}
 				// showstyle is different, create a new group
 				else {
@@ -92,7 +103,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 						rundown.rundown.showStyleBaseId,
 						this,
 						[rundown],
-						target
+						targetForRundown(target, rundown.rundown._id)
 					)
 
 					this.showstyleGroups.push(showstyleGroup)
@@ -232,7 +243,7 @@ export class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
 			rundown.rundown._id,
 			this,
 			rundown.segments,
-			target
+			targetForRundown(target, rundown.rundown._id)
 		)
 
 		this.rundowns.push(infiniteRundown)
@@ -261,17 +272,26 @@ export class PieceResolutionRundown implements InfiniteRundown {
 
 		const sortedSegments = segments.toSorted((a, b) => a.segment._rank - b.segment._rank)
 
-		const slicedSegments = target
-			? sortedSegments.slice(
-					0,
-					sortedSegments.findIndex((segment) => unprotectString(segment.segment._id) === target.segmentId)
-				)
-			: sortedSegments
+		const slicedSegments =
+			target && unprotectString(this.id) === target.rundownId
+				? sliceThrough(
+						sortedSegments,
+						(segment) => unprotectString(segment.segment._id) === target.segmentId,
+						true
+					)
+				: sortedSegments
 
-		slicedSegments.map((segment) => this.addSegment(segment, target))
+		slicedSegments.map((segment) => this.addSegment(segment, targetForSegment(target, segment.segment._id)))
 	}
 	addSegment(segment: PlayoutSegmentModel, target?: TargetPartCursor) {
-		this.segments.push(new PieceResolutionSegment(segment.segment._id, this, segment.parts, target))
+		this.segments.push(
+			new PieceResolutionSegment(
+				segment.segment._id,
+				this,
+				segment.parts,
+				targetForSegment(target, segment.segment._id)
+			)
+		)
 	}
 	addPart(part: ReadonlyObjectDeep<DBPart>) {
 		const segment = this.segment(part.segmentId)
@@ -316,12 +336,10 @@ export class PieceResolutionSegment implements InfiniteSegment {
 
 		const sortedParts = parts.toSorted((a, b) => a._rank - b._rank)
 
-		const slicedParts = target
-			? sortedParts.slice(
-					0,
-					sortedParts.findIndex((part) => unprotectString(part._id) === target.partId)
-				)
-			: sortedParts
+		const slicedParts =
+			target && unprotectString(this.id) === target.segmentId
+				? sliceThrough(sortedParts, (part) => unprotectString(part._id) === target.partId, false)
+				: sortedParts
 
 		slicedParts.map(this.addPart, this)
 	}
