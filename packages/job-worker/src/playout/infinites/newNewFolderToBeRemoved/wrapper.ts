@@ -6,6 +6,7 @@ import { ReadonlyDeep } from 'type-fest'
 import _ from 'underscore'
 import { PieceResolutionPlaylist } from './newClassesToBeCleanedUp'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString.js'
+import { LegacyPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 import { InfinitePlaylist, PartialInfinitePiece } from '../interfaces'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { MongoQuery } from '../../../db'
@@ -102,57 +103,22 @@ export function buildPiecesQuery(playlist: InfinitePlaylist, loadedPartIds: stri
 	}
 }
 
-const lifespanQueryFragment = {
-	lifespan: {
-		$in: [
-			// Part-level lifespan is generally not considered infinite
-			// but persisting pieces need to resume in the part scope after being shadowed
-			// this uses the same mechanism as other infinites.
-			{
-				scope: 'part' as const,
-				presence: 'follow-playhead' as const,
-				inShadow: 'persist' as const,
+/** Forward-scope only. Follow-playhead is instance/playhead-pass, not planned-tree. */
+const lifespanQueryFragment: MongoQuery<Piece> = {
+	$or: [
+		{ 'lifespan.presence': 'forward-scope', 'lifespan.scope': { $ne: 'part' } },
+		{ 'lifespan.presence': 'forward-scope', 'lifespan.scope': 'part', 'lifespan.inShadow': 'persist' },
+
+		// TODO: remove legacy enum compatibility on this layer, handle it with a migration.
+		// We should only provide conversion in the blueprint API to not break legacy behavior.
+		{
+			lifespan: {
+				$in: [
+					LegacyPieceLifespan.OutOnSegmentEnd,
+					LegacyPieceLifespan.OutOnRundownEnd,
+					LegacyPieceLifespan.OutOnShowStyleEnd,
+				],
 			},
-			{
-				scope: 'segment' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-			{
-				scope: 'segment' as const,
-				presence: 'follow-playhead' as const,
-				inShadow: 'stop' as const,
-			},
-			{
-				scope: 'rundown' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-			{
-				scope: 'rundown' as const,
-				presence: 'follow-playhead' as const,
-				inShadow: 'stop' as const,
-			},
-			{
-				scope: 'showstyle' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-			{
-				scope: 'showstyle' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-			{
-				scope: 'playlist' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-			{
-				scope: 'playlist' as const,
-				presence: 'forward-scope' as const,
-				inShadow: 'persist' as const,
-			},
-		],
-	},
+		},
+	],
 }
