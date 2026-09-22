@@ -9,6 +9,9 @@ import {
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { PlayoutRundownModel } from '../model/PlayoutRundownModel'
+import { PlayoutSegmentModel } from '../model/PlayoutSegmentModel'
+import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
+import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
 
 /**
  * Top-level container representing an active playlist in an infinite piece resolution hierarchy.
@@ -22,6 +25,35 @@ export interface InfinitePlaylist {
 	 * Can be either a dynamic lookup or a static array depending on the implementation.
 	 */
 	showstyleGroups: InfiniteShowstyleGroup[]
+
+	/** Ordered list of rundowns belonging to this playlist. */
+	rundowns: InfiniteRundown[]
+
+	addRundown: (rundown: PlayoutRundownModel) => void
+
+	/**
+	 * Ordered list of segments belonging to this playlist.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	segments: InfiniteSegment[]
+
+	addSegment: (segment: PlayoutSegmentModel) => void
+
+	/**
+	 * Ordered list of parts contained within this playlist.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	parts: InfinitePart[]
+
+	addPart: (part: ReadonlyObjectDeep<DBPart>) => void
+
+	/**
+	 * List of pieces contained within this playlist.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	pieces: InfinitePiece[]
+
+	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
 	 * Looks up a list of showstyle groups within this playlist by a showstyle ID.
@@ -64,6 +96,30 @@ export interface InfiniteShowstyleGroup {
 	rundowns: InfiniteRundown[]
 
 	/**
+	 * Ordered list of segments belonging to this showstyle.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	segments: InfiniteSegment[]
+
+	addSegment: (segment: PlayoutSegmentModel) => void
+
+	/**
+	 * Ordered list of parts contained within this showstyle.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	parts: InfinitePart[]
+
+	addPart: (part: ReadonlyObjectDeep<DBPart>) => void
+
+	/**
+	 * List of pieces contained within this showstyle.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	pieces: InfinitePiece[]
+
+	addPiece: (piece: PartialInfinitePiece) => void
+
+	/**
 	 * Looks up a single rundown within this showstyle by its ID.
 	 *
 	 * @param id - The identifier of the rundown to retrieve.
@@ -71,7 +127,7 @@ export interface InfiniteShowstyleGroup {
 	 */
 	rundown: (id: InfiniteRundown['id']) => InfiniteRundown | undefined
 
-	addRundown: (rundown: PlayoutRundownModel) => InfiniteShowstyleGroup
+	addRundown: (rundown: PlayoutRundownModel, target?: TargetPartCursor) => InfiniteShowstyleGroup
 
 	/** Direct reference to the parent playlist. */
 	playlist: InfinitePlaylist
@@ -89,6 +145,24 @@ export interface InfiniteRundown {
 	 * Can be either a dynamic lookup or a static array depending on the implementation.
 	 */
 	segments: InfiniteSegment[]
+
+	addSegment: (segment: PlayoutSegmentModel) => void
+
+	/**
+	 * Ordered list of parts contained within this rundown.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	parts: InfinitePart[]
+
+	addPart: (part: ReadonlyObjectDeep<DBPart>) => void
+
+	/**
+	 * List of pieces contained within this rundown.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	pieces: InfinitePiece[]
+
+	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
 	 * Looks up a single segment within this rundown by its ID.
@@ -118,6 +192,16 @@ export interface InfiniteSegment {
 	 */
 	parts: InfinitePart[]
 
+	addPart: (part: ReadonlyObjectDeep<DBPart>) => void
+
+	/**
+	 * List of pieces contained within this segment.
+	 * Can be either a dynamic lookup or a static array depending on the implementation.
+	 */
+	pieces: InfinitePiece[]
+
+	addPiece: (piece: PartialInfinitePiece) => void
+
 	/**
 	 * Looks up a single part within this segment by its ID.
 	 *
@@ -142,6 +226,8 @@ export interface InfinitePart {
 	 * Can be either a dynamic lookup or a static array depending on the implementation.
 	 */
 	pieces: InfinitePiece[]
+
+	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
 	 * Looks up a single piece within this part by its ID.
@@ -169,6 +255,8 @@ export type InfinitePiece = Pick<Piece, 'enable'> & {
 	/** Direct reference to the parent part. */
 	part: InfinitePart
 }
+
+export type PartialInfinitePiece = Omit<InfinitePiece, 'part'> & { partId: string }
 
 /**
  * Coordinate pointing to the boundary part.

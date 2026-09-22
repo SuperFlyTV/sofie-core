@@ -14,23 +14,35 @@ import {
 	InfiniteRundown,
 	InfiniteSegment,
 	InfiniteShowstyleGroup,
+	PartialInfinitePiece,
+	TargetPartCursor,
 } from '../interfaces'
 import _ from 'underscore'
 import { PlayoutSegmentModel } from '../../../playout/model/PlayoutSegmentModel'
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 
 export class PieceResolutionPlaylist implements InfinitePlaylist {
 	id: RundownPlaylistId
 	showstyleGroups: InfiniteShowstyleGroup[] = []
 
-	constructor(id: RundownPlaylistId, sortedRundowns: PlayoutRundownModel[]) {
+	constructor(id: RundownPlaylistId, sortedRundowns: PlayoutRundownModel[], target?: TargetPartCursor) {
 		this.id = id
+
+		const slicedRundowns = target
+			? sortedRundowns.slice(
+					0,
+					sortedRundowns.findIndex((r) => unprotectString(r.rundown._id) === target.rundownId)
+				)
+			: sortedRundowns
+
 		// TODO: clean up this chaos
 
 		// iterate through the sorted rundowns to group them by showstyle while preserving the order.
-		for (let rundownIndex = 0; rundownIndex < sortedRundowns.length; rundownIndex++) {
-			const rundown = sortedRundowns[rundownIndex]
+		for (let rundownIndex = 0; rundownIndex < slicedRundowns.length; rundownIndex++) {
+			const rundown = slicedRundowns[rundownIndex]
 			// default groupId for the first group of each showstyle
 			let groupId = 0
 
@@ -38,9 +50,13 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 
 			// if this is the first rundown, create a new group
 			if (this.showstyleGroups.length === 0) {
-				showstyleGroup = new PieceResolutionShowstyleGroup(groupId, rundown.rundown.showStyleBaseId, this, [
-					rundown,
-				])
+				showstyleGroup = new PieceResolutionShowstyleGroup(
+					groupId,
+					rundown.rundown.showStyleBaseId,
+					this,
+					[rundown],
+					target
+				)
 			}
 			// otherwise we already have groups
 			else {
@@ -53,7 +69,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 
 					// add the rundown to the showstyle group
 					// Todo: the showstyle group should be responsible for creating the abstracted rundown object.
-					showstyleGroup.addRundown(rundown)
+					showstyleGroup.addRundown(rundown, target)
 				}
 				// showstyle is different, create a new group
 				else {
@@ -68,14 +84,74 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 					if (groupsForShowstyle.length > 0)
 						groupId = Math.max(...groupsForShowstyle.map((group) => group.id)) + 1
 
-					showstyleGroup = new PieceResolutionShowstyleGroup(groupId, rundown.rundown.showStyleBaseId, this, [
-						rundown,
-					])
+					showstyleGroup = new PieceResolutionShowstyleGroup(
+						groupId,
+						rundown.rundown.showStyleBaseId,
+						this,
+						[rundown],
+						target
+					)
 
 					this.showstyleGroups.push(showstyleGroup)
 				}
 			}
 		}
+	}
+	addRundown(rundown: PlayoutRundownModel) {
+		const showstyleId = rundown.rundown.showStyleBaseId
+
+		const lastShowstyleGroup = this.showstyleGroups[this.showstyleGroups.length - 1]
+
+		const existingShowstyleGroup = lastShowstyleGroup.showstyleId === showstyleId ? lastShowstyleGroup : undefined
+
+		if (existingShowstyleGroup) {
+			// If we found an existing showstyle group, we can add the rundown to it
+			existingShowstyleGroup.addRundown(rundown)
+		} else {
+			// If we didn't find an existing showstyle group, we need to create a new one
+			const newShowstyleGroup = new PieceResolutionShowstyleGroup(
+				this.showstyleGroups.length,
+				showstyleId,
+				this,
+				[rundown]
+			)
+			this.showstyleGroups.push(newShowstyleGroup)
+		}
+	}
+	addSegment(segment: PlayoutSegmentModel) {
+		const rundown = this.rundown(segment.segment.rundownId)
+		if (rundown) {
+			rundown.addSegment(segment)
+		}
+	}
+	addPart(part: ReadonlyObjectDeep<DBPart>) {
+		const rundown = this.rundown(part.rundownId)
+		if (rundown) {
+			rundown.addPart(part)
+		}
+	}
+	addPiece(piece: PartialInfinitePiece) {
+		// TODO: currently this is repeated between all of the classes. This should be reusable
+		const piecePart = this.parts.find((p) => unprotectString(p.id) === piece.partId)
+		if (!piecePart) throw new Error(`Part not found for piece ${piece.id}`)
+
+		piecePart.addPiece(piece)
+	}
+
+	get rundowns(): InfiniteRundown[] {
+		return this.showstyleGroups.flatMap((group) => group.rundowns)
+	}
+
+	get segments(): InfiniteSegment[] {
+		return this.showstyleGroups.flatMap((group) => group.segments)
+	}
+
+	get parts(): InfinitePart[] {
+		return this.showstyleGroups.flatMap((group) => group.parts)
+	}
+
+	get pieces(): InfinitePiece[] {
+		return this.showstyleGroups.flatMap((group) => group.pieces)
 	}
 
 	showstyle(showstyleId: InfiniteShowstyleGroup['showstyleId']): InfiniteShowstyleGroup[] {
@@ -97,7 +173,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 	}
 }
 
-class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
+export class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
 	id: number
 	showstyleId: ShowStyleBaseId
 	playlist: InfinitePlaylist
@@ -107,17 +183,53 @@ class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
 		id: number,
 		showstyleId: ShowStyleBaseId,
 		playlist: InfinitePlaylist,
-		rundowns: PlayoutRundownModel[] = []
+		rundowns: PlayoutRundownModel[] = [],
+		target?: TargetPartCursor
 	) {
 		this.id = id
 		this.showstyleId = showstyleId
 		this.playlist = playlist
 
-		rundowns.map((rundown) => this.addRundown(rundown))
+		rundowns.map((rundown) => this.addRundown(rundown, target))
+	}
+	addSegment(segment: PlayoutSegmentModel) {
+		const rundown = this.rundown(segment.segment.rundownId)
+		if (rundown) {
+			rundown.addSegment(segment)
+		}
+	}
+	addPart(part: ReadonlyObjectDeep<DBPart>) {
+		const rundown = this.rundown(part.rundownId)
+		if (rundown) {
+			rundown.addPart(part)
+		}
+	}
+	addPiece(piece: PartialInfinitePiece) {
+		const piecePart = this.parts.find((p) => unprotectString(p.id) === piece.partId)
+		if (!piecePart) throw new Error(`Part not found for piece ${piece.id}`)
+
+		piecePart.addPiece(piece)
 	}
 
-	addRundown(rundown: PlayoutRundownModel): InfiniteShowstyleGroup {
-		const infiniteRundown: InfiniteRundown = new PieceResolutionRundown(rundown.rundown._id, this, rundown.segments)
+	get segments(): InfiniteSegment[] {
+		return this.rundowns.flatMap((rundown) => rundown.segments)
+	}
+
+	get parts(): InfinitePart[] {
+		return this.rundowns.flatMap((rundown) => rundown.parts)
+	}
+
+	get pieces(): InfinitePiece[] {
+		return this.rundowns.flatMap((rundown) => rundown.pieces)
+	}
+
+	addRundown(rundown: PlayoutRundownModel, target?: TargetPartCursor): InfiniteShowstyleGroup {
+		const infiniteRundown: InfiniteRundown = new PieceResolutionRundown(
+			rundown.rundown._id,
+			this,
+			rundown.segments,
+			target
+		)
 
 		this.rundowns.push(infiniteRundown)
 		return this
@@ -128,35 +240,97 @@ class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
 	}
 }
 
-class PieceResolutionRundown implements InfiniteRundown {
+export class PieceResolutionRundown implements InfiniteRundown {
 	id: RundownId
 	showstyleGroup: InfiniteShowstyleGroup
 	segments: InfiniteSegment[] = []
 
-	constructor(id: RundownId, showstyleGroup: InfiniteShowstyleGroup, segments: readonly PlayoutSegmentModel[] = []) {
+	constructor(
+		id: RundownId,
+		showstyleGroup: InfiniteShowstyleGroup,
+		segments: readonly PlayoutSegmentModel[] = [],
+		target?: TargetPartCursor
+	) {
 		this.id = id
 		this.showstyleGroup = showstyleGroup
 
-		segments.map((segment: PlayoutSegmentModel) =>
-			this.segments.push(new PieceResolutionSegment(segment.segment._id, this, segment.parts))
-		)
+		const sortedSegments = segments.toSorted((a, b) => a.segment._rank - b.segment._rank)
+
+		const slicedSegments = target
+			? sortedSegments.slice(
+					0,
+					sortedSegments.findIndex((segment) => unprotectString(segment.segment._id) === target.segmentId)
+				)
+			: sortedSegments
+
+		slicedSegments.map((segment) => this.addSegment(segment, target))
+	}
+	addSegment(segment: PlayoutSegmentModel, target?: TargetPartCursor) {
+		this.segments.push(new PieceResolutionSegment(segment.segment._id, this, segment.parts, target))
+	}
+	addPart(part: ReadonlyObjectDeep<DBPart>) {
+		const segment = this.segment(part.segmentId)
+		if (segment) {
+			segment.addPart(part)
+		}
+	}
+	addPiece(piece: PartialInfinitePiece) {
+		const piecePart = this.parts.find((p) => unprotectString(p.id) === piece.partId)
+		if (!piecePart) throw new Error(`Part not found for piece ${piece.id}`)
+
+		piecePart.addPiece(piece)
+	}
+
+	get parts(): InfinitePart[] {
+		return this.segments.flatMap((segment) => segment.parts)
+	}
+
+	get pieces(): InfinitePiece[] {
+		return this.segments.flatMap((segment) => segment.pieces)
 	}
 
 	segment(id: InfiniteSegment['id']): InfiniteSegment | undefined {
-		return this.segments.find((s) => s.id === id)
+		return this.segments.find((segment) => segment.id === id)
 	}
 }
 
-class PieceResolutionSegment implements InfiniteSegment {
+export class PieceResolutionSegment implements InfiniteSegment {
 	id: SegmentId
 	rundown: InfiniteRundown
 	parts: InfinitePart[] = []
 
-	constructor(id: SegmentId, rundown: InfiniteRundown, parts: readonly ReadonlyObjectDeep<DBPart>[] = []) {
+	constructor(
+		id: SegmentId,
+		rundown: InfiniteRundown,
+		parts: readonly ReadonlyObjectDeep<DBPart>[] = [],
+		target?: TargetPartCursor
+	) {
 		this.id = id
 		this.rundown = rundown
 
-		parts.map((part: ReadonlyObjectDeep<DBPart>) => this.parts.push(new PieceResolutionPart(part._id, this)))
+		const sortedParts = parts.toSorted((a, b) => a._rank - b._rank)
+
+		const slicedParts = target
+			? sortedParts.slice(
+					0,
+					sortedParts.findIndex((part) => unprotectString(part._id) === target.partId)
+				)
+			: sortedParts
+
+		slicedParts.map(this.addPart, this)
+	}
+	addPart(part: ReadonlyObjectDeep<DBPart>) {
+		this.parts.push(new PieceResolutionPart(part._id, this))
+	}
+	addPiece(piece: PartialInfinitePiece) {
+		const part = this.part(protectString(piece.partId))
+		if (part) {
+			part.addPiece(piece)
+		}
+	}
+
+	get pieces(): InfinitePiece[] {
+		return this.parts.flatMap((part) => part.pieces)
 	}
 
 	part(id: InfinitePart['id']): InfinitePart | undefined {
@@ -164,18 +338,19 @@ class PieceResolutionSegment implements InfiniteSegment {
 	}
 }
 
-class PieceResolutionPart implements InfinitePart {
+export class PieceResolutionPart implements InfinitePart {
 	id: PartId
 	segment: InfiniteSegment
 	pieces: InfinitePiece[] = []
 
-	constructor(id: PartId, segment: InfiniteSegment, pieces = []) {
+	constructor(id: PartId, segment: InfiniteSegment, pieces: PartialInfinitePiece[] = []) {
 		this.id = id
 		this.segment = segment
 
-		for (const piece of pieces) {
-			this.pieces.push(new PieceResolutionPiece(piece._id, piece.enable, piece.lifespan, this))
-		}
+		this.pieces = pieces.map((piece) => new PieceResolutionPiece(piece.id, piece.enable, piece.lifespan, this))
+	}
+	addPiece(piece: PartialInfinitePiece) {
+		this.pieces.push(new PieceResolutionPiece(piece.id, piece.enable, piece.lifespan, this))
 	}
 
 	piece(id: InfinitePiece['id']): InfinitePiece | undefined {
@@ -183,7 +358,7 @@ class PieceResolutionPart implements InfinitePart {
 	}
 }
 
-class PieceResolutionPiece implements InfinitePiece {
+export class PieceResolutionPiece implements InfinitePiece {
 	id: PieceId
 	part: InfinitePart
 	enable: InfinitePiece['enable']
