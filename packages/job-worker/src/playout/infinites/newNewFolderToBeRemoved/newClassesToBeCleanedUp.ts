@@ -24,6 +24,7 @@ import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 
+// TODO: Class names here are placeholders, proper names should be used when everything else is in place
 export class PieceResolutionPlaylist implements InfinitePlaylist {
 	id: RundownPlaylistId
 	showstyleGroups: InfiniteShowstyleGroup[] = []

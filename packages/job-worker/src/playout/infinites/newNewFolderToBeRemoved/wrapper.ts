@@ -105,6 +105,14 @@ export function buildPiecesQuery(playlist: InfinitePlaylist, loadedPartIds: stri
 const lifespanQueryFragment = {
 	lifespan: {
 		$in: [
+			// Part-level lifespan is generally not considered infinite
+			// but persisting pieces need to resume in the part scope after being shadowed
+			// this uses the same mechanism as other infinites.
+			{
+				scope: 'part' as const,
+				presence: 'follow-playhead' as const,
+				inShadow: 'persist' as const,
+			},
 			{
 				scope: 'segment' as const,
 				presence: 'forward-scope' as const,
