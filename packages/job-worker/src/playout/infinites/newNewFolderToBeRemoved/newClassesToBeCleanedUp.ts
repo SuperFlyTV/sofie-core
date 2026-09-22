@@ -8,6 +8,7 @@ import {
 } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PlayoutRundownModel } from '../../../playout/model/PlayoutRundownModel'
 import {
+	InfiniteLiveWindow,
 	InfinitePart,
 	InfinitePiece,
 	InfinitePlaylist,
@@ -43,6 +44,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 	id: RundownPlaylistId
 	showstyleGroups: InfiniteShowstyleGroup[] = []
 	scopedPieces: InfinitePiece[] = []
+	live: InfiniteLiveWindow = {}
 
 	constructor(id: RundownPlaylistId, sortedRundowns: PlayoutRundownModel[], target?: TargetPartCursor) {
 		this.id = id

@@ -1,66 +1,153 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
-import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import { JobContext } from '../../jobs/index.js'
 import { ReadonlyDeep } from 'type-fest'
 import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
-import { extractInfinitesFromPart } from './extractInfinitesFromPart.js'
+import { SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
+import { candidatePartIsAfterPreviewPartInstance } from '../infinites.js'
+import { PlayoutModel } from '../model/PlayoutModel.js'
+import { InfiniteLivePiece, InfinitePartInstance, InfinitePiece, InfinitePlaylist } from './interfaces.js'
 
 export function resolveInfinites(
 	context: JobContext,
-	originPart: ReadonlyDeep<DBPartInstance> | undefined,
+	playoutModel: PlayoutModel,
+	playlist: InfinitePlaylist,
 	destinationPart: ReadonlyDeep<DBPart>
-): ReadonlyObjectDeep<Piece>[] {
-	// here we collect all infinites that are present in the origin part. this makes sure that adlibs are respected and playhead tracking infinites can continue.
-	const baseInfinites: ReadonlyObjectDeep<Piece>[] = extractInfinitesFromPart(context, originPart)
+): InfiniteLivePiece[] {
+	const treeInfinites = findForwardScopeInfinitesInPart(playlist, destinationPart)
+	const consideredInfinites = unionTreeAndCurrent(context, playoutModel, playlist, destinationPart, treeInfinites)
 
-	// resolve any infinites that might become active because we jumped after a forward scope piece
-	const newForwardScopeInfinites: ReadonlyObjectDeep<Piece>[] = findForwardScopeInfinitesInPart(
-		context,
-		destinationPart
-	)
-
-	// we merge the two arrays, and deduplicate them, keeping the already playing infinite in case there is a conflict
-	const consideredInfinites: ReadonlyObjectDeep<Piece>[] = [
-		...baseInfinites,
-		...newForwardScopeInfinites.filter((newForwardScopeInfinite) =>
-			baseInfinites.some((baseInfinite) => baseInfinite._id === newForwardScopeInfinite._id)
-		),
-	]
-
-	// we filter to the infinites that are actually in the scope of the destination part. This is important because we don't want to continue infinites that are not in scope anymore
+	const destShowstyleId = playlist.rundowns.find((r) => r.id === destinationPart.rundownId)?.showstyleGroup
+		.showstyleId
 	const correctlyScopedInfinites = consideredInfinites.filter((infinite) =>
-		isInfiniteInPartScope(infinite, destinationPart)
+		isInfiniteInPartScope(infinite, destinationPart, destShowstyleId, playlist)
 	)
 
-	// stop on override gets applied here we are changing the end time of an infinite
-	const continuedInfinites: ReadonlyObjectDeep<Piece>[] = normalizeEndTimes(
-		context,
-		correctlyScopedInfinites,
-		destinationPart
-	)
-
-	return continuedInfinites
+	// normalizeEndTimes / stop-on-override is a later pass
+	return correctlyScopedInfinites
 }
 
 function findForwardScopeInfinitesInPart(
-	context: JobContext,
-	part: ReadonlyDeep<DBPart> | undefined
-): ReadonlyObjectDeep<Piece>[] {
-	throw new Error('Function not implemented.')
+	playlist: InfinitePlaylist,
+	destinationPart: ReadonlyDeep<DBPart>
+): InfiniteLivePiece[] {
+	const rundown = playlist.rundowns.find((r) => r.id === destinationPart.rundownId)
+	const segment = rundown?.segment(destinationPart.segmentId)
+	const showstyleGroup = rundown?.showstyleGroup
+
+	return [
+		...playlist.scopedPieces,
+		...(showstyleGroup?.scopedPieces ?? []),
+		...(rundown?.scopedPieces ?? []),
+		...(segment?.scopedPieces ?? []),
+	]
 }
 
-function normalizeEndTimes(
+function unionTreeAndCurrent(
 	context: JobContext,
-	consideredInfinites: ReadonlyObjectDeep<Piece>[],
-	destinationPart: ReadonlyObjectDeep<DBPart>
-): ReadonlyObjectDeep<Piece>[] {
-	throw new Error('Function not implemented.')
+	playoutModel: PlayoutModel,
+	playlist: InfinitePlaylist,
+	destinationPart: ReadonlyDeep<DBPart>,
+	tree: InfiniteLivePiece[]
+): InfiniteLivePiece[] {
+	const byId = new Map<InfinitePiece['id'], InfiniteLivePiece>()
+	for (const piece of tree) {
+		byId.set(piece.id, piece)
+	}
+
+	const current = playlist.live.current
+	if (!current) return [...byId.values()]
+
+	for (const piece of current.pieces) {
+		if (byId.has(piece.id)) byId.set(piece.id, piece)
+	}
+
+	const canContinueFromCurrent =
+		!crossesAdlibTestingBoundary(context, playoutModel, current, destinationPart) &&
+		candidatePartIsAfterPreviewPartInstance(
+			context,
+			playoutModel.getAllOrderedSegments(),
+			playoutModel.currentPartInstance?.partInstance,
+			destinationPart
+		)
+
+	if (canContinueFromCurrent) {
+		for (const piece of current.pieces) {
+			if (isPlayheadOrAdlibOnEnd(piece) && !byId.has(piece.id)) byId.set(piece.id, piece)
+		}
+	}
+
+	return [...byId.values()]
+}
+
+function isPlayheadOrAdlibOnEnd(piece: InfiniteLivePiece): boolean {
+	if (piece.lifespan.tracksPlayhead) return true
+	return (
+		(piece.dynamicallyInserted === true || piece.dynamicallyConvertedToInfinite === true) &&
+		piece.lifespan.isStatic &&
+		piece.lifespan.persistsInShadow
+	)
 }
 
 function isInfiniteInPartScope(
-	infinite: ReadonlyObjectDeep<Piece>,
-	destinationPart: ReadonlyObjectDeep<DBPart>
-): unknown {
+	infinite: InfiniteLivePiece,
+	destinationPart: ReadonlyDeep<DBPart>,
+	destShowstyleId: InfinitePlaylist['showstyleGroups'][number]['showstyleId'] | undefined,
+	playlist: InfinitePlaylist
+): boolean {
+	const scope = infinite.lifespan.scope
+	if (scope === 'playlist') return true
+
+	const liveCurrent = playlist.live.current
+	const startPart = infinite.part
+	const startSegmentId = startPart?.segment.id ?? liveCurrent?.segmentId
+	const startRundownId = startPart?.segment.rundown.id ?? liveCurrent?.rundownId
+	const startShowstyleId =
+		startPart?.segment.rundown.showstyleGroup.showstyleId ??
+		(liveCurrent
+			? playlist.rundowns.find((r) => r.id === liveCurrent.rundownId)?.showstyleGroup.showstyleId
+			: undefined)
+
+	switch (scope) {
+		case 'part':
+			return startPart?.id === destinationPart._id || liveCurrent?.partId === destinationPart._id
+		case 'segment':
+			return startSegmentId === destinationPart.segmentId
+		case 'rundown':
+			return startRundownId === destinationPart.rundownId
+		case 'showstyle':
+			return startShowstyleId !== undefined && startShowstyleId === destShowstyleId
+		default:
+			return false
+	}
+}
+
+function crossesAdlibTestingBoundary(
+	context: JobContext,
+	playoutModel: PlayoutModel,
+	current: InfinitePartInstance,
+	destinationPart: ReadonlyDeep<DBPart>
+): boolean {
+	if (context.studio.settings.allowTestingAdlibsToPersist) return false
+
+	const playingSegment = playoutModel.getRundown(current.rundownId)?.getSegment(current.segmentId)?.segment
+	const intoSegment = playoutModel
+		.getRundown(destinationPart.rundownId)
+		?.getSegment(destinationPart.segmentId)?.segment
+
+	if (!playingSegment || !intoSegment) return false
+	if (playingSegment._id === intoSegment._id) return false
+
+	return (
+		playingSegment.orphaned === SegmentOrphanedReason.ADLIB_TESTING ||
+		intoSegment.orphaned === SegmentOrphanedReason.ADLIB_TESTING
+	)
+}
+
+function normalizeEndTimes(
+	_context: JobContext,
+	_consideredInfinites: ReadonlyObjectDeep<Piece>[],
+	_destinationPart: ReadonlyObjectDeep<DBPart>
+): ReadonlyObjectDeep<Piece>[] {
 	throw new Error('Function not implemented.')
 }

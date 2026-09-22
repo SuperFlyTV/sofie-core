@@ -1,5 +1,6 @@
 import {
 	PartId,
+	PartInstanceId,
 	PieceId,
 	RundownId,
 	RundownPlaylistId,
@@ -55,6 +56,9 @@ export interface InfinitePlaylist {
 
 	/** Pieces whose lifespan scope is this playlist. */
 	scopedPieces: InfinitePiece[]
+
+	/** Current and next part instances. Not nodes in the planned tree. */
+	live: InfiniteLiveWindow
 
 	addPiece: (piece: PartialInfinitePiece) => void
 
@@ -272,6 +276,28 @@ export type InfinitePiece = Pick<Piece, 'enable'> & {
 }
 
 export type PartialInfinitePiece = Omit<InfinitePiece, 'part'> & { partId: string }
+
+/** Planned-tree piece plus instance flags needed to continue from the playhead. */
+export type InfiniteLivePiece = Omit<InfinitePiece, 'part'> & {
+	part?: InfinitePart
+	dynamicallyInserted?: boolean
+	dynamicallyConvertedToInfinite?: boolean
+}
+
+export interface InfinitePartInstance {
+	id: PartInstanceId
+	/** Set if that planned part is in the first-pass tree. */
+	part?: InfinitePart
+	partId: PartId
+	segmentId: SegmentId
+	rundownId: RundownId
+	pieces: InfiniteLivePiece[]
+}
+
+export interface InfiniteLiveWindow {
+	current?: InfinitePartInstance
+	next?: InfinitePartInstance
+}
 
 /**
  * Coordinate pointing to the boundary part.

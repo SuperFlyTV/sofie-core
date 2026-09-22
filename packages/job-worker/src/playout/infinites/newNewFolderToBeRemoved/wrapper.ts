@@ -7,12 +7,19 @@ import _ from 'underscore'
 import { PieceResolutionPlaylist } from './newClassesToBeCleanedUp'
 import { unprotectString } from '@sofie-automation/shared-lib/dist/lib/protectedString.js'
 import { LegacyPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
-import { InfinitePlaylist, PartialInfinitePiece } from '../interfaces'
+import {
+	InfiniteLivePiece,
+	InfinitePartInstance,
+	InfinitePlaylist,
+	PartialInfinitePiece,
+} from '../interfaces'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { MongoQuery } from '../../../db'
 import { mongoWhere } from '@sofie-automation/corelib/dist/mongo'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { PlayoutPartInstanceModel } from '../../model/PlayoutPartInstanceModel'
 
 export function resolvePieces(
 	context: JobContext,
@@ -77,7 +84,56 @@ export function resolvePieces(
 		})
 	}
 
+	playlist.live.current = toLivePartInstance(playlist, playoutModel.currentPartInstance)
+	playlist.live.next = toLivePartInstance(playlist, playoutModel.nextPartInstance)
+
 	if (span) span.end()
+
+	return playlist
+}
+
+function toLivePartInstance(
+	playlist: InfinitePlaylist,
+	model: PlayoutPartInstanceModel | null
+): InfinitePartInstance | undefined {
+	if (!model) return undefined
+
+	const partId = model.partInstance.part._id
+	const treePart = playlist.parts.find((p) => p.id === partId)
+
+	const pieces: InfiniteLivePiece[] = model.pieceInstances
+		.map((piece) => piece.pieceInstance)
+		.filter((instance) => isLiveRelevant(instance))
+		.map((instance) => {
+			const startPartId = instance.piece.startPartId ?? partId
+			return {
+				id: instance.piece._id,
+				enable: instance.piece.enable,
+				lifespan: new PieceLifespan(instance.piece.lifespan),
+				part: playlist.parts.find((p) => p.id === startPartId) ?? treePart,
+				dynamicallyInserted: instance.dynamicallyInserted !== undefined,
+				dynamicallyConvertedToInfinite: instance.dynamicallyConvertedToInfinite !== undefined,
+			}
+		})
+
+	return {
+		id: model.partInstance._id,
+		part: treePart,
+		partId,
+		segmentId: model.partInstance.segmentId,
+		rundownId: model.partInstance.rundownId,
+		pieces,
+	}
+}
+
+function isLiveRelevant(instance: ReadonlyDeep<PieceInstance>): boolean {
+	const lifespan = new PieceLifespan(instance.piece.lifespan)
+	return (
+		lifespan.isInfinite ||
+		lifespan.persistsInShadow ||
+		instance.dynamicallyInserted !== undefined ||
+		instance.dynamicallyConvertedToInfinite !== undefined
+	)
 }
 
 export function buildPiecesQuery(playlist: InfinitePlaylist, loadedPartIds: string[]): MongoQuery<Piece> | null {
