@@ -28,6 +28,7 @@ import { protectString, unprotectString } from '@sofie-automation/corelib/dist/p
 export class PieceResolutionPlaylist implements InfinitePlaylist {
 	id: RundownPlaylistId
 	showstyleGroups: InfiniteShowstyleGroup[] = []
+	scopedPieces: InfinitePiece[] = []
 
 	constructor(id: RundownPlaylistId, sortedRundowns: PlayoutRundownModel[], target?: TargetPartCursor) {
 		this.id = id
@@ -58,6 +59,7 @@ export class PieceResolutionPlaylist implements InfinitePlaylist {
 					[rundown],
 					target
 				)
+				this.showstyleGroups.push(showstyleGroup)
 			}
 			// otherwise we already have groups
 			else {
@@ -179,6 +181,7 @@ export class PieceResolutionShowstyleGroup implements InfiniteShowstyleGroup {
 	showstyleId: ShowStyleBaseId
 	playlist: InfinitePlaylist
 	rundowns: InfiniteRundown[] = []
+	scopedPieces: InfinitePiece[] = []
 
 	constructor(
 		id: number,
@@ -245,6 +248,7 @@ export class PieceResolutionRundown implements InfiniteRundown {
 	id: RundownId
 	showstyleGroup: InfiniteShowstyleGroup
 	segments: InfiniteSegment[] = []
+	scopedPieces: InfinitePiece[] = []
 
 	constructor(
 		id: RundownId,
@@ -299,6 +303,7 @@ export class PieceResolutionSegment implements InfiniteSegment {
 	id: SegmentId
 	rundown: InfiniteRundown
 	parts: InfinitePart[] = []
+	scopedPieces: InfinitePiece[] = []
 
 	constructor(
 		id: SegmentId,
@@ -343,19 +348,37 @@ export class PieceResolutionPart implements InfinitePart {
 	id: PartId
 	segment: InfiniteSegment
 	pieces: InfinitePiece[] = []
+	scopedPieces: InfinitePiece[] = []
 
 	constructor(id: PartId, segment: InfiniteSegment, pieces: PartialInfinitePiece[] = []) {
 		this.id = id
 		this.segment = segment
 
-		this.pieces = pieces.map((piece) => new PieceResolutionPiece(piece.id, piece.enable, piece.lifespan, this))
+		pieces.forEach((piece) => this.addPiece(piece))
 	}
 	addPiece(piece: PartialInfinitePiece) {
-		this.pieces.push(new PieceResolutionPiece(piece.id, piece.enable, piece.lifespan, this))
+		const resolved = new PieceResolutionPiece(piece.id, piece.enable, piece.lifespan, this)
+		this.pieces.push(resolved)
+		this.scopeOwner(resolved.lifespan.scope).scopedPieces.push(resolved)
 	}
 
 	piece(id: InfinitePiece['id']): InfinitePiece | undefined {
 		return this.pieces.find((p) => p.id === id)
+	}
+
+	private scopeOwner(scope: PieceLifespan['scope']): { scopedPieces: InfinitePiece[] } {
+		switch (scope) {
+			case 'part':
+				return this
+			case 'segment':
+				return this.segment
+			case 'rundown':
+				return this.segment.rundown
+			case 'showstyle':
+				return this.segment.rundown.showstyleGroup
+			case 'playlist':
+				return this.segment.rundown.showstyleGroup.playlist
+		}
 	}
 }
 

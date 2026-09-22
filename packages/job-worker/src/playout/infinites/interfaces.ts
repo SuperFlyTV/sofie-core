@@ -53,6 +53,9 @@ export interface InfinitePlaylist {
 	 */
 	pieces: InfinitePiece[]
 
+	/** Pieces whose lifespan scope is this playlist. */
+	scopedPieces: InfinitePiece[]
+
 	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
@@ -117,6 +120,9 @@ export interface InfiniteShowstyleGroup {
 	 */
 	pieces: InfinitePiece[]
 
+	/** Pieces whose lifespan scope is this showstyle group. */
+	scopedPieces: InfinitePiece[]
+
 	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
@@ -162,6 +168,9 @@ export interface InfiniteRundown {
 	 */
 	pieces: InfinitePiece[]
 
+	/** Pieces whose lifespan scope is this rundown. */
+	scopedPieces: InfinitePiece[]
+
 	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
@@ -200,6 +209,9 @@ export interface InfiniteSegment {
 	 */
 	pieces: InfinitePiece[]
 
+	/** Pieces whose lifespan scope is this segment. */
+	scopedPieces: InfinitePiece[]
+
 	addPiece: (piece: PartialInfinitePiece) => void
 
 	/**
@@ -226,6 +238,9 @@ export interface InfinitePart {
 	 * Can be either a dynamic lookup or a static array depending on the implementation.
 	 */
 	pieces: InfinitePiece[]
+
+	/** Pieces whose lifespan scope is this part. */
+	scopedPieces: InfinitePiece[]
 
 	addPiece: (piece: PartialInfinitePiece) => void
 
