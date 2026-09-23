@@ -1,6 +1,11 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
-import { PieceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import {
+	PartInstanceId,
+	PieceId,
+	RundownId,
+	RundownPlaylistActivationId,
+} from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { JobContext } from '../../jobs/index.js'
 import { ReadonlyDeep } from 'type-fest'
 import { SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
@@ -9,9 +14,17 @@ import { PlayoutModel } from '../model/PlayoutModel.js'
 import { IngestModelReadonly } from '../../ingest/model/IngestModel.js'
 import { InfiniteLivePiece, InfinitePartInstance, InfinitePiece, InfinitePlaylist } from './interfaces.js'
 import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import {
+	omitPiecePropertiesForInstance,
+	PieceInstance,
+	PieceInstancePiece,
+	rewrapPieceToInstance,
+} from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
+import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
+import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import _ from 'underscore'
 
-type PieceLookupDoc = Pick<Piece, '_id' | 'sourceLayerId' | 'virtual'>
+export type PieceLookupDoc = Piece | PieceInstancePiece
 
 export function resolveInfinites(
 	context: JobContext,
@@ -55,8 +68,7 @@ function collectDestLocalPieces(
 	if (next && next.partInstance.part._id === destinationPart._id) {
 		for (const wrapper of next.pieceInstances) {
 			const instance = wrapper.pieceInstance
-			const startsHere =
-				!instance.piece.startPartId || instance.piece.startPartId === destinationPart._id
+			const startsHere = !instance.piece.startPartId || instance.piece.startPartId === destinationPart._id
 			if (!startsHere) continue
 			if (instance.infinite?.fromPreviousPart || instance.infinite?.fromPreviousPlayhead) continue
 
@@ -84,7 +96,7 @@ function mixDestLocals(scoped: InfiniteLivePiece[], destLocals: InfiniteLivePiec
 	return [...byId.values()]
 }
 
-function buildPieceLookups(
+export function buildPieceLookups(
 	unsavedIngestModel: Pick<IngestModelReadonly, 'getAllPieces'> | undefined,
 	playoutModel: PlayoutModel
 ): Map<PieceId, PieceLookupDoc> {
@@ -255,4 +267,153 @@ function normalizeEndTimes(
 
 function startInPart(piece: InfiniteLivePiece): number {
 	return piece.enable.start === 'now' ? 0 : piece.enable.start
+}
+
+export function flattenForPlayout(args: {
+	resolved: InfiniteLivePiece[]
+	pieceById: Map<PieceId, PieceLookupDoc>
+	sourceLayers: SourceLayers
+	playlistActivationId: RundownPlaylistActivationId
+	destPartInstanceId: PartInstanceId
+	destRundownId: RundownId
+}): PieceInstance[] {
+	const { resolved, pieceById, sourceLayers, playlistActivationId, destPartInstanceId, destRundownId } = args
+
+	const byLayer = new Map<string, InfiniteLivePiece[]>()
+	for (const piece of resolved) {
+		const doc = pieceById.get(piece.id)
+		if (!doc) continue
+		const key = sourceLayers[doc.sourceLayerId]?.exclusiveGroup || doc.sourceLayerId
+		const layerPieces = byLayer.get(key) ?? []
+		layerPieces.push(piece)
+		byLayer.set(key, layerPieces)
+	}
+
+	const slices: PieceInstance[] = []
+	for (const layerPieces of byLayer.values()) {
+		layerPieces.sort((a, b) => startInPart(a) - startInPart(b))
+		slices.push(...flattenLayer(layerPieces, pieceById, playlistActivationId, destPartInstanceId, destRundownId))
+	}
+
+	return slices
+}
+
+function flattenLayer(
+	layerPieces: InfiniteLivePiece[],
+	pieceById: Map<PieceId, PieceLookupDoc>,
+	playlistActivationId: RundownPlaylistActivationId,
+	destPartInstanceId: PartInstanceId,
+	destRundownId: RundownId
+): PieceInstance[] {
+	const out: PieceInstance[] = []
+	const sliceCounts = new Map<PieceId, number>()
+
+	for (let pieceIndex = 0; pieceIndex < layerPieces.length; pieceIndex++) {
+		const piece = layerPieces[pieceIndex]
+		const start = startInPart(piece)
+		const end = pieceEnd(piece)
+		if (end <= start) continue
+
+		let gaps: Array<{ start: number; end: number }>
+		if (piece.lifespan.persistsInShadow) {
+			gaps = [{ start, end }]
+			for (let j = pieceIndex + 1; j < layerPieces.length; j++) {
+				const later = layerPieces[j]
+				const laterStart = startInPart(later)
+				if (laterStart <= start) continue
+				gaps = subtractGap(gaps, laterStart, pieceEnd(later))
+			}
+		} else {
+			let stopEnd = end
+			for (let j = pieceIndex + 1; j < layerPieces.length; j++) {
+				const laterStart = startInPart(layerPieces[j])
+				if (laterStart <= start) continue
+				stopEnd = Math.min(stopEnd, laterStart)
+				break
+			}
+			gaps = [{ start, end: stopEnd }]
+		}
+
+		const lookup = pieceById.get(piece.id)
+		if (!lookup) continue
+
+		for (const gap of gaps) {
+			if (gap.end <= gap.start) continue
+			const sliceCount = sliceCounts.get(piece.id) ?? 0
+			sliceCounts.set(piece.id, sliceCount + 1)
+			out.push(
+				wrapSlice(
+					lookup,
+					piece,
+					gap.start,
+					gap.end,
+					sliceCount,
+					playlistActivationId,
+					destPartInstanceId,
+					destRundownId
+				)
+			)
+		}
+	}
+
+	return out
+}
+
+function pieceEnd(piece: InfiniteLivePiece): number {
+	if (piece.resolvedEndCap !== undefined) return piece.resolvedEndCap
+	const start = startInPart(piece)
+	if (typeof piece.enable.duration === 'number') return start + piece.enable.duration
+	return Number.POSITIVE_INFINITY
+}
+
+function subtractGap(
+	gaps: Array<{ start: number; end: number }>,
+	cutStart: number,
+	cutEnd: number
+): Array<{ start: number; end: number }> {
+	const next: Array<{ start: number; end: number }> = []
+	for (const gap of gaps) {
+		if (cutEnd <= gap.start || cutStart >= gap.end) {
+			next.push(gap)
+			continue
+		}
+		if (cutStart > gap.start) next.push({ start: gap.start, end: Math.min(cutStart, gap.end) })
+		if (cutEnd < gap.end) next.push({ start: Math.max(cutEnd, gap.start), end: gap.end })
+	}
+	return next.filter((gap) => gap.end > gap.start)
+}
+
+function wrapSlice(
+	doc: PieceLookupDoc,
+	piece: InfiniteLivePiece,
+	sliceStart: number,
+	sliceEnd: number,
+	sliceIndex: number,
+	playlistActivationId: RundownPlaylistActivationId,
+	destPartInstanceId: PartInstanceId,
+	destRundownId: RundownId
+): PieceInstance {
+	const instance = rewrapPieceToInstance(
+		omitPiecePropertiesForInstance(doc),
+		playlistActivationId,
+		destRundownId,
+		destPartInstanceId,
+		true
+	)
+
+	return {
+		...instance,
+		isTemporary: true,
+		_id: protectString(`${unprotectString(instance._id)}_slice${sliceIndex}`),
+		dynamicallyInserted: piece.dynamicallyInserted ? 1 : undefined,
+		dynamicallyConvertedToInfinite: piece.dynamicallyConvertedToInfinite ? 1 : undefined,
+		piece: {
+			...instance.piece,
+			enable: {
+				...instance.piece.enable,
+				start: sliceStart,
+				duration: Number.isFinite(sliceEnd) ? sliceEnd - sliceStart : undefined,
+			},
+		},
+	}
 }
