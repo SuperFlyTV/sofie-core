@@ -24,7 +24,7 @@ import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyle
 import { protectString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import _ from 'underscore'
 
-export type PieceLookupDoc = Piece | PieceInstancePiece
+export type PieceLookupDoc = ReadonlyDeep<Piece> | ReadonlyDeep<PieceInstancePiece>
 
 export function resolveInfinites(
 	context: JobContext,
@@ -394,7 +394,7 @@ function wrapSlice(
 	destRundownId: RundownId
 ): PieceInstance {
 	const instance = rewrapPieceToInstance(
-		omitPiecePropertiesForInstance(doc),
+		omitPiecePropertiesForInstance(doc as Piece | PieceInstancePiece),
 		playlistActivationId,
 		destRundownId,
 		destPartInstanceId,
