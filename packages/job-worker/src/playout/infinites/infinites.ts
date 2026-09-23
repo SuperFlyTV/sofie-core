@@ -1,18 +1,23 @@
 import { DBPart } from '@sofie-automation/corelib/dist/dataModel/Part'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { PieceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { JobContext } from '../../jobs/index.js'
 import { ReadonlyDeep } from 'type-fest'
-import { ReadonlyObjectDeep } from 'type-fest/source/readonly-deep'
 import { SegmentOrphanedReason } from '@sofie-automation/corelib/dist/dataModel/Segment'
 import { candidatePartIsAfterPreviewPartInstance } from '../infinites.js'
 import { PlayoutModel } from '../model/PlayoutModel.js'
+import { IngestModelReadonly } from '../../ingest/model/IngestModel.js'
 import { InfiniteLivePiece, InfinitePartInstance, InfinitePiece, InfinitePlaylist } from './interfaces.js'
+import _ from 'underscore'
+
+type PieceLookupDoc = Pick<Piece, '_id' | 'sourceLayerId' | 'virtual'>
 
 export function resolveInfinites(
 	context: JobContext,
 	playoutModel: PlayoutModel,
 	playlist: InfinitePlaylist,
-	destinationPart: ReadonlyDeep<DBPart>
+	destinationPart: ReadonlyDeep<DBPart>,
+	unsavedIngestModel?: Pick<IngestModelReadonly, 'getAllPieces'>
 ): InfiniteLivePiece[] {
 	const treeInfinites = findForwardScopeInfinitesInPart(playlist, destinationPart)
 	const consideredInfinites = unionTreeAndCurrent(context, playoutModel, playlist, destinationPart, treeInfinites)
@@ -23,8 +28,26 @@ export function resolveInfinites(
 		isInfiniteInPartScope(infinite, destinationPart, destShowstyleId, playlist)
 	)
 
-	// normalizeEndTimes / stop-on-override is a later pass
-	return correctlyScopedInfinites
+	return normalizeEndTimes(correctlyScopedInfinites, buildPieceLookups(unsavedIngestModel, playoutModel))
+}
+
+function buildPieceLookups(
+	unsavedIngestModel: Pick<IngestModelReadonly, 'getAllPieces'> | undefined,
+	playoutModel: PlayoutModel
+): Map<PieceId, PieceLookupDoc> {
+	const pieceById = new Map<PieceId, PieceLookupDoc>()
+
+	for (const piece of unsavedIngestModel?.getAllPieces() ?? []) {
+		pieceById.set(piece._id, piece)
+	}
+
+	for (const partInstance of [playoutModel.currentPartInstance, playoutModel.nextPartInstance]) {
+		for (const pieceInstance of partInstance?.pieceInstances ?? []) {
+			pieceById.set(pieceInstance.pieceInstance.piece._id, pieceInstance.pieceInstance.piece)
+		}
+	}
+
+	return pieceById
 }
 
 function findForwardScopeInfinitesInPart(
@@ -145,9 +168,38 @@ function crossesAdlibTestingBoundary(
 }
 
 function normalizeEndTimes(
-	_context: JobContext,
-	_consideredInfinites: ReadonlyObjectDeep<Piece>[],
-	_destinationPart: ReadonlyObjectDeep<DBPart>
-): ReadonlyObjectDeep<Piece>[] {
-	throw new Error('Function not implemented.')
+	continued: InfiniteLivePiece[],
+	piecesById: Map<PieceId, PieceLookupDoc>
+): InfiniteLivePiece[] {
+	const clonedInfinites = continued.map((piece) => ({ ...piece }))
+
+	const byLayer = new Map<string, InfiniteLivePiece[]>()
+	for (const infinite of clonedInfinites) {
+		const lookup = piecesById.get(infinite.id)
+		if (!lookup) continue
+
+		const layerPieces = byLayer.get(lookup.sourceLayerId) ?? []
+		layerPieces.push(infinite)
+		byLayer.set(lookup.sourceLayerId, layerPieces)
+	}
+
+	for (const layerPieces of byLayer.values()) {
+		layerPieces.sort((a, b) => startInPart(a) - startInPart(b))
+
+		for (let i = 1; i < layerPieces.length; i++) {
+			const laterStart = startInPart(layerPieces[i])
+			for (let j = 0; j < i; j++) {
+				const earlier = layerPieces[j]
+				if (earlier.lifespan.inShadow !== 'stop') continue
+				earlier.resolvedEndCap =
+					earlier.resolvedEndCap === undefined ? laterStart : Math.min(earlier.resolvedEndCap, laterStart)
+			}
+		}
+	}
+
+	return clonedInfinites
+}
+
+function startInPart(piece: InfiniteLivePiece): number {
+	return piece.enable.start === 'now' ? 0 : piece.enable.start
 }

@@ -282,6 +282,8 @@ export type InfiniteLivePiece = Omit<InfinitePiece, 'part'> & {
 	part?: InfinitePart
 	dynamicallyInserted?: boolean
 	dynamicallyConvertedToInfinite?: boolean
+	/** Runtime end cap relative to destination part start. Not persisted. */
+	resolvedEndCap?: number
 }
 
 export interface InfinitePartInstance {
