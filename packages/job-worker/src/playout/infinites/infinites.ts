@@ -8,6 +8,7 @@ import { candidatePartIsAfterPreviewPartInstance } from '../infinites.js'
 import { PlayoutModel } from '../model/PlayoutModel.js'
 import { IngestModelReadonly } from '../../ingest/model/IngestModel.js'
 import { InfiniteLivePiece, InfinitePartInstance, InfinitePiece, InfinitePlaylist } from './interfaces.js'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import _ from 'underscore'
 
 type PieceLookupDoc = Pick<Piece, '_id' | 'sourceLayerId' | 'virtual'>
@@ -28,7 +29,59 @@ export function resolveInfinites(
 		isInfiniteInPartScope(infinite, destinationPart, destShowstyleId, playlist)
 	)
 
-	return normalizeEndTimes(correctlyScopedInfinites, buildPieceLookups(unsavedIngestModel, playoutModel))
+	const destLocals = collectDestLocalPieces(destinationPart, unsavedIngestModel, playoutModel)
+	const mixed = mixDestLocals(correctlyScopedInfinites, destLocals)
+
+	return normalizeEndTimes(mixed, buildPieceLookups(unsavedIngestModel, playoutModel))
+}
+
+function collectDestLocalPieces(
+	destinationPart: ReadonlyDeep<DBPart>,
+	unsavedIngestModel: Pick<IngestModelReadonly, 'getAllPieces'> | undefined,
+	playoutModel: PlayoutModel
+): InfiniteLivePiece[] {
+	const byId = new Map<InfinitePiece['id'], InfiniteLivePiece>()
+
+	for (const piece of unsavedIngestModel?.getAllPieces() ?? []) {
+		if (piece.startPartId !== destinationPart._id) continue
+		byId.set(piece._id, {
+			id: piece._id,
+			enable: piece.enable,
+			lifespan: new PieceLifespan(piece.lifespan),
+		})
+	}
+
+	const next = playoutModel.nextPartInstance
+	if (next && next.partInstance.part._id === destinationPart._id) {
+		for (const wrapper of next.pieceInstances) {
+			const instance = wrapper.pieceInstance
+			const startsHere =
+				!instance.piece.startPartId || instance.piece.startPartId === destinationPart._id
+			if (!startsHere) continue
+			if (instance.infinite?.fromPreviousPart || instance.infinite?.fromPreviousPlayhead) continue
+
+			byId.set(instance.piece._id, {
+				id: instance.piece._id,
+				enable: instance.piece.enable,
+				lifespan: new PieceLifespan(instance.piece.lifespan),
+				dynamicallyInserted: instance.dynamicallyInserted !== undefined,
+				dynamicallyConvertedToInfinite: instance.dynamicallyConvertedToInfinite !== undefined,
+			})
+		}
+	}
+
+	return [...byId.values()]
+}
+
+function mixDestLocals(scoped: InfiniteLivePiece[], destLocals: InfiniteLivePiece[]): InfiniteLivePiece[] {
+	const byId = new Map<InfinitePiece['id'], InfiniteLivePiece>()
+	for (const piece of scoped) {
+		byId.set(piece.id, piece)
+	}
+	for (const piece of destLocals) {
+		byId.set(piece.id, piece)
+	}
+	return [...byId.values()]
 }
 
 function buildPieceLookups(
