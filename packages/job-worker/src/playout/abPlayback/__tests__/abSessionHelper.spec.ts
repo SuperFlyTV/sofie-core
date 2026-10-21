@@ -664,4 +664,88 @@ describe('AbSessionHelper', () => {
 		// Ensure the sessions havent changed
 		expect(getAllKnownSessions(abSessionHelper)).toEqual(existingSessions)
 	})
+
+	test('session decision reasons', async () => {
+		const partInstance0 = createPartInstance('partInstance0', 'part0', 0)
+		const partInstance1 = createPartInstance('partInstance1', 'part1', 1)
+
+		const infiniteId = protectString<PieceInstanceInfiniteId>('infinite0')
+		const abSessionHelper = getSessionHelper(
+			[
+				{
+					id: 'lookahead0',
+					name: 'pool0_name2',
+					isUniqueName: false,
+					lookaheadForPartId: protectString('part1'),
+				},
+				{
+					id: 'infinite0',
+					name: 'pool0_name1',
+					isUniqueName: false,
+					infiniteInstanceId: infiniteId,
+				},
+			],
+			partInstance0,
+			partInstance1
+		)
+
+		// Pieces
+		expect(abSessionHelper.getPieceABSession(createPieceInstance(partInstance0._id), testSession0)).toEqual({
+			sessionId: getSessionId(0),
+			reason: 'new',
+		})
+		expect(abSessionHelper.getPieceABSession(createPieceInstance(partInstance0._id), testSession0)).toEqual({
+			sessionId: getSessionId(0),
+			reason: 'samePartInstance',
+		})
+		expect(abSessionHelper.getPieceABSession(createPieceInstance(partInstance1._id), testSession0)).toEqual({
+			sessionId: getSessionId(0),
+			reason: 'continuedFromPreviousPart',
+		})
+		expect(abSessionHelper.getPieceABSession(createPieceInstance(partInstance1._id), testSession2)).toEqual({
+			sessionId: 'lookahead0',
+			reason: 'promotedLookahead',
+		})
+		expect(
+			abSessionHelper.getPieceABSession(createPieceInstance(partInstance1._id, infiniteId), testSession1)
+		).toEqual({
+			sessionId: 'infinite0',
+			reason: 'infinite',
+		})
+		expect(abSessionHelper.getPieceABSession(createPieceInstance(partInstance1._id), unqiueSession0)).toEqual({
+			sessionId: getSessionId(1),
+			reason: 'globallyUnique',
+		})
+
+		// Timeline objects
+		expect(
+			abSessionHelper.getTimelineObjectAbSession(createTimelineObject(partInstance0._id), testSession0)
+		).toEqual({
+			sessionId: getSessionId(0),
+			reason: 'samePartInstance',
+		})
+		expect(
+			abSessionHelper.getTimelineObjectAbSession(createTimelineObject(null, infiniteId), testSession1)
+		).toEqual({
+			sessionId: 'infinite0',
+			reason: 'infinite',
+		})
+		expect(
+			abSessionHelper.getTimelineObjectAbSession(createTimelineObject('part5', undefined, true), testSession0)
+		).toEqual({
+			sessionId: getSessionId(2),
+			reason: 'lookaheadNew',
+		})
+		expect(
+			abSessionHelper.getTimelineObjectAbSession(createTimelineObject('part5', undefined, true), testSession0)
+		).toEqual({
+			sessionId: getSessionId(2),
+			reason: 'lookaheadExisting',
+		})
+		expect(abSessionHelper.getTimelineObjectAbSession(createTimelineObject('part5'), testSession0)).toBeUndefined()
+		expect(abSessionHelper.getTimelineObjectAbSession(createTimelineObject(null), unqiueSession0)).toEqual({
+			sessionId: getSessionId(1),
+			reason: 'globallyUnique',
+		})
+	})
 })

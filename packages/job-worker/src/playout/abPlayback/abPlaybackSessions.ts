@@ -6,6 +6,7 @@ import _ from 'underscore'
 import { SessionRequest } from './abPlaybackResolver.js'
 import { AbSessionHelper } from './abSessionHelper.js'
 import { ReadonlyDeep } from 'type-fest'
+import type { AbPlaybackPoolDebugInfo } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 
 /**
  * Calculate all of the AB-playback sessions currently on the timeline
@@ -14,6 +15,7 @@ import { ReadonlyDeep } from 'type-fest'
  * @param timelineObjects The timeline to check for lookahead sessions
  * @param previousAssignmentMap Assignments from the previous run
  * @param poolName Name of the pool being processed
+ * @param debug If provided, details of each piece and lookahead session will be pushed to this
  * @returns All the requested sessions with time windows
  */
 export function calculateSessionTimeRanges(
@@ -21,7 +23,8 @@ export function calculateSessionTimeRanges(
 	resolvedPieces: ResolvedPieceInstance[],
 	timelineObjects: OnGenerateTimelineObjExt[],
 	previousAssignmentMap: ReadonlyDeep<ABSessionAssignments> | undefined,
-	poolName: string
+	poolName: string,
+	debug?: Pick<AbPlaybackPoolDebugInfo, 'pieces' | 'lookaheadGroups'>
 ): SessionRequest[] {
 	const sessionRequests: { [sessionId: string]: SessionRequest | undefined } = {}
 	for (const p of resolvedPieces) {
@@ -36,7 +39,21 @@ export function calculateSessionTimeRanges(
 		for (const session of abSessions) {
 			if (session.poolName !== poolName) continue
 
-			const sessionId = abSessionHelper.getPieceABSessionId(p.instance, session)
+			const { sessionId, reason } = abSessionHelper.getPieceABSession(p.instance, session)
+
+			debug?.pieces.push({
+				pieceInstanceId: p.instance._id,
+				pieceName: p.instance.piece.name,
+				partInstanceId: p.instance.partInstanceId,
+				sourceLayerId: p.instance.piece.sourceLayerId,
+				infiniteInstanceId: p.instance.infinite?.infiniteInstanceId,
+				resolvedStart: start,
+				resolvedEnd: end,
+				sessionName: session.sessionName,
+				optional: session.optional ?? false,
+				sessionId,
+				sessionReason: reason,
+			})
 
 			// Note: multiple generated sessionIds for a single piece will not work as there will not be enough info to assign objects to different players. TODO is this still true?
 			const val = sessionRequests[sessionId]
@@ -86,7 +103,7 @@ export function calculateSessionTimeRanges(
 		) {
 			for (const session of obj.abSessions) {
 				if (session.poolName === poolName) {
-					const sessionId = abSessionHelper.getTimelineObjectAbSessionId(obj, session)
+					const sessionId = abSessionHelper.getTimelineObjectAbSession(obj, session)?.sessionId
 					if (!sessionId) continue
 
 					const existing = groupedLookaheadMap.get(sessionId)
@@ -108,6 +125,15 @@ export function calculateSessionTimeRanges(
 		return -r
 	})
 	sortedLookaheadGroups.forEach((grp, i) => {
+		debug?.lookaheadGroups.push({
+			sessionId: grp.id,
+			name: grp.name,
+			objectIds: grp.objs.map((obj) => obj.id),
+			maxPriority: _.max(_.pluck(grp.objs, 'priority')) || -900,
+			rank: i + 1,
+			hasPieceSession: !!sessionRequests[grp.id],
+		})
+
 		if (!sessionRequests[grp.id]) {
 			result.push({
 				id: grp.id,

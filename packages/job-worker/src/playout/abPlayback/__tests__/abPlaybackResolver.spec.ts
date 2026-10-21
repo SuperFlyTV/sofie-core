@@ -1,5 +1,7 @@
 import { ABResolverOptions } from '@sofie-automation/blueprints-integration'
 import { AssignmentResult, resolveAbAssignmentsFromRequests, SessionRequest } from '../abPlaybackResolver.js'
+import type { AbResolverDecision } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
+import { clone } from '@sofie-automation/corelib/dist/lib'
 
 const resolverOptions: ABResolverOptions = {
 	idealGapBefore: 1000,
@@ -975,6 +977,149 @@ describe('resolveAbAssignmentsFromRequests', () => {
 			expectGotPlayer(res, 'c', 2)
 			expectGotPlayer(res, 'd', 1)
 			expectGotPlayer(res, 'e', undefined)
+		})
+	})
+
+	describe('decision trace', () => {
+		function resolveWithTrace(
+			playerIds: number[],
+			requests: SessionRequest[],
+			now: number
+		): { res: AssignmentResult; trace: AbResolverDecision[] } {
+			const resWithoutTrace = resolveAbAssignmentsFromRequests(resolverOptions, playerIds, clone(requests), now)
+
+			const trace: AbResolverDecision[] = []
+			const res = resolveAbAssignmentsFromRequests(resolverOptions, playerIds, clone(requests), now, trace)
+
+			// Tracing must not change the result
+			expect(res).toEqual(resWithoutTrace)
+
+			return { res, trace }
+		}
+
+		test('single player', () => {
+			const { trace } = resolveWithTrace(
+				[1],
+				[{ id: 'a', name: 'a', start: 1000, end: undefined, pieceNames: [] }],
+				10000
+			)
+			expect(trace).toEqual([expect.objectContaining({ step: 'singlePlayer', playerId: 1 })])
+		})
+
+		test('nothing pending', () => {
+			const { trace } = resolveWithTrace(
+				TWO_SLOTS,
+				[{ id: 'a', name: 'a', start: 1000, end: undefined, playerId: 2, pieceNames: [] }],
+				10000
+			)
+			expect(trace).toEqual([expect.objectContaining({ step: 'nothingPending' })])
+		})
+
+		test('pack dense, with a failure', () => {
+			const { res, trace } = resolveWithTrace(
+				TWO_SLOTS,
+				[
+					{ id: 'a', name: 'a', start: 1000, end: undefined, pieceNames: [] },
+					{ id: 'b', name: 'b', start: 2000, end: undefined, playerId: 5, pieceNames: [] },
+					{ id: 'c', name: 'c', start: 3000, end: undefined, pieceNames: [] },
+				],
+				10000
+			)
+			expectGotPlayer(res, 'a', 1)
+			expectGotPlayer(res, 'b', 2)
+			expectGotPlayer(res, 'c', undefined)
+
+			expect(trace).toEqual([
+				expect.objectContaining({ step: 'droppedUnknownPlayer', sessionId: 'b', playerId: 5 }),
+				expect.objectContaining({
+					step: 'assigned',
+					sessionId: 'a',
+					playerId: 1,
+					rule: 'packDense:gapBefore',
+				}),
+				expect.objectContaining({
+					step: 'assigned',
+					sessionId: 'b',
+					playerId: 2,
+					rule: 'packDense:gapBefore',
+					availability: [
+						{ playerId: 1, before: null, after: null, clashes: ['a'] },
+						{ playerId: 2, before: null, after: null, clashes: [] },
+					],
+				}),
+				expect.objectContaining({
+					step: 'failed',
+					sessionId: 'c',
+					availability: [
+						{ playerId: 1, before: null, after: null, clashes: ['a'] },
+						{ playerId: 2, before: null, after: null, clashes: ['b'] },
+					],
+				}),
+			])
+		})
+
+		test('stale assignment and lookahead', () => {
+			const { res, trace } = resolveWithTrace(
+				TWO_SLOTS,
+				[
+					{ id: 'a', name: 'a', start: 1000, end: 5000, playerId: 1, pieceNames: ['p1'] },
+					{ id: 'b', name: 'b', start: 5000, end: 10000, playerId: 2, pieceNames: ['p2'] },
+					{ id: 'c', name: 'c', start: 10000, end: 15000, playerId: 1, pieceNames: ['p3'] },
+					{ id: 'y', name: 'y', start: 0, end: 100, lookaheadRank: 2, playerId: 1, pieceNames: [] },
+					{ id: 'z', name: 'z', start: 0, end: 100, lookaheadRank: 1, pieceNames: [] },
+				],
+				5100
+			)
+			expectGotPlayer(res, 'c', 1)
+			expectGotPlayer(res, 'y', 1)
+			expectGotPlayer(res, 'z', 2)
+
+			expect(trace).toEqual([
+				expect.objectContaining({ step: 'lookaheadReset', sessionId: 'y', playerId: 1 }),
+				expect.objectContaining({ step: 'clearedStale', sessionId: 'c', playerId: 1, causedBy: 'a' }),
+				expect.objectContaining({
+					step: 'assigned',
+					sessionId: 'c',
+					playerId: 1,
+					rule: 'spread:nothingAfter',
+				}),
+				expect.objectContaining({
+					step: 'lookaheadAssigned',
+					sessionId: 'z',
+					playerId: 2,
+					rule: 'lookahead:freeSoon',
+				}),
+				expect.objectContaining({
+					step: 'lookaheadAssigned',
+					sessionId: 'y',
+					playerId: 1,
+					rule: 'lookahead:freeSoon',
+				}),
+			])
+		})
+
+		test('lookahead not assigned when there are not enough players', () => {
+			const { res, trace } = resolveWithTrace(
+				TWO_SLOTS,
+				[
+					{ id: 'a', name: 'a', start: 1000, end: undefined, playerId: 1, pieceNames: ['p1'] },
+					{ id: 'y', name: 'y', start: 0, end: 100, lookaheadRank: 2, pieceNames: [] },
+					{ id: 'z', name: 'z', start: 0, end: 100, lookaheadRank: 1, pieceNames: [] },
+				],
+				5100
+			)
+			expectGotPlayer(res, 'y', undefined)
+			expectGotPlayer(res, 'z', 2)
+
+			expect(trace).toEqual([
+				expect.objectContaining({
+					step: 'lookaheadAssigned',
+					sessionId: 'z',
+					playerId: 2,
+					rule: 'lookahead:freeNow',
+				}),
+				expect.objectContaining({ step: 'lookaheadUnassigned', sessionId: 'y' }),
+			])
 		})
 	})
 })

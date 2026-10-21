@@ -16,6 +16,12 @@ import _ from 'underscore'
 import { SessionRequest } from './abPlaybackResolver.js'
 import { AbSessionHelper } from './abSessionHelper.js'
 import { ReadonlyDeep } from 'type-fest'
+import type {
+	AbPlaybackDebugObject,
+	AbPlaybackDebugObjectOutcome,
+	AbSessionDecision,
+} from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
+import type { TimelineObjectAbSessionInfo } from '@sofie-automation/shared-lib/dist/core/model/Timeline'
 
 /**
  * Apply the ab assignments for a pool to the timeline
@@ -26,6 +32,7 @@ import { ReadonlyDeep } from 'type-fest'
  * @param previousAssignmentMap Assignments from the previous run
  * @param resolvedAssignments Assignments to apply
  * @param poolName Name of the pool being processed
+ * @param debugObjects If provided, details of each object considered will be pushed to this
  * @returns Assignments that were applied to the timeline
  */
 export function applyAbPlayerObjectAssignments(
@@ -35,7 +42,8 @@ export function applyAbPlayerObjectAssignments(
 	timelineObjs: OnGenerateTimelineObjExt[],
 	previousAssignmentMap: ReadonlyDeep<ABSessionAssignments> | undefined,
 	resolvedAssignments: Readonly<SessionRequest[]>,
-	poolName: string
+	poolName: string,
+	debugObjects?: AbPlaybackDebugObject[]
 ): ABSessionAssignments {
 	const newAssignments: ABSessionAssignments = {}
 	const persistAssignment = (session: ABSessionAssignment): void => {
@@ -46,13 +54,48 @@ export function applyAbPlayerObjectAssignments(
 		newAssignments[session.sessionId] = session
 	}
 
+	const debugEntries: Array<{ obj: OnGenerateTimelineObjExt; entry: AbPlaybackDebugObject }> = []
+	const trackDebugObject = (
+		obj: OnGenerateTimelineObjExt,
+		session: TimelineObjectAbSessionInfo,
+		decision: AbSessionDecision | undefined,
+		outcome: AbPlaybackDebugObjectOutcome
+	) => {
+		if (!debugObjects) return
+		debugEntries.push({
+			obj,
+			entry: {
+				objectId: obj.id,
+				pieceInstanceId: obj.pieceInstanceId,
+				partInstanceId: obj.partInstanceId,
+				isLookahead: !!obj.isLookahead,
+				sessionName: session.sessionName,
+				sessionNameIsGloballyUnique: !!session.sessionNameIsGloballyUnique,
+				sessionId: decision?.sessionId,
+				sessionReason: decision?.reason,
+				playerId: undefined,
+				layerBefore: String(obj.layer),
+				layerAfter: String(obj.layer),
+				outcome,
+			},
+		})
+	}
+
 	// collect objects by their sessionId
 	const groupedObjectsMap = new Map<string, { name: string; objs: Array<OnGenerateTimelineObjExt> }>()
 	for (const obj of timelineObjs) {
-		if (obj.abSessions && obj.pieceInstanceId) {
+		if (obj.abSessions) {
 			for (const session of obj.abSessions) {
 				if (session.poolName === poolName) {
-					const sessionId = abSessionHelper.getTimelineObjectAbSessionId(obj, session)
+					if (!obj.pieceInstanceId) {
+						trackDebugObject(obj, session, undefined, 'noPieceInstance')
+						continue
+					}
+
+					const decision = abSessionHelper.getTimelineObjectAbSession(obj, session)
+					trackDebugObject(obj, session, decision, decision ? 'noPlayer' : 'noSession')
+
+					const sessionId = decision?.sessionId
 					if (!sessionId) continue
 
 					const existing = groupedObjectsMap.get(sessionId)
@@ -68,6 +111,10 @@ export function applyAbPlayerObjectAssignments(
 
 	const failedObjects: OnGenerateTimelineObj<TSR.TSRTimelineContent>[] = []
 	const unexpectedSessions: string[] = []
+	const sessionOutcomes = new Map<
+		string,
+		{ playerId: AbPlayerId | undefined; outcome: AbPlaybackDebugObjectOutcome }
+	>()
 
 	// Apply the known assignments
 	for (const [sessionId, info] of groupedObjectsMap.entries()) {
@@ -92,6 +139,7 @@ export function applyAbPlayerObjectAssignments(
 					playerId: matchingAssignment.playerId,
 					lookahead: !!matchingAssignment.lookaheadRank,
 				})
+				sessionOutcomes.set(sessionId, { playerId: matchingAssignment.playerId, outcome: 'applied' })
 			} else {
 				// A warning will already have been raised about this having no player
 			}
@@ -101,6 +149,7 @@ export function applyAbPlayerObjectAssignments(
 
 			// If there was a previous assignment, hopefully that is better than nothing
 			const prev = previousAssignmentMap?.[sessionId]
+			sessionOutcomes.set(sessionId, { playerId: prev?.playerId, outcome: 'unexpected' })
 			if (prev) {
 				failedObjects.push(
 					...updateObjectsToAbPlayer(blueprintContext, abConfiguration, poolName, prev.playerId, info.objs)
@@ -112,6 +161,24 @@ export function applyAbPlayerObjectAssignments(
 					lookahead: false,
 				})
 			}
+		}
+	}
+
+	if (debugObjects) {
+		const failedObjectsSet = new Set(failedObjects)
+		for (const { obj, entry } of debugEntries) {
+			entry.layerAfter = String(obj.layer)
+
+			const sessionOutcome = entry.sessionId ? sessionOutcomes.get(entry.sessionId) : undefined
+			if (sessionOutcome) {
+				entry.playerId = sessionOutcome.playerId
+				entry.outcome =
+					sessionOutcome.outcome === 'applied' && failedObjectsSet.has(obj)
+						? 'failed'
+						: sessionOutcome.outcome
+			}
+
+			debugObjects.push(entry)
 		}
 	}
 

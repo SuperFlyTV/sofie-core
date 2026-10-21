@@ -3,6 +3,10 @@ import { PartId, PieceInstanceId } from '@sofie-automation/corelib/dist/dataMode
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { ABSessionInfo } from '@sofie-automation/corelib/dist/dataModel/RundownPlaylist/RundownPlaylist'
+import type {
+	AbSessionDecision,
+	AbSessionDecisionReason,
+} from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 import { OnGenerateTimelineObjExt } from '@sofie-automation/corelib/dist/dataModel/Timeline'
 import { getRandomString, omit } from '@sofie-automation/corelib/dist/lib'
 import { protectString, unpartialString, unprotectString } from '@sofie-automation/corelib/dist/protectedString'
@@ -70,9 +74,21 @@ export class AbSessionHelper {
 	 * otherwise sessionName should be unique within the segment unless pieces want to share a session
 	 */
 	getPieceABSessionId(pieceInstance: ReadonlyDeep<PieceInstance>, session: TimelineObjectAbSessionInfo): string {
-		if (session.sessionNameIsGloballyUnique) return this.getUniqueSessionId(session)
+		return this.getPieceABSession(pieceInstance, session).sessionId
+	}
 
-		return this.getPieceABSessionIdFromSessionName(
+	/**
+	 * Get the full session id for an ab playback session, along with the reason for the choice of session
+	 * @see getPieceABSessionId
+	 */
+	getPieceABSession(
+		pieceInstance: ReadonlyDeep<PieceInstance>,
+		session: TimelineObjectAbSessionInfo
+	): AbSessionDecision {
+		if (session.sessionNameIsGloballyUnique)
+			return { sessionId: this.getUniqueSessionId(session), reason: 'globallyUnique' }
+
+		return this.#getPieceABSessionFromSessionName(
 			pieceInstance,
 			this.#validateSessionName(pieceInstance._id, session)
 		)
@@ -84,16 +100,23 @@ export class AbSessionHelper {
 	 * Future: This should be private, but is exposed as a deprecated method to blueprints
 	 */
 	getPieceABSessionIdFromSessionName(pieceInstance: ReadonlyDeep<PieceInstance>, sessionName: string): string {
+		return this.#getPieceABSessionFromSessionName(pieceInstance, sessionName).sessionId
+	}
+
+	#getPieceABSessionFromSessionName(
+		pieceInstance: ReadonlyDeep<PieceInstance>,
+		sessionName: string
+	): AbSessionDecision {
 		const partInstanceIndex = this.#partInstances.findIndex((p) => p._id === pieceInstance.partInstanceId)
 		const partInstance = partInstanceIndex >= 0 ? this.#partInstances[partInstanceIndex] : undefined
 		if (!partInstance) throw new Error('Unknown partInstanceId in call to getPieceABSessionId')
 
 		const infiniteId = pieceInstance.infinite?.infiniteInstanceId
-		const preserveSession = (session: ABSessionInfoExt): string => {
+		const preserveSession = (session: ABSessionInfoExt, reason: AbSessionDecisionReason): AbSessionDecision => {
 			session.keep = true
 			session.infiniteInstanceId = unpartialString(infiniteId)
 			delete session.lookaheadForPartId
-			return session.id
+			return { sessionId: session.id, reason }
 		}
 
 		// Sessions to consider are those with the same name
@@ -103,7 +126,7 @@ export class AbSessionHelper {
 		if (infiniteId) {
 			const infiniteSession = sessionsToConsider.find((s) => s.infiniteInstanceId === infiniteId)
 			if (infiniteSession) {
-				return preserveSession(infiniteSession)
+				return preserveSession(infiniteSession, 'infinite')
 			}
 		}
 
@@ -112,7 +135,7 @@ export class AbSessionHelper {
 			s.partInstanceIds?.includes(pieceInstance.partInstanceId)
 		)
 		if (existingSession) {
-			return preserveSession(existingSession)
+			return preserveSession(existingSession, 'samePartInstance')
 		}
 
 		// Check if we can continue sessions from the part before, or if we should create new ones
@@ -128,7 +151,7 @@ export class AbSessionHelper {
 					...(continuedSession.partInstanceIds || []),
 					pieceInstance.partInstanceId,
 				]
-				return preserveSession(continuedSession)
+				return preserveSession(continuedSession, 'continuedFromPreviousPart')
 			}
 		}
 
@@ -137,7 +160,7 @@ export class AbSessionHelper {
 		const lookaheadSession = sessionsToConsider.find((s) => s.lookaheadForPartId === partId)
 		if (lookaheadSession) {
 			lookaheadSession.partInstanceIds = [pieceInstance.partInstanceId]
-			return preserveSession(lookaheadSession)
+			return preserveSession(lookaheadSession, 'promotedLookahead')
 		}
 
 		// Otherwise define a new session
@@ -151,7 +174,7 @@ export class AbSessionHelper {
 			keep: true,
 		}
 		this.#knownSessions.push(newSession)
-		return sessionId
+		return { sessionId, reason: 'new' }
 	}
 
 	/**
@@ -162,9 +185,21 @@ export class AbSessionHelper {
 		tlObj: OnGenerateTimelineObjExt,
 		session: TimelineObjectAbSessionInfo
 	): string | undefined {
-		if (session.sessionNameIsGloballyUnique) return this.getUniqueSessionId(session)
+		return this.getTimelineObjectAbSession(tlObj, session)?.sessionId
+	}
 
-		return this.getTimelineObjectAbSessionIdFromSessionName(
+	/**
+	 * Get the full session id for a timelineobject that belongs to an ab playback session, along with the reason for the choice of session
+	 * @see getTimelineObjectAbSessionId
+	 */
+	getTimelineObjectAbSession(
+		tlObj: OnGenerateTimelineObjExt,
+		session: TimelineObjectAbSessionInfo
+	): AbSessionDecision | undefined {
+		if (session.sessionNameIsGloballyUnique)
+			return { sessionId: this.getUniqueSessionId(session), reason: 'globallyUnique' }
+
+		return this.#getTimelineObjectAbSessionFromSessionName(
 			tlObj,
 			this.#validateSessionName(tlObj.pieceInstanceId || session.sessionName, session)
 		)
@@ -179,6 +214,13 @@ export class AbSessionHelper {
 		tlObj: OnGenerateTimelineObjExt,
 		sessionName: string
 	): string | undefined {
+		return this.#getTimelineObjectAbSessionFromSessionName(tlObj, sessionName)?.sessionId
+	}
+
+	#getTimelineObjectAbSessionFromSessionName(
+		tlObj: OnGenerateTimelineObjExt,
+		sessionName: string
+	): AbSessionDecision | undefined {
 		// Sessions to consider are those with the same name
 		const sessionsToConsider = this.#knownSessions.filter((s) => !s.isUniqueName && s.name === sessionName)
 
@@ -188,7 +230,7 @@ export class AbSessionHelper {
 			const infiniteSession = sessionsToConsider.find((s) => s.infiniteInstanceId === searchId)
 			if (infiniteSession) {
 				infiniteSession.keep = true
-				return infiniteSession.id
+				return { sessionId: infiniteSession.id, reason: 'infinite' }
 			}
 		}
 
@@ -198,7 +240,7 @@ export class AbSessionHelper {
 			const partInstanceSession = sessionsToConsider.find((s) => s.partInstanceIds?.includes(partInstanceId))
 			if (partInstanceSession) {
 				partInstanceSession.keep = true
-				return partInstanceSession.id
+				return { sessionId: partInstanceSession.id, reason: 'samePartInstance' }
 			}
 		}
 
@@ -215,7 +257,7 @@ export class AbSessionHelper {
 				if (partInstance) {
 					lookaheadSession.partInstanceIds = [partInstanceId]
 				}
-				return lookaheadSession.id
+				return { sessionId: lookaheadSession.id, reason: 'lookaheadExisting' }
 			} else {
 				const sessionId = this.getNewSessionId()
 				this.#knownSessions.push({
@@ -226,7 +268,7 @@ export class AbSessionHelper {
 					partInstanceIds: partInstance ? [partInstanceId] : undefined,
 					keep: true,
 				})
-				return sessionId
+				return { sessionId, reason: 'lookaheadNew' }
 			}
 		}
 

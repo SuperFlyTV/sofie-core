@@ -1,32 +1,15 @@
 import type { AbPlayerId, ABResolverOptions } from '@sofie-automation/blueprints-integration'
 import { clone } from '@sofie-automation/corelib/dist/lib'
+import type {
+	AbResolverDecision,
+	AbResolverSlotAvailability,
+	AssignmentResult,
+	FailedSession,
+	SessionRequest,
+} from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 import _ from 'underscore'
 
-export interface SessionRequest {
-	readonly id: string
-	readonly name: string
-	readonly start: number
-	readonly end: number | undefined
-	readonly optional?: boolean
-	readonly lookaheadRank?: number
-	playerId?: AbPlayerId
-	pieceNames: string[]
-}
-
-export interface FailedSession {
-	id: string
-	name: string
-	pieceNames: string[]
-}
-
-export interface AssignmentResult {
-	/** Any non-optional sessions which were not assigned a player */
-	failedRequired: FailedSession[]
-	/** Any optional sessions which were not assigned a player */
-	failedOptional: FailedSession[]
-	/** All of the requests with their player assignments set */
-	requests: Readonly<SessionRequest[]>
-}
+export type { SessionRequest, FailedSession, AssignmentResult }
 
 interface SlotAvailability {
 	id: AbPlayerId
@@ -59,18 +42,26 @@ function safeMin<T>(arr: T[], func: (val: T) => number): T | undefined {
  * @param playerIds Ids of players in the current AB pool
  * @param rawRequests The session requests to be resolved
  * @param now The approximate current time
+ * @param trace If provided, the decisions made will be pushed to this array
  * @returns The calculated assignments
  */
 export function resolveAbAssignmentsFromRequests(
 	resolverOptions: ABResolverOptions,
 	playerIds: AbPlayerId[],
 	rawRequests: SessionRequest[],
-	now: number // Current time
+	now: number, // Current time
+	trace?: AbResolverDecision[]
 ): AssignmentResult {
 	// Check that the player assigned still exists
 	const validPlayerIdsSet = new Set(playerIds)
 	for (const req of rawRequests) {
 		if (req.playerId !== undefined && !validPlayerIdsSet.has(req.playerId)) {
+			trace?.push({
+				step: 'droppedUnknownPlayer',
+				sessionId: req.id,
+				playerId: req.playerId,
+				message: `Previous player "${req.playerId}" is not in the pool`,
+			})
 			delete req.playerId
 		}
 	}
@@ -78,6 +69,12 @@ export function resolveAbAssignmentsFromRequests(
 	const originalLookaheadAssignments: Record<string, AbPlayerId> = {}
 	for (const req of rawRequests) {
 		if (req.lookaheadRank !== undefined && req.playerId !== undefined) {
+			trace?.push({
+				step: 'lookaheadReset',
+				sessionId: req.id,
+				playerId: req.playerId,
+				message: `Lookahead was previously assigned to "${req.playerId}", it will be reconsidered after the other sessions`,
+			})
 			originalLookaheadAssignments[req.id] = req.playerId
 			delete req.playerId
 		}
@@ -94,6 +91,11 @@ export function resolveAbAssignmentsFromRequests(
 		for (const request of res.requests) {
 			request.playerId = playerIds[0]
 		}
+		trace?.push({
+			step: 'singlePlayer',
+			playerId: playerIds[0],
+			message: `Only one player in the pool, so all sessions were assigned to "${playerIds[0]}"`,
+		})
 		return res
 	}
 
@@ -101,6 +103,10 @@ export function resolveAbAssignmentsFromRequests(
 	let pendingRequests = grouped[undefined as any]
 	if (!pendingRequests) {
 		// Nothing pending, result must be ok
+		trace?.push({
+			step: 'nothingPending',
+			message: 'Every session already has a player assigned',
+		})
 		return res
 	}
 
@@ -112,6 +118,13 @@ export function resolveAbAssignmentsFromRequests(
 			const prev = grp[i - 1]
 			const next = grp[i]
 			if (next.start >= safeNow && prev.end && prev.end < safeNow) {
+				trace?.push({
+					step: 'clearedStale',
+					sessionId: next.id,
+					playerId: next.playerId,
+					causedBy: prev.id,
+					message: `Starts after safeNow, and the session before on the same player has ended, so it will be reconsidered`,
+				})
 				delete next.playerId
 			}
 		}
@@ -135,7 +148,7 @@ export function resolveAbAssignmentsFromRequests(
 	const canBeReplaced = (other: SessionRequest, self: SessionRequest): boolean => other.optional || !self.optional
 
 	const invalidateOnesStartingAfterOrClashing = (
-		_req: SessionRequest,
+		req: SessionRequest,
 		candidate: SlotAvailability | undefined,
 		allowClashing?: boolean
 	): SessionRequest[] => {
@@ -148,6 +161,13 @@ export function resolveAbAssignmentsFromRequests(
 				slots.set(pl[0], startEarlier)
 				invalidated.push(
 					...startNowOrLater.map((p) => {
+						trace?.push({
+							step: 'evicted',
+							sessionId: p.id,
+							playerId: p.playerId,
+							causedBy: req.id,
+							message: `Unassigned as it starts at or after "${candidate.after?.id}", to be reconsidered`,
+						})
 						delete p.playerId
 						return p
 					})
@@ -159,6 +179,13 @@ export function resolveAbAssignmentsFromRequests(
 			const slot = slots.get(candidate.id)
 			if (slot) {
 				candidate.clashes?.forEach((cl) => {
+					trace?.push({
+						step: 'evicted',
+						sessionId: cl.id,
+						playerId: cl.playerId,
+						causedBy: req.id,
+						message: `Unassigned as it clashes on the chosen player, to be reconsidered`,
+					})
 					delete cl.playerId
 					invalidated.push(cl)
 
@@ -200,6 +227,13 @@ export function resolveAbAssignmentsFromRequests(
 		let invalidated: SessionRequest[] | undefined
 
 		let candidate: SlotAvailability | undefined
+		let candidateRule: string | undefined
+		const pickCandidate = (rule: string, newCandidate: SlotAvailability | undefined) => {
+			if (newCandidate) candidateRule = rule
+			return newCandidate
+		}
+		const availabilitySnapshot = trace ? slotAvailability.map(snapshotAvailability) : undefined
+
 		if (req.start < safeNow) {
 			// Pack it dense, as lookahead will very likely not be able to show anyway
 			// Try and leave a gap before/after if possible though
@@ -207,20 +241,20 @@ export function resolveAbAssignmentsFromRequests(
 			// Try and keep a short gap before, and a long gap after
 			const hasGapBefore = nonClashing.filter((p) => beforeHasGap(p, req))
 			if (!candidate) {
-				candidate = maxGapAfter(hasGapBefore)
+				candidate = pickCandidate('packDense:gapBefore', maxGapAfter(hasGapBefore))
 			}
 
 			// Accept no gap before, and a long gap after
 			if (!candidate) {
-				candidate = maxGapAfter(nonClashing)
+				candidate = pickCandidate('packDense:noGapBefore', maxGapAfter(nonClashing))
 			}
 
 			// consider slots where the start is free, but the end is occupied and outside of safeNow
 			const freeAtStart = clashing.filter((p) => beforeHasGap(p, req) && clashesStartsAfterThis(p, req))
 			if (!candidate && freeAtStart.length) {
-				candidate = safeMax(
-					freeAtStart,
-					(p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY
+				candidate = pickCandidate(
+					'packDense:freeAtStart',
+					safeMax(freeAtStart, (p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY)
 				)
 			}
 		} else {
@@ -229,29 +263,35 @@ export function resolveAbAssignmentsFromRequests(
 			const nothingAfter = nonClashing.filter((p) => !p.after)
 			if (!candidate && nothingAfter.length) {
 				// Find the player with nothing coming up that gives us the best preload time
-				candidate = safeMin(nothingAfter, (p) => {
-					const minClearance = req.start - resolverOptions.idealGapBefore
-					const availableAfter = p.before?.end ?? Number.NEGATIVE_INFINITY
-					// Return in range of before.end <-> (req.start - gap)
-					// We want the slot which has the earliest before.end
-					return Math.min(minClearance, availableAfter)
-				})
+				candidate = pickCandidate(
+					'spread:nothingAfter',
+					safeMin(nothingAfter, (p) => {
+						const minClearance = req.start - resolverOptions.idealGapBefore
+						const availableAfter = p.before?.end ?? Number.NEGATIVE_INFINITY
+						// Return in range of before.end <-> (req.start - gap)
+						// We want the slot which has the earliest before.end
+						return Math.min(minClearance, availableAfter)
+					})
+				)
 			}
 
 			// Find ones with something after, where the after is optional, or we are not optional
 			const withAfter = nonClashing.filter((p) => p.after && canBeReplaced(p.after, req))
 			if (!candidate && withAfter.length) {
 				// Find the player which starts the last
-				candidate = safeMax(withAfter, (p) => p.after?.start ?? Number.NEGATIVE_INFINITY)
+				candidate = pickCandidate(
+					'spread:replaceAfter',
+					safeMax(withAfter, (p) => p.after?.start ?? Number.NEGATIVE_INFINITY)
+				)
 				invalidated = invalidateOnesStartingAfterOrClashing(req, candidate)
 			}
 
 			// consider slots where the start is free, but the end is occupied
 			const freeAtStart = clashing.filter((p) => beforeHasGap(p, req) && clashesStartsAfterThis(p, req))
 			if (!candidate && freeAtStart.length) {
-				candidate = safeMax(
-					freeAtStart,
-					(p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY
+				candidate = pickCandidate(
+					'spread:freeAtStart',
+					safeMax(freeAtStart, (p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY)
 				)
 				invalidated = invalidateOnesStartingAfterOrClashing(req, candidate)
 			}
@@ -261,9 +301,12 @@ export function resolveAbAssignmentsFromRequests(
 				(p) => !p.clashes.find((c) => !c.optional) && !req.optional && req.lookaheadRank === undefined
 			)
 			if (!candidate && nonPlayingClashingOptionals.length) {
-				candidate = safeMax(
-					nonPlayingClashingOptionals,
-					(p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY
+				candidate = pickCandidate(
+					'spread:claimOptionals',
+					safeMax(
+						nonPlayingClashingOptionals,
+						(p) => safeMax(p.clashes, (c) => c.start)?.start ?? Number.POSITIVE_INFINITY
+					)
 				)
 				invalidated = invalidateOnesStartingAfterOrClashing(req, candidate)
 			}
@@ -275,7 +318,10 @@ export function resolveAbAssignmentsFromRequests(
 		)
 		if (!candidate && touchesStart.length) {
 			// Find the player with the longest clearance to the next usage
-			candidate = safeMax(touchesStart, (p) => p.after?.start ?? Number.POSITIVE_INFINITY)
+			candidate = pickCandidate(
+				'touchesStart',
+				safeMax(touchesStart, (p) => p.after?.start ?? Number.POSITIVE_INFINITY)
+			)
 			invalidated = invalidateOnesStartingAfterOrClashing(req, candidate, true)
 		}
 
@@ -299,6 +345,16 @@ export function resolveAbAssignmentsFromRequests(
 					req.lookaheadRank === undefined) || // If a lookahead follows
 				(req.end && candidate.after?.start && candidate.after?.start < req.end) // If the after clashes
 			) {
+				trace?.push({
+					step: 'evicted',
+					sessionId: candidate.after.id,
+					playerId: candidate.after.playerId,
+					causedBy: req.id,
+					message:
+						candidate.after.lookaheadRank !== undefined
+							? 'Lookahead unassigned, as the session before has no end'
+							: 'Unassigned as it starts before the session before ends',
+				})
 				delete candidate.after.playerId
 				dropId = candidate.after.id
 
@@ -307,6 +363,14 @@ export function resolveAbAssignmentsFromRequests(
 			}
 
 			req.playerId = candidate.id
+			trace?.push({
+				step: 'assigned',
+				sessionId: req.id,
+				playerId: candidate.id,
+				rule: candidateRule,
+				message: `Assigned using rule "${candidateRule}" (${req.start < safeNow ? 'starts before safeNow' : 'starts after safeNow'})`,
+				availability: availabilitySnapshot,
+			})
 			let slotRequests = slots.get(candidate.id)
 			if (slotRequests) {
 				slotRequests.push(req)
@@ -317,6 +381,15 @@ export function resolveAbAssignmentsFromRequests(
 				slots.set(candidate.id, slotRequests)
 			}
 		} else {
+			if (req.lookaheadRank === undefined) {
+				trace?.push({
+					step: 'failed',
+					sessionId: req.id,
+					message: `No player was available for ${req.optional ? 'optional' : 'required'} session`,
+					availability: availabilitySnapshot,
+				})
+			}
+
 			if (req.lookaheadRank !== undefined) {
 				// ignore
 			} else if (req.optional) {
@@ -327,16 +400,26 @@ export function resolveAbAssignmentsFromRequests(
 		}
 	}
 
-	assignPlayersForLookahead(slots, res, originalLookaheadAssignments, safeNow)
+	assignPlayersForLookahead(slots, res, originalLookaheadAssignments, safeNow, trace)
 
 	return res
+}
+
+function snapshotAvailability(slot: SlotAvailability): AbResolverSlotAvailability {
+	return {
+		playerId: slot.id,
+		before: slot.before?.id ?? null,
+		after: slot.after?.id ?? null,
+		clashes: slot.clashes.map((c) => c.id),
+	}
 }
 
 function assignPlayersForLookahead(
 	slots: Map<AbPlayerId, SessionRequest[]>,
 	res: AssignmentResult,
 	originalLookaheadAssignments: Record<string, AbPlayerId>,
-	safeNow: number
+	safeNow: number,
+	trace: AbResolverDecision[] | undefined
 ) {
 	// Ensure lookahead gets assigned based on priority not some randomness
 	// Includes slots which have either no sessions, or the last has a known end time
@@ -372,6 +455,13 @@ function assignPlayersForLookahead(
 		const prevPlayer = originalLookaheadAssignments[req.id]
 		if (prevPlayer !== undefined && playersClearNowIds.delete(prevPlayer)) {
 			req.playerId = prevPlayer
+			trace?.push({
+				step: 'lookaheadAssigned',
+				sessionId: req.id,
+				playerId: req.playerId,
+				rule: 'lookahead:keepPrevious',
+				message: `Kept previous player, as it is free now`,
+			})
 		} else {
 			delete req.playerId
 		}
@@ -379,13 +469,43 @@ function assignPlayersForLookahead(
 	// Then fill in the blanks
 	const playersClearNowRemainingIds = Array.from(playersClearNowIds)
 	for (const req of lookaheadsToAssignNow) {
-		if (req.playerId === undefined) req.playerId = playersClearNowRemainingIds.shift()
+		if (req.playerId === undefined) {
+			req.playerId = playersClearNowRemainingIds.shift()
+			trace?.push({
+				step: 'lookaheadAssigned',
+				sessionId: req.id,
+				playerId: req.playerId,
+				rule: 'lookahead:freeNow',
+				message: `Assigned to a player which is free now`,
+			})
+		}
 	}
 
 	// Assign the players which are clear soon. These aren't visible, so don't need to preserve anything
 	const lookaheadsToAssignSoon = lookaheadsToAssign.slice(playersClearNow.length)
 	for (const req of lookaheadsToAssignSoon) {
-		req.playerId = playersClearSoon.shift()?.[0]
+		const player = playersClearSoon.shift()
+		req.playerId = player?.[0]
+		trace?.push({
+			step: 'lookaheadAssigned',
+			sessionId: req.id,
+			playerId: req.playerId,
+			rule: 'lookahead:freeSoon',
+			message: `Assigned to a player which will be free at ${player?.[1]}`,
+		})
+	}
+
+	if (trace) {
+		const assignedIds = new Set(lookaheadsToAssign.map((r) => r.id))
+		for (const req of res.requests) {
+			if (req.lookaheadRank !== undefined && !assignedIds.has(req.id)) {
+				trace.push({
+					step: 'lookaheadUnassigned',
+					sessionId: req.id,
+					message: `Lookahead rank ${req.lookaheadRank} was not assigned, as only ${lastSessionPerSlot.size} players could be used for lookahead`,
+				})
+			}
+		}
 	}
 }
 

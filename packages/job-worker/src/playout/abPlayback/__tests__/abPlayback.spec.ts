@@ -101,8 +101,11 @@ describe('resolveMediaPlayers', () => {
 	const mockGetPieceSessionId: jest.MockedFunction<typeof abSessionHelper.getPieceABSessionId> = jest.fn()
 	const mockGetObjectSessionId: jest.MockedFunction<typeof abSessionHelper.getTimelineObjectAbSessionId> = jest.fn()
 
-	abSessionHelper.getPieceABSessionId = mockGetPieceSessionId
-	abSessionHelper.getTimelineObjectAbSessionId = mockGetObjectSessionId
+	abSessionHelper.getPieceABSession = (...args) => ({ sessionId: mockGetPieceSessionId(...args), reason: 'new' })
+	abSessionHelper.getTimelineObjectAbSession = (...args) => {
+		const sessionId = mockGetObjectSessionId(...args)
+		return sessionId ? { sessionId, reason: 'new' } : undefined
+	}
 
 	beforeEach(() => {
 		mockGetPieceSessionId.mockReset().mockImplementation(() => {
