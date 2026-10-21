@@ -17,12 +17,12 @@ import { type TimelineContentObject, transformTimeline } from '@sofie-automation
 import { useCurrentTime } from '../../lib/lib.js'
 import { useTranslation } from 'react-i18next'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import Classnames from 'classnames'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { StudioTimeline } from './collections'
+import { FilterInput, type FilterInputValue } from './FilterInput.js'
 
 export function TimelineView(): JSX.Element {
 	const { t } = useTranslation()
@@ -117,47 +117,6 @@ function ComponentTimelineSimulate() {
 				</div>
 			</div>
 		</div>
-	)
-}
-
-type FilterInputValue = RegExp | string | undefined
-interface FilterInputProps {
-	filterChanged: (val: FilterInputValue) => void
-}
-function FilterInput({ filterChanged }: Readonly<FilterInputProps>) {
-	const [filterText, setFilterText] = useState<string>('')
-	const changeFilter = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		setFilterText(e.target.value)
-	}, [])
-	const [isError, setIsError] = useState(false)
-
-	useEffect(() => {
-		if (!filterText || typeof filterText !== 'string') {
-			filterChanged(undefined)
-			setIsError(false)
-		} else if (RegExp(/^\/.+\/$/).exec(filterText)) {
-			try {
-				filterChanged(new RegExp(filterText.substr(1, filterText.length - 2)))
-				setIsError(false)
-			} catch (_e) {
-				setIsError(true)
-			}
-		} else {
-			filterChanged(filterText)
-			setIsError(false)
-		}
-	}, [filterText])
-
-	return (
-		<Form.Control
-			type="text"
-			value={filterText}
-			onChange={changeFilter}
-			placeholder="Text or /RegEx/"
-			className={Classnames({
-				'highlight-is-error': isError,
-			})}
-		/>
 	)
 }
 
