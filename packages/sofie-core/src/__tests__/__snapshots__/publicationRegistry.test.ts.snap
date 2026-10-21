@@ -2,6 +2,7 @@
 
 exports[`PublicationRegistry the full set of registered publication names is stable (drift guard) 1`] = `
 [
+  "abPlaybackDebugForStudio",
   "blueprints",
   "bucketAdLibActions",
   "bucketAdLibPieces",
