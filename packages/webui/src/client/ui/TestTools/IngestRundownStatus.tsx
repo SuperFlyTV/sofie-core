@@ -64,7 +64,7 @@ function StatusesForRundown({ rundown }: { rundown: IngestRundownStatus }): JSX.
 
 				<p>Status: {rundown.active}</p>
 
-				<table className="testtools-timelinetable">
+				<table className="testtools-datatable">
 					<tbody>
 						<tr>
 							<th>Segment Id</th>

@@ -1,4 +1,7 @@
 .testtools-datatable {
+	// Never be wider than the page, instead wrap the content of the cells
+	max-width: 100%;
+
 	& > tbody > tr {
 		border-bottom: 1px solid #000;
 
@@ -8,10 +11,14 @@
 
 		& > td {
 			padding: 0 5px;
+			// 'anywhere' (unlike 'break-word') lets long ids shrink the column below the length of the id
+			overflow-wrap: anywhere;
 
 			> pre {
 				margin: 0;
 				tab-size: 4;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
 			}
 		}
 
