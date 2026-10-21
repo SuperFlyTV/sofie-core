@@ -234,13 +234,19 @@ function AbPlaybackSummary({ debug, generated }: Readonly<{ debug: AbPlaybackDeb
 				</div>
 			</dl>
 
+			<h3 className="my-3">{t('Tracked sessions')}</h3>
+			<p>
+				{t(
+					'The sessions remembered between timeline generations, which let a piece keep the same session (and player) each time the timeline is regenerated. Previous is what was saved by the last generation and used as the input to this one. Current is what this generation saved for the next one; sessions which are no longer referenced are dropped.'
+				)}
+			</p>
 			<Row>
 				<Col xs={12} lg={6}>
-					<h3 className="my-3">{t('Tracked sessions (before)')}</h3>
+					<h4 className="my-3">{t('Previous')}</h4>
 					<TrackedSessionsList sessions={debug.previousTrackedSessions} />
 				</Col>
 				<Col xs={12} lg={6}>
-					<h3 className="my-3">{t('Tracked sessions (after)')}</h3>
+					<h4 className="my-3">{t('Current')}</h4>
 					<TrackedSessionsList sessions={debug.trackedSessions} />
 				</Col>
 			</Row>
