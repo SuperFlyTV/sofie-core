@@ -35,6 +35,7 @@ import {
 	TimelineCompleteGenerationVersions,
 	TimelineObjGeneric,
 } from '@sofie-automation/corelib/dist/dataModel/Timeline'
+import type { AbPlaybackDebugInfo } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 import _ from 'underscore'
 import { unprotectString } from '@sofie-automation/corelib/dist/protectedString'
 import { PlaylistLock } from '../../../jobs/lock.js'
@@ -954,7 +955,8 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 	setTimeline(
 		timelineObjs: TimelineObjGeneric[],
 		generationVersions: TimelineCompleteGenerationVersions,
-		regenerateTimelineToken: string | undefined
+		regenerateTimelineToken: string | undefined,
+		abPlaybackDebug: AbPlaybackDebugInfo | undefined
 	): ReadonlyDeep<TimelineComplete> {
 		this.timelineImpl = {
 			_id: this.context.studioId,
@@ -963,6 +965,7 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 			timelineBlob: serializeTimelineBlob(timelineObjs),
 			generationVersions: generationVersions,
 			regenerateTimelineToken: regenerateTimelineToken,
+			abPlaybackDebug: abPlaybackDebug,
 		}
 		this.#timelineHasChanged = true
 
@@ -1053,6 +1056,7 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 				objs: timelineObjs,
 				timingContext: timingInfo,
 				regenerateTimelineToken,
+				abPlaybackDebug,
 			} = this.playlist.activationId
 				? await getTimelineRundown(this.context, this)
 				: await getStudioTimeline(this.context, this)
@@ -1067,7 +1071,12 @@ export class PlayoutModelImpl extends PlayoutModelReadonlyImpl implements Playou
 				logAnyRemainingNowTimes(this.context, timelineObjs)
 			}
 
-			const timelineHash = this.setTimeline(timelineObjs, versions, regenerateTimelineToken).timelineHash
+			const timelineHash = this.setTimeline(
+				timelineObjs,
+				versions,
+				regenerateTimelineToken,
+				abPlaybackDebug
+			).timelineHash
 			logger.verbose(`Timeline regeneration done, hash: "${timelineHash}"`)
 		} catch (err) {
 			logger.error(`Error regenerating timeline: ${stringifyError(err)}`)

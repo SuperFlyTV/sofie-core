@@ -97,7 +97,7 @@ interface RoutedTimelineArgs {
 }
 
 interface RoutedTimelineState {
-	timeline: TimelineComplete | undefined
+	timeline: ReadonlyDeep<TimelineComplete> | undefined
 
 	// invalidateStudio: boolean
 	studio: StudioLight | undefined
@@ -111,7 +111,7 @@ interface RoutedTimelineState {
 interface RoutedTimelineUpdateProps {
 	invalidateStudio?: boolean
 
-	timeline?: TimelineComplete | null
+	timeline?: ReadonlyDeep<TimelineComplete> | null
 }
 
 async function setupTimelinePublicationObservers(

@@ -153,7 +153,8 @@ export class JobContextImpl extends StudioCacheContextImpl implements JobContext
 
 	hackPublishTimelineToFastTrack(newTimeline: TimelineComplete): void {
 		if (this.fastTrackTimeline) {
-			this.fastTrackTimeline(newTimeline).catch((e) => {
+			// The ab playback debug is only used by the TestTools, which read it from the database, so avoid the cost of sending it here
+			this.fastTrackTimeline({ ...newTimeline, abPlaybackDebug: undefined }).catch((e) => {
 				logger.error(`Failed to publish timeline to fast track: ${stringifyError(e)}`)
 			})
 		}

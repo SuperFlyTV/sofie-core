@@ -6,6 +6,7 @@ import {
 } from '@sofie-automation/shared-lib/dist/core/model/Timeline'
 import { SetRequired } from 'type-fest'
 import { PartInstanceId, PieceInstanceInfiniteId, BlueprintId, StudioId } from './Ids.js'
+import type { AbPlaybackDebugInfo } from './AbPlaybackDebug.js'
 
 export {
 	deserializeTimelineBlob,
@@ -125,4 +126,10 @@ export interface TimelineComplete {
 	 * It uses this token to verify that the regeneration request is valid
 	 */
 	regenerateTimelineToken: string | undefined
+
+	/**
+	 * Debug information about the AB playback resolving that was performed when generating this timeline
+	 * This is intended for use by the TestTools only, and is not sent to the playout-gateway
+	 */
+	abPlaybackDebug: AbPlaybackDebugInfo | undefined
 }

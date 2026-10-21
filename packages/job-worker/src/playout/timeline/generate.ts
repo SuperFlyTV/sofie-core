@@ -46,6 +46,7 @@ import { PersistentPlayoutStateStore } from '../../blueprints/context/services/P
 import { PlayoutChangedType } from '@sofie-automation/shared-lib/dist/peripheralDevice/peripheralDeviceAPI'
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { resolvePartInstanceForBranding, resolvePieceInstancesForBranding } from '../branding.js'
+import type { AbPlaybackDebugInfo } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 
 const DEFAULT_ABSOLUTE_PIECE_PREPARE_TIME = 30000
 
@@ -78,6 +79,7 @@ export async function getStudioTimeline(
 	versions: TimelineCompleteGenerationVersions
 	timingContext: undefined
 	regenerateTimelineToken: undefined
+	abPlaybackDebug: undefined
 }> {
 	const studio = context.studio
 	let baselineObjects: TimelineObjRundown[] = []
@@ -122,6 +124,7 @@ export async function getStudioTimeline(
 		versions,
 		timingContext: undefined,
 		regenerateTimelineToken: undefined,
+		abPlaybackDebug: undefined,
 	}
 }
 
@@ -294,6 +297,7 @@ export async function getTimelineRundown(
 	versions: TimelineCompleteGenerationVersions
 	timingContext: RundownTimelineTimingContext | undefined
 	regenerateTimelineToken: string | undefined
+	abPlaybackDebug: AbPlaybackDebugInfo | undefined
 }> {
 	const span = context.startSpan('getTimelineRundown')
 	try {
@@ -377,6 +381,8 @@ export async function getTimelineRundown(
 			const regenerateTimelineObj = createRegenerateTimelineObj(playoutModel.playlistId, partInstancesInfo)
 			if (regenerateTimelineObj) timelineObjs.push(regenerateTimelineObj.obj)
 
+			let abPlaybackDebug: AbPlaybackDebugInfo | undefined
+
 			const blueprint = await context.getShowStyleBlueprint(showStyle._id)
 			timelineVersions = generateTimelineVersions(context.studio, showStyle.blueprintId, blueprint.blueprintHash)
 
@@ -409,6 +415,7 @@ export async function getTimelineRundown(
 						resolvedPieces,
 						timelineObjs
 					)
+					abPlaybackDebug = newAbSessionsResult.debug
 
 					// Store the new notes in the model
 					const notificationCategory = 'abPlayback'
@@ -448,13 +455,13 @@ export async function getTimelineRundown(
 						blueprintPersistentState.saveToModel(playoutModel)
 					}
 
-					playoutModel.setAbResolvingState(
-						newAbSessionsResult.assignments,
-						blueprintContext.abSessionsHelper.knownSessions
-					)
+					const knownSessions = blueprintContext.abSessionsHelper.knownSessions
+					playoutModel.setAbResolvingState(newAbSessionsResult.assignments, knownSessions)
+					if (abPlaybackDebug) abPlaybackDebug.trackedSessions = clone(knownSessions)
 				} catch (err) {
 					// TODO - this may not be sufficient?
 					logger.error(`Error in showStyleBlueprint.onTimelineGenerate: ${stringifyError(err)}`)
+					if (abPlaybackDebug) abPlaybackDebug.error = stringifyError(err)
 				}
 			}
 
@@ -476,6 +483,7 @@ export async function getTimelineRundown(
 				versions: timelineVersions ?? generateTimelineVersions(context.studio, undefined, '-'),
 				timingContext: rundownTimelineResult.timingContext,
 				regenerateTimelineToken: regenerateTimelineObj?.token,
+				abPlaybackDebug,
 			}
 		} else {
 			if (span) span.end()
@@ -485,6 +493,7 @@ export async function getTimelineRundown(
 				versions: generateTimelineVersions(context.studio, undefined, '-'),
 				timingContext: undefined,
 				regenerateTimelineToken: undefined,
+				abPlaybackDebug: undefined,
 			}
 		}
 	} catch (e) {
@@ -495,6 +504,7 @@ export async function getTimelineRundown(
 			versions: generateTimelineVersions(context.studio, undefined, '-'),
 			timingContext: undefined,
 			regenerateTimelineToken: undefined,
+			abPlaybackDebug: undefined,
 		}
 	}
 }

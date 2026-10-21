@@ -205,7 +205,8 @@ function timelineTriggerTimeInner(
 			const timelineHash = studioPlayoutModel.setTimeline(
 				timelineObjs,
 				timeline.generationVersions,
-				timeline.regenerateTimelineToken
+				timeline.regenerateTimelineToken,
+				timeline.abPlaybackDebug
 			).timelineHash
 
 			logger.verbose(`timelineTriggerTime: Updated Timeline, hash: "${timelineHash}"`)

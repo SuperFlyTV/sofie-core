@@ -7,6 +7,7 @@ import {
 	TimelineCompleteGenerationVersions,
 	TimelineObjGeneric,
 } from '@sofie-automation/corelib/dist/dataModel/Timeline'
+import type { AbPlaybackDebugInfo } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 import { JobContext } from '../../jobs/index.js'
 import { ReadonlyDeep } from 'type-fest'
 import { getRandomId } from '@sofie-automation/corelib/dist/lib'
@@ -100,7 +101,8 @@ export class StudioPlayoutModelImpl implements StudioPlayoutModel {
 	setTimeline(
 		timelineObjs: TimelineObjGeneric[],
 		generationVersions: TimelineCompleteGenerationVersions,
-		regenerateTimelineToken: string | undefined
+		regenerateTimelineToken: string | undefined,
+		abPlaybackDebug: AbPlaybackDebugInfo | undefined
 	): ReadonlyDeep<TimelineComplete> {
 		this.#timeline = {
 			_id: this.context.studioId,
@@ -109,6 +111,7 @@ export class StudioPlayoutModelImpl implements StudioPlayoutModel {
 			timelineBlob: serializeTimelineBlob(timelineObjs),
 			generationVersions: generationVersions,
 			regenerateTimelineToken: regenerateTimelineToken,
+			abPlaybackDebug: abPlaybackDebug,
 		}
 		this.#timelineHasChanged = true
 
@@ -144,7 +147,7 @@ export class StudioPlayoutModelImpl implements StudioPlayoutModel {
 				logAnyRemainingNowTimes(this.context, timelineObjs)
 			}
 
-			const timelineHash = this.setTimeline(timelineObjs, versions, undefined).timelineHash
+			const timelineHash = this.setTimeline(timelineObjs, versions, undefined, undefined).timelineHash
 			logger.verbose(`Studio timeline regeneration done, hash: "${timelineHash}"`)
 		} catch (err) {
 			logger.error(`Error regenerating studio timeline: ${stringifyError(err)}`)

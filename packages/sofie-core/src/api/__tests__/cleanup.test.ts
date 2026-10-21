@@ -415,6 +415,7 @@ async function setDefaultDatatoDB(env: DefaultEnvironment, now: number) {
 		timelineBlob: '' as any,
 		timelineHash: '' as any,
 		regenerateTimelineToken: undefined,
+		abPlaybackDebug: undefined,
 	})
 	await TimelineDatastore.mutableCollection.insertAsync({
 		_id: getRandomId(),

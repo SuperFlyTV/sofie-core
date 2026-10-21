@@ -6,6 +6,7 @@ import type {
 	TimelineCompleteGenerationVersions,
 	TimelineObjGeneric,
 } from '@sofie-automation/corelib/dist/dataModel/Timeline'
+import type { AbPlaybackDebugInfo } from '@sofie-automation/corelib/dist/dataModel/AbPlaybackDebug'
 import type { BaseModel } from '../../modelBase.js'
 import type { ReadonlyDeep } from 'type-fest'
 import type { ExpectedPlayoutItemStudio } from '@sofie-automation/corelib/dist/dataModel/ExpectedPlayoutItem'
@@ -46,11 +47,14 @@ export interface StudioPlayoutModelBase extends StudioPlayoutModelBaseReadonly {
 	 * Update the Timeline for the current Studio
 	 * @param timelineObjs Timeline objects to be run in the Studio
 	 * @param generationVersions Details about the versions where these objects were generated
+	 * @param regenerateTimelineToken Token for the regeneration trigger object on the timeline, if any
+	 * @param abPlaybackDebug Debug information about the AB playback resolving, for use by the TestTools
 	 */
 	setTimeline(
 		timelineObjs: TimelineObjGeneric[],
 		generationVersions: TimelineCompleteGenerationVersions,
-		regenerateTimelineToken: string | undefined
+		regenerateTimelineToken: string | undefined,
+		abPlaybackDebug: AbPlaybackDebugInfo | undefined
 	): ReadonlyDeep<TimelineComplete>
 }
 
