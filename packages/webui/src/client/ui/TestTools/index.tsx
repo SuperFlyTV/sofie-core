@@ -11,6 +11,7 @@ import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import { IngestRundownStatusSelect, IngestRundownStatusView } from './IngestRundownStatus'
 import Container from 'react-bootstrap/esm/Container'
+import { AbPlaybackView } from './AbPlayback.js'
 
 function StatusMenu() {
 	const { t } = useTranslation()
@@ -37,6 +38,13 @@ function StatusMenu() {
 				to={'/testTools/mappings'}
 			>
 				<h3>{t('Mappings')}</h3>
+			</NavLink>
+			<NavLink
+				activeClassName="selectable-selected"
+				className="testTools-menu__testTools-menu-item selectable clickable"
+				to={'/testTools/abPlayback'}
+			>
+				<h3>{t('AB Playback')}</h3>
 			</NavLink>
 			<NavLink
 				activeClassName="selectable-selected"
@@ -74,6 +82,7 @@ export default function Status(): JSX.Element {
 							<Route path="/testTools/timeline" component={TimelineView} />
 							<Route path="/testTools/mappings" component={MappingsView} />
 							<Route path="/testTools/timelinedatastore" component={TimelineDatastoreView} />
+							<Route path="/testTools/abPlayback" component={AbPlaybackView} />
 							<Route path="/testTools/devicetriggers/:peripheralDeviceId" component={DeviceTriggersView} />
 							<Route path="/testTools/devicetriggers" component={DeviceTriggersDeviceSelect} />
 							<Route path="/testTools/ingestRundownStatus/:peripheralDeviceId" component={IngestRundownStatusView} />

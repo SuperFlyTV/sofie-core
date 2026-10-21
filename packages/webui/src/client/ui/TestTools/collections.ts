@@ -1,5 +1,10 @@
 import { PeripheralDevicePubSubCollectionsNames } from '@sofie-automation/shared-lib/dist/pubsub/peripheralDevice'
-import { createSyncPeripheralDeviceCustomPublicationMongoCollection } from '../../collections/lib'
+import {
+	createSyncPeripheralDeviceCustomPublicationMongoCollection,
+	createSyncReadOnlyMongoCollection,
+} from '../../collections/lib'
+import { CollectionName } from '@sofie-automation/corelib/dist/dataModel/Collections'
+import type { TimelineComplete } from '@sofie-automation/corelib/dist/dataModel/Timeline'
 
 /**
  * These collections are not public and are for the use of the TestTools only.
@@ -28,3 +33,8 @@ export const StudioTimeline = createSyncPeripheralDeviceCustomPublicationMongoCo
 export const TimelineDatastore = createSyncPeripheralDeviceCustomPublicationMongoCollection(
 	PeripheralDevicePubSubCollectionsNames.timelineDatastore
 )
+
+/**
+ * The unrouted timeline, with the AB playback debug information
+ */
+export const AbPlaybackTimeline = createSyncReadOnlyMongoCollection<TimelineComplete>(CollectionName.Timelines)

@@ -43,3 +43,521 @@
 .highlight-is-error {
 	border: 1px #f00 solid;
 }
+
+// AB Playback
+// Status colours: kept/moved/new use the first three categorical slots, failures use the reserved status colours,
+// lookahead uses a texture rather than a hue
+.testtools-ab-status {
+	&--kept {
+		--ab-status-color: #2a78d6;
+	}
+	&--moved {
+		--ab-status-color: #eb6834;
+	}
+	&--new {
+		--ab-status-color: #1baf7a;
+	}
+	&--lookahead,
+	&--lookaheadUnassigned {
+		--ab-status-color: #8a8984;
+		background-image: repeating-linear-gradient(
+			45deg,
+			transparent 0 4px,
+			color-mix(in srgb, var(--ab-status-color) 30%, transparent) 4px 6px
+		);
+	}
+	&--failed {
+		--ab-status-color: #d03b3b;
+	}
+	&--failedOptional {
+		--ab-status-color: #fab219;
+	}
+}
+
+.testtools-ab-badge {
+	display: inline-block;
+	padding: 0 6px;
+	border-radius: 4px;
+	border-left: 4px solid var(--ab-status-color);
+	background-color: color-mix(in srgb, var(--ab-status-color) 18%, #fff);
+	// The lookahead texture is for the chart, it makes the text harder to read here
+	background-image: none;
+	color: #0b0b0b;
+}
+
+.testtools-ab-error {
+	margin: 1em 0;
+	padding: 0.5em 1em;
+	border: 1px solid #d03b3b;
+	border-radius: 4px;
+	background-color: #fbeaea;
+}
+
+.testtools-ab-warning {
+	color: #a12a2a;
+}
+
+// Lists of rows, aligned into columns by a grid. Each list type defines its own columns
+.testtools-ab-list {
+	--ab-list-columns: minmax(0, 1fr);
+	--ab-list-gap: 16px;
+
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border: 1px solid #dedede;
+	border-radius: 6px;
+	overflow: hidden;
+
+	& > li {
+		display: grid;
+		grid-template-columns: var(--ab-list-columns);
+		column-gap: var(--ab-list-gap);
+		align-items: start;
+		padding: 8px 12px;
+		border-top: 1px solid #ecebe8;
+		overflow-wrap: anywhere;
+
+		&:nth-child(even):not(.testtools-ab-list__header) {
+			background-color: #f9f9f7;
+		}
+
+		// Selected rows are marked with a blue edge. This must beat the zebra striping above
+		&.testtools-ab-row--selected,
+		&.testtools-ab-row--selected:nth-child(even) {
+			background-color: #edf4fd;
+			box-shadow: inset 3px 0 0 #2a78d6;
+		}
+
+		// Nested content (sub-lists, details) spans the full row, indented to line up with the main column
+		& > ul,
+		& > details {
+			grid-column: 1 / -1;
+			margin-left: var(--ab-list-indent, 0);
+		}
+	}
+
+	& > li.testtools-ab-list__header {
+		border-top: none;
+		padding-top: 6px;
+		padding-bottom: 6px;
+		background-color: #f0efec;
+		color: #52514e;
+		font-size: 0.75rem;
+		font-weight: bold;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+
+		& > span:last-child {
+			text-align: right;
+		}
+	}
+
+	&--sessions {
+		--ab-list-columns: 10rem minmax(0, 1fr) 11rem 6rem;
+		--ab-list-indent: calc(10rem + var(--ab-list-gap));
+
+		& > li.testtools-ab-list__header > span:nth-child(3) {
+			text-align: right;
+		}
+	}
+
+	&--decisions {
+		--ab-list-columns: 2rem 10rem minmax(0, 1fr) 4rem;
+		--ab-list-indent: calc(12rem + 2 * var(--ab-list-gap));
+
+		& > li.testtools-ab-list__header > span:first-child {
+			text-align: right;
+		}
+	}
+
+	&--objects {
+		--ab-list-columns: 9rem minmax(0, 1fr) 4rem;
+	}
+
+	&--tracked {
+		--ab-list-columns: minmax(0, 1fr) auto;
+	}
+}
+
+.testtools-ab-sublist {
+	--ab-list-columns: minmax(0, 1fr);
+
+	list-style: none;
+	margin: 8px 0 2px;
+	padding: 0 0 0 12px;
+	border-left: 2px solid #dedede;
+	font-size: 0.85rem;
+
+	& > li {
+		display: grid;
+		grid-template-columns: var(--ab-list-columns);
+		column-gap: 16px;
+		align-items: start;
+		padding: 2px 0;
+	}
+
+	& > li.testtools-ab-list__header {
+		color: #8a8984;
+		font-size: 0.7rem;
+		font-weight: bold;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	&--pieces {
+		--ab-list-columns: minmax(0, 1fr) 11rem auto;
+	}
+
+	&--availability {
+		--ab-list-columns: 4rem repeat(3, minmax(0, 1fr));
+	}
+}
+
+.testtools-ab-cell {
+	min-width: 0;
+
+	&--end {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 4px;
+		text-align: right;
+	}
+
+	&--time {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+		color: #33322f;
+	}
+
+	&--index {
+		text-align: right;
+		color: #8a8984;
+		font-variant-numeric: tabular-nums;
+	}
+
+	&--stack {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+}
+
+// On narrow screens, stack the columns instead
+@media (max-width: 767px) {
+	.testtools-ab-list > li,
+	.testtools-ab-sublist > li {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: 4px;
+
+		& > ul,
+		& > details {
+			margin-left: 0;
+		}
+	}
+
+	.testtools-ab-list > li.testtools-ab-list__header,
+	.testtools-ab-sublist > li.testtools-ab-list__header {
+		display: none;
+	}
+
+	.testtools-ab-cell--end,
+	.testtools-ab-cell--time,
+	.testtools-ab-cell--index {
+		justify-content: flex-start;
+		text-align: left;
+	}
+}
+
+.testtools-ab-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	gap: 12px;
+	margin: 0 0 1rem;
+
+	& > div {
+		padding: 8px 12px;
+		border: 1px solid #dedede;
+		border-radius: 6px;
+		background-color: #fcfcfb;
+	}
+
+	dt {
+		color: #8a8984;
+		font-size: 0.75rem;
+		font-weight: bold;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	dd {
+		margin: 2px 0 0;
+		font-variant-numeric: tabular-nums;
+		overflow-wrap: anywhere;
+	}
+}
+
+// A single line of values, which wraps onto multiple lines as needed
+.testtools-ab-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 12px;
+
+	&--meta {
+		margin-top: 2px;
+		font-size: 0.85em;
+		color: #52514e;
+	}
+}
+
+.testtools-ab-kv {
+	&__label {
+		color: #8a8984;
+		margin-right: 4px;
+
+		&::after {
+			content: ':';
+		}
+	}
+}
+
+.testtools-ab-tag {
+	display: inline-block;
+	padding: 0 7px;
+	border: 1px solid #c3c2b7;
+	border-radius: 10px;
+	background-color: #f0efec;
+	color: #0b0b0b;
+	font-size: 0.8rem;
+	line-height: 1.5;
+	white-space: nowrap;
+
+	&--good {
+		border-color: #0ca30c;
+		background-color: #e3f4e3;
+	}
+
+	&--warning {
+		border-color: #fab219;
+		background-color: #fef3d9;
+	}
+
+	&--critical {
+		border-color: #d03b3b;
+		background-color: #fbeaea;
+	}
+}
+
+.testtools-ab-player {
+	display: inline-block;
+	min-width: 1.8em;
+	padding: 0 6px;
+	border-radius: 4px;
+	background-color: #33322f;
+	color: #fff;
+	font-weight: bold;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+
+	&--none {
+		background-color: transparent;
+		border: 1px dashed #8a8984;
+		color: #52514e;
+		font-weight: normal;
+	}
+}
+
+.testtools-ab-object-id {
+	color: #0b0b0b;
+	font-weight: bold;
+}
+
+.testtools-ab-details {
+	margin-top: 4px;
+	font-size: 0.85em;
+
+	& > summary {
+		color: #52514e;
+		cursor: pointer;
+	}
+}
+
+.testtools-ab-session-link {
+	border: none;
+	background: none;
+	padding: 0;
+	color: #1c5cab;
+	text-decoration: underline dotted;
+	font-family: monospace;
+
+	&:hover {
+		text-decoration-style: solid;
+	}
+
+	// Only show the focus ring for keyboard navigation
+	&:focus:not(:focus-visible) {
+		outline: none;
+	}
+
+	&--selected {
+		font-weight: bold;
+		text-decoration-style: solid;
+	}
+}
+
+.testtools-ab-lanes {
+	margin: 1em 0;
+	font-size: 0.85em;
+	color: #0b0b0b;
+	background-color: #fcfcfb;
+	border: 1px solid #dedede;
+	border-radius: 4px;
+	padding: 8px;
+
+	&__legend {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 16px;
+		margin-bottom: 8px;
+		color: #52514e;
+	}
+
+	&__legend-item {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	&__swatch {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border-radius: 3px;
+		border: 2px solid var(--ab-status-color);
+		background-color: color-mix(in srgb, var(--ab-status-color) 25%, #fff);
+
+		&--gap {
+			border: none;
+			background: repeating-linear-gradient(135deg, #e3e2de 0 3px, transparent 3px 6px);
+		}
+	}
+
+	&__row {
+		display: flex;
+		border-top: 1px solid #ecebe8;
+
+		&--axis {
+			border-top: none;
+			height: 20px;
+			color: #52514e;
+		}
+
+		&--disabled {
+			opacity: 0.45;
+		}
+	}
+
+	&__label {
+		flex: 0 0 120px;
+		padding: 4px 8px 4px 0;
+		font-weight: bold;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	&__track {
+		position: relative;
+		flex: 1 1 auto;
+		min-width: 0;
+		min-height: 20px;
+	}
+
+	&__tick {
+		position: absolute;
+		top: 0;
+		transform: translateX(-50%);
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+
+		&--lookahead {
+			transform: none;
+			font-style: italic;
+		}
+	}
+
+	&__marker {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		border-left: 2px solid #0b0b0b;
+		z-index: 2;
+		pointer-events: none;
+
+		&--safe {
+			border-left: 2px dashed #52514e;
+		}
+	}
+
+	&__divider {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		border-left: 1px dotted #b5b4b0;
+	}
+
+	&__gap {
+		position: absolute;
+		height: 26px;
+		background: repeating-linear-gradient(135deg, #e3e2de 0 3px, transparent 3px 6px);
+		border-radius: 4px 0 0 4px;
+	}
+
+	&__bar {
+		position: absolute;
+		height: 26px;
+		min-width: 4px;
+		padding: 0 6px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		text-align: left;
+		color: #0b0b0b;
+		background-color: color-mix(in srgb, var(--ab-status-color) 22%, #fff);
+		border: 1px solid var(--ab-status-color);
+		border-left-width: 4px;
+		border-radius: 4px;
+		box-shadow: 0 0 0 2px #fcfcfb;
+		z-index: 1;
+		cursor: pointer;
+
+		&:hover {
+			background-color: color-mix(in srgb, var(--ab-status-color) 35%, #fff);
+		}
+
+		&--open {
+			border-right-style: dashed;
+			border-radius: 4px 0 0 4px;
+			mask-image: linear-gradient(to right, #000 85%, rgba(0, 0, 0, 0.35));
+		}
+
+		&--selected {
+			outline: 2px solid #0b0b0b;
+			outline-offset: 1px;
+			z-index: 3;
+		}
+
+		&.testtools-ab-status--lookaheadUnassigned {
+			border-style: dashed;
+		}
+	}
+
+	&__footnote {
+		margin-top: 6px;
+		color: #52514e;
+	}
+}
