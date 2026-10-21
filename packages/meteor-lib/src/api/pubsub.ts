@@ -77,6 +77,10 @@ export enum MeteorPubSub {
 	 * Fetch the simplified timeline for a given studio
 	 */
 	timelineForStudio = 'timelineForStudio',
+	/**
+	 * Fetch the unrouted timeline and AB playback debug information for a given studio
+	 */
+	abPlaybackDebugForStudio = 'abPlaybackDebugForStudio',
 
 	/**
 	 * Ingest status of rundowns for a PeripheralDevice
@@ -157,6 +161,7 @@ export interface MeteorPubSubTypes {
 
 	[MeteorPubSub.mappingsForStudio]: () => PeripheralDevicePubSubCollectionsNames.studioMappings
 	[MeteorPubSub.timelineForStudio]: () => PeripheralDevicePubSubCollectionsNames.studioTimeline
+	[MeteorPubSub.abPlaybackDebugForStudio]: () => CollectionName.Timelines
 
 	[MeteorPubSub.ingestDeviceRundownStatusTestTool]: (
 		peripheralDeviceId: PeripheralDeviceId

@@ -90,6 +90,26 @@ export function registerTimelinePublications(registry: PublicationRegistry): voi
 			await createObserverForTimelinePublication(pub, studioIds[0])
 		}
 	)
+
+	registry.publish(MeteorPubSub.abPlaybackDebugForStudio, async (context) => {
+		assertConnectionHasOneOfPermissions(context.connection, 'testing')
+
+		// Find the first studioId. There should only be one, but we don't know what it will be
+		const studioIds = await fetchStudioIds({})
+		if (studioIds.length < 1) throw new Error('No studios found')
+
+		return Timeline.findWithCursor(
+			{ _id: studioIds[0] },
+			{
+				projection: {
+					timelineHash: 1,
+					generated: 1,
+					timelineBlob: 1,
+					abPlaybackDebug: 1,
+				},
+			}
+		)
+	})
 }
 
 interface RoutedTimelineArgs {
