@@ -287,11 +287,23 @@ function resolveContinuedInfinites(params: PieceInstancesForPartParams): {
 
 	const allLayers = Array.from(layers.values())
 	return {
-		planned: allLayers.flatMap((l) => l.planned).filter((p) => isPlannedPieceInScope(params, p)),
+		planned: allLayers
+			.flatMap((l) => l.planned)
+			.filter((p) =>
+				isInfiniteInScope(params, PieceLifespan.from(p.lifespan).scope, p.startSegmentId, p.startRundownId)
+			),
 		live: playing
 			? allLayers
 					.flatMap((l) => l.live)
-					.filter((p) => isPlayingPieceInScope(params, playing, PieceLifespan.from(p.piece.lifespan)))
+					// An infinite on air has been continued up to the playing Part, so only the step from there to the target matters
+					.filter((p) =>
+						isInfiniteInScope(
+							params,
+							PieceLifespan.from(p.piece.lifespan).scope,
+							playing.partInstance.segmentId,
+							playing.partInstance.rundownId
+						)
+					)
 			: [],
 	}
 }
@@ -373,36 +385,22 @@ function compareStarts(a: number | 'now', b: number | 'now'): number {
 	return a - b
 }
 
-function isPlannedPieceInScope(params: PieceInstancesForPartParams, piece: ReadonlyDeep<Piece>): boolean {
-	switch (PieceLifespan.from(piece.lifespan).scope) {
-		case 'part':
-			return false
-		case 'segment':
-			return piece.startSegmentId === params.part.segmentId
-		case 'rundown':
-			return piece.startRundownId === params.part.rundownId
-		case 'showstyle':
-			return isShowStyleContinuous(params, piece.startRundownId)
-		case 'playlist':
-			return true
-	}
-}
-
-/** An infinite on air has been continued up to the playing Part, so only the step from there to the target matters */
-function isPlayingPieceInScope(
+/** Whether an infinite continuing from the given segment/rundown reaches the target Part */
+function isInfiniteInScope(
 	params: PieceInstancesForPartParams,
-	playing: PlayingPartInstance,
-	lifespan: PieceLifespan
+	scope: PieceLifespan['scope'],
+	fromSegmentId: SegmentId | null,
+	fromRundownId: RundownId
 ): boolean {
-	switch (lifespan.scope) {
+	switch (scope) {
 		case 'part':
 			return false
 		case 'segment':
-			return playing.partInstance.segmentId === params.part.segmentId
+			return fromSegmentId === params.part.segmentId
 		case 'rundown':
-			return playing.partInstance.rundownId === params.part.rundownId
+			return fromRundownId === params.part.rundownId
 		case 'showstyle':
-			return isShowStyleContinuous(params, playing.partInstance.rundownId)
+			return isShowStyleContinuous(params, fromRundownId)
 		case 'playlist':
 			return true
 	}
