@@ -8,8 +8,6 @@ import { ContentCache, pieceFieldSpecifier } from './reactiveContentCache'
 import { Pieces } from '../../collections'
 import { waitForAllObserversReady } from '../lib/lib'
 import type { LiveQueryHandleSync } from '../../lib/lib'
-import { LEGACY_PIECE_LIFESPAN_PRESETS } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 /**
  * The Pieces to fetch. These are two rather different queries, but they feed the same collection so that
@@ -48,20 +46,12 @@ function createPiecesSelector(args: ReadonlyDeep<UIPiecesArgs>): MongoQuery<Piec
 					{
 						startRundownId: args.thisRundownId,
 						startSegmentId: { $in: args.segmentIdsBefore as SegmentId[] },
-						lifespan: {
-							$in: [
-								LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
-								LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
-								LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
-							],
-						},
+						'lifespan.scope': { $in: ['rundown', 'showstyle', 'playlist'] },
 					},
 					// Previous rundown
 					{
 						startRundownId: { $in: args.rundownIdsBefore as RundownId[] },
-						lifespan: {
-							$in: [LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]],
-						},
+						'lifespan.scope': { $in: ['showstyle', 'playlist'] },
 					},
 				],
 			}

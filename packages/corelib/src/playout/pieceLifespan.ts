@@ -39,17 +39,17 @@ export const LEGACY_PIECE_LIFESPAN_PRESETS: Readonly<Record<LegacyPieceLifespan,
 		[LegacyPieceLifespan.OutOnSegmentEnd]: Object.freeze({
 			scope: 'segment',
 			presence: 'forward-scope',
-			inShadow: 'persist',
+			inShadow: 'legacy-persist',
 		}),
 		[LegacyPieceLifespan.OutOnRundownEnd]: Object.freeze({
 			scope: 'rundown',
 			presence: 'forward-scope',
-			inShadow: 'persist',
+			inShadow: 'legacy-persist',
 		}),
 		[LegacyPieceLifespan.OutOnShowStyleEnd]: Object.freeze({
 			scope: 'showstyle',
 			presence: 'forward-scope',
-			inShadow: 'persist',
+			inShadow: 'legacy-persist',
 		}),
 	})
 
@@ -101,7 +101,7 @@ export class PieceLifespan implements IPieceLifespan {
 		const { scope, presence, inShadow } = lifespan
 
 		const isChange = presence === 'follow-playhead' && inShadow === 'stop'
-		const isEnd = presence === 'forward-scope' && inShadow === 'persist'
+		const isEnd = presence === 'forward-scope' && (inShadow === 'persist' || inShadow === 'legacy-persist')
 
 		if (scope === 'part' && inShadow === 'stop') return LegacyPieceLifespan.WithinPart
 
@@ -138,7 +138,12 @@ export class PieceLifespan implements IPieceLifespan {
 
 	/** Returns true if the piece enters a shadow state and pauses on conflict */
 	get persistsInShadow(): boolean {
-		return this.inShadow === 'persist'
+		return this.inShadow === 'persist' || this.inShadow === 'legacy-persist'
+	}
+
+	/** Returns true if a newer piece of the same scope ends the piece for good, instead of only covering it */
+	get isEndedByNewerOfSameScope(): boolean {
+		return this.inShadow === 'legacy-persist'
 	}
 
 	/**

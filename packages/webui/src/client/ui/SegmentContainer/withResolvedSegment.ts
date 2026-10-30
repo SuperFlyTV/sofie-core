@@ -38,8 +38,6 @@ import type {
 import type { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js'
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import type { PieceUi } from '@sofie-automation/corelib/src/dataModel/Piece.js'
-import { LEGACY_PIECE_LIFESPAN_PRESETS } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 export interface SegmentUi extends SegmentExtended {
 	/** Output layers available in the installation used by this segment */
@@ -147,12 +145,8 @@ export function withResolvedSegment<T extends IResolvedSegmentProps, IState = {}
 					$exists: true,
 				},
 				'infinite.fromPreviousPart': false,
-				'piece.lifespan': {
-					$in: [
-						LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
-						LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
-						LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
-					],
+				'piece.lifespan.scope': {
+					$in: ['rundown', 'showstyle', 'playlist'],
 				},
 				reset: {
 					$ne: true,

@@ -181,13 +181,23 @@ function getContinuedPieceIds(params: PieceInstancesForPartParams): string[] {
 }
 
 const segmentStop: IPieceLifespan = { scope: 'segment', presence: 'forward-scope', inShadow: 'stop' }
-const segmentPersist = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
-const rundownPersist = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
-const showstylePersist = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+const segmentPersist: IPieceLifespan = { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }
+const rundownPersist: IPieceLifespan = { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }
+const showstylePersist: IPieceLifespan = { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }
 const playlistPersist: IPieceLifespan = { scope: 'playlist', presence: 'forward-scope', inShadow: 'persist' }
 const partOnly = DEFAULT_PIECE_LIFESPAN
 const segmentPlayhead = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange]
 const rundownPlayhead = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+/** The legacy onEnd presets, which are `legacy-persist` */
+const segmentLegacy = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+const rundownLegacy = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+const showstyleLegacy = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+
+/** Behaviour shared by `persist` and the `legacy-persist` legacy onEnd presets */
+const persistingLifespans = [
+	{ name: 'persist', segment: segmentPersist, rundown: rundownPersist, showstyle: showstylePersist },
+	{ name: 'legacy onEnd preset', segment: segmentLegacy, rundown: rundownLegacy, showstyle: showstyleLegacy },
+]
 
 describe('Infinites', () => {
 	describe('planned pieces', () => {
@@ -200,36 +210,101 @@ describe('Infinites', () => {
 			expect(getContinuedPieceIds(getParams('part2', [infinite, finite]))).toEqual([])
 		})
 
-		test('an infinite which persists in shadow resumes after a later piece', () => {
-			const infinite = createPiece('infinite', 'part0', 0, 'layer', segmentPersist)
-			const finite = createPiece('finite', 'part1', 0, 'layer', partOnly)
+		describe.each(persistingLifespans)('an infinite which persists in shadow ($name)', (lifespans) => {
+			test('resumes after a later piece', () => {
+				const infinite = createPiece('infinite', 'part0', 0, 'layer', lifespans.segment)
+				const finite = createPiece('finite', 'part1', 0, 'layer', partOnly)
 
-			expect(getContinuedPieceIds(getParams('part2', [infinite, finite]))).toEqual(['infinite'])
+				expect(getContinuedPieceIds(getParams('part2', [infinite, finite]))).toEqual(['infinite'])
+			})
+
+			test('is replaced by a later one of the same scope', () => {
+				const first = createPiece('first', 'part0', 0, 'layer', lifespans.segment)
+				const second = createPiece('second', 'part1', 0, 'layer', lifespans.segment)
+
+				expect(getContinuedPieceIds(getParams('part2', [first, second]))).toEqual(['second'])
+			})
+
+			test('is stacked with ones of different scopes, broadest first', () => {
+				const segment = createPiece('segment', 'part0', 0, 'layer', lifespans.segment)
+				const rundown = createPiece('rundown', 'part1', 0, 'layer', lifespans.rundown)
+
+				expect(getContinuedPieceIds(getParams('part2', [segment, rundown]))).toEqual(['rundown', 'segment'])
+				expect(getContinuedPieceIds(getParams('part3', [segment, rundown]))).toEqual(['rundown'])
+			})
+
+			test('ends at the boundary of its scope', () => {
+				const segment = createPiece('segment', 'part0', 0, 'segmentLayer', lifespans.segment)
+				const rundown = createPiece('rundown', 'part0', 0, 'rundownLayer', lifespans.rundown)
+				const showstyle = createPiece('showstyle', 'part0', 0, 'showstyleLayer', lifespans.showstyle)
+
+				const pieces = [segment, rundown, showstyle]
+
+				expect(getContinuedPieceIds(getParams('part1', pieces)).sort()).toEqual([
+					'rundown',
+					'segment',
+					'showstyle',
+				])
+				expect(getContinuedPieceIds(getParams('part3', pieces)).sort()).toEqual(['rundown', 'showstyle'])
+				expect(getContinuedPieceIds(getParams('part5', pieces))).toEqual(['showstyle'])
+				expect(getContinuedPieceIds(getParams('part6', pieces))).toEqual([])
+			})
 		})
 
-		test('an infinite which persists in shadow is replaced by a later one of the same scope', () => {
-			const first = createPiece('first', 'part0', 0, 'layer', segmentPersist)
-			const second = createPiece('second', 'part1', 0, 'layer', segmentPersist)
-
-			expect(getContinuedPieceIds(getParams('part2', [first, second]))).toEqual(['second'])
-		})
-
-		test('an infinite which persists in shadow is not replaced by a later one of the same scope with an end', () => {
+		test('a persist infinite is not replaced by a later one of the same scope with an end', () => {
 			const first = createPiece('first', 'part0', 0, 'layer', segmentPersist)
 			const second = {
 				...createPiece('second', 'part1', 0, 'layer', segmentPersist),
 				enable: { start: 0, duration: 1000 },
 			}
 
-			expect(getContinuedPieceIds(getParams('part2', [first, second]))).toEqual(['first', 'second'])
+			// The second one ends with its duration, so only the first one continues
+			expect(getContinuedPieceIds(getParams('part2', [first, second]))).toEqual(['first'])
 		})
 
-		test('infinites which persist in shadow with different scopes are stacked, broadest first', () => {
-			const segment = createPiece('segment', 'part0', 0, 'layer', segmentPersist)
-			const rundown = createPiece('rundown', 'part1', 0, 'layer', rundownPersist)
+		test('a legacy onEnd infinite is replaced by a later one of the same scope, even with an end', () => {
+			const first = createPiece('first', 'part0', 0, 'layer', segmentLegacy)
+			const second = {
+				...createPiece('second', 'part1', 0, 'layer', segmentLegacy),
+				enable: { start: 0, duration: 1000 },
+			}
 
-			expect(getContinuedPieceIds(getParams('part2', [segment, rundown]))).toEqual(['rundown', 'segment'])
-			expect(getContinuedPieceIds(getParams('part3', [segment, rundown]))).toEqual(['rundown'])
+			expect(getContinuedPieceIds(getParams('part2', [first, second]))).toEqual(['second'])
+		})
+
+		test('a persist infinite resumes after a later one of a narrower scope with an end', () => {
+			const infinite = createPiece('infinite', 'part0', 0, 'layer', rundownPersist)
+			const narrower = {
+				...createPiece('narrower', 'part1', 0, 'layer', segmentPersist),
+				enable: { start: 0, duration: 1000 },
+			}
+
+			expect(getContinuedPieceIds(getParams('part2', [infinite, narrower]))).toEqual(['infinite'])
+		})
+
+		test('a legacy onEnd infinite with an end covering a broader one continues past its end', () => {
+			const infinite = createPiece('infinite', 'part0', 0, 'layer', rundownLegacy)
+			const narrower = {
+				...createPiece('narrower', 'part1', 0, 'layer', segmentLegacy),
+				enable: { start: 0, duration: 1000 },
+			}
+
+			// The narrower one keeps covering the broader one until the end of its segment
+			expect(getContinuedPieceIds(getParams('part2', [infinite, narrower]))).toEqual(['infinite', 'narrower'])
+			expect(getContinuedPieceIds(getParams('part3', [infinite, narrower]))).toEqual(['infinite'])
+		})
+
+		test('a planned infinite with a duration does not continue, except a legacy onEnd preset', () => {
+			const timed = (id: string, lifespan: IPieceLifespan) => ({
+				...createPiece(id, 'part0', 0, id, lifespan),
+				enable: { start: 0, duration: 1000 },
+			})
+
+			expect(
+				getContinuedPieceIds(
+					getParams('part1', [timed('persist', segmentPersist), timed('legacy', segmentLegacy)])
+				)
+			).toEqual(['legacy'])
 		})
 
 		test('later pieces in the same part are applied in order of their start', () => {
@@ -247,15 +322,6 @@ describe('Infinites', () => {
 			})
 
 			expect(getContinuedPieceIds(getParams('part1', [piece]))).toEqual([])
-		})
-
-		test('an infinite ends at the boundary of its scope', () => {
-			const segment = createPiece('segment', 'part0', 0, 'segmentLayer', segmentPersist)
-			const rundown = createPiece('rundown', 'part0', 0, 'rundownLayer', rundownPersist)
-
-			expect(getContinuedPieceIds(getParams('part1', [segment, rundown]))).toEqual(['rundown', 'segment'])
-			expect(getContinuedPieceIds(getParams('part3', [segment, rundown]))).toEqual(['rundown'])
-			expect(getContinuedPieceIds(getParams('part5', [segment, rundown]))).toEqual([])
 		})
 
 		test('a showstyle scoped infinite ends when the showstyle changes, a playlist scoped one does not', () => {
