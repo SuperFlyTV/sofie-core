@@ -17,3 +17,22 @@ export enum LegacyPieceLifespan {
 	 * when the playhead leaves the Rundown into a new Rundown with a different ShowStyle */
 	OutOnShowStyleEnd = 'showstyle-end',
 }
+
+export type PieceLifespanScope = 'part' | 'segment' | 'rundown' | 'showstyle' | 'playlist'
+
+export type PieceLifespanPresence = 'follow-playhead' | 'forward-scope'
+
+export type PieceLifespanInShadow = 'persist' | 'stop'
+
+export interface IPieceLifespan {
+	/** The structural hierarchy boundary past which this piece naturally expires */
+	scope: PieceLifespanScope
+
+	/** How the piece establishes and propagates its presence across parts */
+	presence: PieceLifespanPresence
+
+	/** Behavior when occluded by a higher-priority piece on the same source layer */
+	inShadow: PieceLifespanInShadow
+}
+
+export type PieceLifespanInfo = LegacyPieceLifespan | IPieceLifespan

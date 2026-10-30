@@ -5,7 +5,7 @@ import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyle
 import { ReadonlyDeep } from 'type-fest'
 import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { getRandomId } from '@sofie-automation/corelib/dist/lib'
-import { IBlueprintPieceType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType } from '@sofie-automation/blueprints-integration'
 import {
 	PieceInstance,
 	PieceInstancePiece,
@@ -23,6 +23,7 @@ import {
 	getResolvedPiecesForPartInstancesOnTimeline,
 } from '../resolvedPieces.js'
 import { PlayoutPartInstanceModel } from '../model/PlayoutPartInstanceModel.js'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { SelectedPartInstanceTimelineInfo } from '../timeline/generate.js'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { setupPieceInstanceInfiniteProperties } from '../pieces.js'
@@ -81,7 +82,7 @@ describe('Resolved Pieces', () => {
 				pieceType: IBlueprintPieceType.Normal,
 				sourceLayerId,
 				outputLayerId: '',
-				lifespan: piecePartial?.lifespan ?? LegacyPieceLifespan.WithinPart,
+				lifespan: piecePartial?.lifespan ?? { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 				enable,
 				virtual: piecePartial?.virtual ?? false,
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
@@ -91,7 +92,7 @@ describe('Resolved Pieces', () => {
 			userDuration: instancePartial?.userDuration,
 		}
 
-		if (piece.piece.lifespan !== LegacyPieceLifespan.WithinPart) {
+		if (PieceLifespan.from(piece.piece.lifespan).scope !== 'part') {
 			setupPieceInstanceInfiniteProperties(piece)
 		}
 
@@ -179,12 +180,12 @@ describe('Resolved Pieces', () => {
 			const piece0 = createPieceInstance(
 				sourceLayerId,
 				{ start: 1000 },
-				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd }
+				{ lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' } }
 			)
 			const piece1 = createPieceInstance(
 				sourceLayerId,
 				{ start: 4000 },
-				{ lifespan: LegacyPieceLifespan.OutOnSegmentEnd }
+				{ lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' } }
 			)
 			const piece2 = createPieceInstance(sourceLayerId, { start: 8000, duration: 2000 })
 
@@ -216,12 +217,12 @@ describe('Resolved Pieces', () => {
 			const piece0 = createPieceInstance(
 				sourceLayerId,
 				{ start: 1000 },
-				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd }
+				{ lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' } }
 			)
 			const piece1 = createPieceInstance(
 				sourceLayerId,
 				{ start: 4000 },
-				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd, virtual: true }
+				{ lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }, virtual: true }
 			)
 
 			const resolvedPieces = getResolvedPiecesInner(sourceLayers, null, [piece0, piece1])
@@ -596,14 +597,14 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 			const infinite2 = createPieceInstance(
 				sourceLayerId,
 				{ start: 5000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 
@@ -724,7 +725,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 
@@ -778,7 +779,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 
@@ -786,7 +787,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 0 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				},
 				{
 					userDuration: {
@@ -900,7 +901,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 
@@ -961,14 +962,14 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				}
 			)
 			const continuingInfinitePiece = createPieceInstance(
 				sourceLayerId,
 				{ start: 0 },
 				{
-					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 				},
 				{
 					userDuration: {

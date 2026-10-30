@@ -10,6 +10,7 @@ import {
 } from '@sofie-automation/blueprints-integration'
 import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyleBase'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { sortAdlibs } from '../adlibs.js'
 import { ReactivePlaylistActionContext } from './actionFactory.js'
 import { PartId, RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
@@ -114,7 +115,7 @@ function wrapAdLibPiece<T extends TriggersRundownBaselineAdLibItem | TriggersAdL
 		label: adLib.name,
 		sourceLayerId: adLib.sourceLayerId,
 		outputLayerId: adLib.outputLayerId,
-		expectedDuration: adLib.expectedDuration || adLib.lifespan,
+		expectedDuration: adLib.expectedDuration || PieceLifespan.from(adLib.lifespan).legacyLifespan,
 		item: adLib,
 	}
 }

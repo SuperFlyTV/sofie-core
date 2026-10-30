@@ -7,11 +7,12 @@ import {
 import { ReadonlyDeep } from 'type-fest'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { PieceInstance, PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
-import { IBlueprintMutatablePart, LegacyPieceLifespan, Time } from '@sofie-automation/blueprints-integration'
+import { IBlueprintMutatablePart, Time } from '@sofie-automation/blueprints-integration'
 import { PartCalculatedTimings } from '@sofie-automation/corelib/dist/playout/timings'
 import { PlayoutPieceInstanceModel } from './PlayoutPieceInstanceModel.js'
 import { CoreUserEditingDefinition } from '@sofie-automation/corelib/dist/dataModel/UserEditingDefinitions'
 import { PartInvalidReason } from '@sofie-automation/corelib/dist/dataModel/Part'
+import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 
 /**
  * Token returned when making a backup copy of a PlayoutPartInstanceModel
@@ -109,7 +110,7 @@ export interface PlayoutPartInstanceModel {
 	 */
 	insertVirtualPiece(
 		start: number,
-		lifespan: LegacyPieceLifespan,
+		lifespan: IPieceLifespan,
 		sourceLayerId: string,
 		outputLayerId: string
 	): PlayoutPieceInstanceModel

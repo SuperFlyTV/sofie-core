@@ -1,7 +1,6 @@
 import { createBrandingObservers } from '../lib/branding'
 import { PartId, RundownId, SegmentId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { MongoQuery } from '@sofie-automation/corelib/dist/mongo'
 import { ReadonlyDeep } from 'type-fest'
 import { logger } from '../../logging'
@@ -49,9 +48,9 @@ function createPiecesSelector(args: ReadonlyDeep<UIPiecesArgs>): MongoQuery<Piec
 						startSegmentId: { $in: args.segmentIdsBefore as SegmentId[] },
 						lifespan: {
 							$in: [
-								LegacyPieceLifespan.OutOnRundownEnd,
-								LegacyPieceLifespan.OutOnRundownChange,
-								LegacyPieceLifespan.OutOnShowStyleEnd,
+								{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+								{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+								{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
 							],
 						},
 					},
@@ -59,7 +58,7 @@ function createPiecesSelector(args: ReadonlyDeep<UIPiecesArgs>): MongoQuery<Piec
 					{
 						startRundownId: { $in: args.rundownIdsBefore as RundownId[] },
 						lifespan: {
-							$in: [LegacyPieceLifespan.OutOnShowStyleEnd],
+							$in: [{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }],
 						},
 					},
 				],

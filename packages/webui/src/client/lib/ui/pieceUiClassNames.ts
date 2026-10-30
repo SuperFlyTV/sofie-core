@@ -1,4 +1,5 @@
-import { LegacyPieceLifespan, type SourceLayerType } from '@sofie-automation/blueprints-integration'
+import type { SourceLayerType } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import type { PartId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceStatusCode, type PieceUi } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import classNames from 'classnames'
@@ -24,6 +25,7 @@ export function pieceUiClassNames(
 	const typeClass = layerType ? RundownUtils.getSourceLayerClassName(layerType) : ''
 
 	const innerPiece = pieceInstance.instance.piece
+	const lifespan = PieceLifespan.from(innerPiece.lifespan)
 
 	return classNames(baseClassName, typeClass, {
 		'hide-overflow-labels':
@@ -31,17 +33,9 @@ export function pieceUiClassNames(
 				? uiState.leftAnchoredWidth > 0 && uiState.leftAnchoredWidth + uiState.rightAnchoredWidth > elementWidth
 				: undefined,
 
-		'super-infinite':
-			!innerPiece.enable.isAbsolute &&
-			innerPiece.lifespan !== LegacyPieceLifespan.WithinPart &&
-			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentChange &&
-			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentEnd,
+		'super-infinite': !innerPiece.enable.isAbsolute && lifespan.inScope('rundown'),
 		'infinite-starts':
-			!innerPiece.enable.isAbsolute &&
-			innerPiece.lifespan !== LegacyPieceLifespan.WithinPart &&
-			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentChange &&
-			innerPiece.lifespan !== LegacyPieceLifespan.OutOnSegmentEnd &&
-			innerPiece.startPartId === partId,
+			!innerPiece.enable.isAbsolute && lifespan.inScope('rundown') && innerPiece.startPartId === partId,
 
 		'not-in-vision': innerPiece.notInVision,
 

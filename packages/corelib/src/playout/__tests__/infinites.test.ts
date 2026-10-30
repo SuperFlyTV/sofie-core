@@ -9,6 +9,7 @@ import { literal } from '../../lib.js'
 import { protectString } from '../../protectedString.js'
 import { getPieceInstancesForPart, getPlayheadTrackingInfinitesForPart } from '../infinites.js'
 import { DBSegment, SegmentOrphanedReason } from '../../dataModel/Segment.js'
+import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 
 describe('Infinites', () => {
 	describe('getPlayheadTrackingInfinitesForPart', () => {
@@ -50,7 +51,7 @@ describe('Infinites', () => {
 			partId: PartId,
 			enable: Piece['enable'],
 			sourceLayerId: string,
-			lifespan: LegacyPieceLifespan,
+			lifespan: IPieceLifespan,
 			clear?: boolean
 		): PieceInstance {
 			return literal<PieceInstance>({
@@ -123,32 +124,26 @@ describe('Infinites', () => {
 			const previousPartInstance = { rundownId, segmentId, partId }
 			const previousSegment = { _id: previousPartInstance.segmentId }
 			const previousPartPieces: PieceInstance[] = [
-				createPieceInstanceAsInfinite(
-					'one',
-					rundownId,
-					partId,
-					{ start: 0 },
-					'one',
-					LegacyPieceLifespan.OutOnRundownEnd
-				),
+				createPieceInstanceAsInfinite('one', rundownId, partId, { start: 0 }, 'one', {
+					scope: 'rundown',
+					presence: 'forward-scope',
+					inShadow: 'persist',
+				}),
 				createPieceInstanceAsInfinite(
 					'two',
 					rundownId,
 					partId,
 					{ start: 0 },
 					'one',
-					LegacyPieceLifespan.OutOnRundownEnd,
+					{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 					true
 				),
 				{
-					...createPieceInstanceAsInfinite(
-						'three',
-						rundownId,
-						partId,
-						{ start: 0 },
-						'one',
-						LegacyPieceLifespan.OutOnRundownChange
-					),
+					...createPieceInstanceAsInfinite('three', rundownId, partId, { start: 0 }, 'one', {
+						scope: 'rundown',
+						presence: 'follow-playhead',
+						inShadow: 'stop',
+					}),
 					dynamicallyInserted: Date.now() + 5000,
 				},
 			]
@@ -186,14 +181,11 @@ describe('Infinites', () => {
 			const previousSegment = { _id: previousPartInstance.segmentId }
 			const previousPartPieces: PieceInstance[] = [
 				{
-					...createPieceInstanceAsInfinite(
-						'one',
-						rundownId,
-						partId,
-						{ start: 0 },
-						'one',
-						LegacyPieceLifespan.OutOnRundownEnd
-					),
+					...createPieceInstanceAsInfinite('one', rundownId, partId, { start: 0 }, 'one', {
+						scope: 'rundown',
+						presence: 'forward-scope',
+						inShadow: 'persist',
+					}),
 					dynamicallyConvertedToInfinite: Date.now(),
 				},
 			]
@@ -226,14 +218,11 @@ describe('Infinites', () => {
 			const previousPartInstance = { rundownId, segmentId, partId }
 			const previousSegment = { _id: previousPartInstance.segmentId }
 			const previousPartPieces: PieceInstance[] = [
-				createPieceInstanceAsInfinite(
-					'one',
-					rundownId,
-					partId,
-					{ start: 1000 },
-					'one',
-					LegacyPieceLifespan.OutOnRundownChange
-				),
+				createPieceInstanceAsInfinite('one', rundownId, partId, { start: 1000 }, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				}),
 				{
 					...createPieceInstanceAsInfinite(
 						'two',
@@ -241,20 +230,17 @@ describe('Infinites', () => {
 						partId,
 						{ start: 2000 },
 						'two',
-						LegacyPieceLifespan.OutOnRundownChange,
+						{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
 						true
 					),
 					userDuration: { endRelativeToPart: 5000 },
 				},
 				{
-					...createPieceInstanceAsInfinite(
-						'three',
-						rundownId,
-						partId,
-						{ start: 3000 },
-						'three',
-						LegacyPieceLifespan.OutOnRundownChange
-					),
+					...createPieceInstanceAsInfinite('three', rundownId, partId, { start: 3000 }, 'three', {
+						scope: 'rundown',
+						presence: 'follow-playhead',
+						inShadow: 'stop',
+					}),
 					plannedStoppedPlayback: 5000,
 				},
 			]
@@ -302,26 +288,20 @@ describe('Infinites', () => {
 			}
 
 			function createOnChangePiece(id: string, enable: Piece['enable']): PieceInstance {
-				return createPieceInstanceAsInfinite(
-					id,
-					rundownId,
-					partId,
-					enable,
-					'one',
-					LegacyPieceLifespan.OutOnRundownChange
-				)
+				return createPieceInstanceAsInfinite(id, rundownId, partId, enable, 'one', {
+					scope: 'rundown',
+					presence: 'follow-playhead',
+					inShadow: 'stop',
+				})
 			}
 
 			function createAdlibbedOnEndPiece(id: string, enable: Piece['enable']): PieceInstance {
 				return {
-					...createPieceInstanceAsInfinite(
-						id,
-						rundownId,
-						partId,
-						enable,
-						'one',
-						LegacyPieceLifespan.OutOnRundownEnd
-					),
+					...createPieceInstanceAsInfinite(id, rundownId, partId, enable, 'one', {
+						scope: 'rundown',
+						presence: 'forward-scope',
+						inShadow: 'persist',
+					}),
 					dynamicallyConvertedToInfinite: Date.now(),
 				}
 			}
@@ -430,7 +410,7 @@ describe('Infinites', () => {
 					partId,
 					{ start: 0 },
 					'one',
-					LegacyPieceLifespan.OutOnRundownEnd,
+					{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 					true
 				),
 			]

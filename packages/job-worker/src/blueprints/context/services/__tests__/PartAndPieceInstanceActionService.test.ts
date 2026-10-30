@@ -4,8 +4,8 @@ import {
 	IBlueprintPart,
 	IBlueprintPiece,
 	IBlueprintPieceType,
-	NoteSeverity,
 	LegacyPieceLifespan,
+	NoteSeverity,
 } from '@sofie-automation/blueprints-integration'
 import { PlayoutModel } from '../../../../playout/model/PlayoutModel.js'
 import { MockJobContext, setupDefaultJobEnvironment } from '../../../../__mocks__/context.js'
@@ -128,7 +128,7 @@ describe('Test blueprint api context', () => {
 							index: o,
 						} as any,
 						timelineObjectsString: EmptyPieceTimelineObjectsBlob,
-						lifespan: LegacyPieceLifespan.WithinPart,
+						lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
 						pieceType: IBlueprintPieceType.Normal,
 						invalid: false,
 					},
@@ -548,7 +548,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: sourceLayerIds[0],
 							outputLayerId: '',
 							enable: { start: 0 },
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -576,7 +576,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: sourceLayerIds[0],
 							outputLayerId: '',
 							enable: { start: 0 },
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -629,7 +629,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: sourceLayerIds[0],
 							outputLayerId: '',
 							enable: { start: 0 },
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -646,7 +646,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: sourceLayerIds[0],
 							outputLayerId: '',
 							enable: { start: 0 },
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -701,7 +701,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: sourceLayerIds[0],
 							outputLayerId: '',
 							enable: { start: 0 },
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -722,7 +722,7 @@ describe('Test blueprint api context', () => {
 								prop1: 'hello',
 								prop2: '5',
 							},
-							lifespan: LegacyPieceLifespan.OutOnSegmentChange,
+							lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
 							pieceType: IBlueprintPieceType.Normal,
 							invalid: false,
 							content: {},
@@ -1191,7 +1191,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -1260,7 +1260,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -1357,7 +1357,7 @@ describe('Test blueprint api context', () => {
 									outputLayerId: 'o1',
 									externalId: '-',
 									enable: { start: 0 },
-									lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+									lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 									content: {
 										timelineObjects: [],
 									},
@@ -1398,7 +1398,7 @@ describe('Test blueprint api context', () => {
 									outputLayerId: 'o1',
 									externalId: '-',
 									enable: { start: 0 },
-									lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+									lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 									content: {
 										timelineObjects: [],
 									},
@@ -1444,7 +1444,7 @@ describe('Test blueprint api context', () => {
 									outputLayerId: 'o1',
 									externalId: '-',
 									enable: { start: 0 },
-									lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+									lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 									content: {
 										timelineObjects: [],
 									},
@@ -1477,7 +1477,7 @@ describe('Test blueprint api context', () => {
 					outputLayerId: 'o1',
 					externalId: '-',
 					enable: { start: 0 },
-					lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+					lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 					content: {
 						timelineObjects: [],
 					},
@@ -1546,7 +1546,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -1600,7 +1600,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -1703,7 +1703,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -1760,7 +1760,7 @@ describe('Test blueprint api context', () => {
 								outputLayerId: 'o1',
 								externalId: '-',
 								enable: { start: 0 },
-								lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+								lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 								content: {
 									timelineObjects: [],
 								},
@@ -1808,7 +1808,7 @@ describe('Test blueprint api context', () => {
 								outputLayerId: 'o1',
 								externalId: '-',
 								enable: { start: 0 },
-								lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+								lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 								content: {
 									timelineObjects: [],
 								},
@@ -1848,7 +1848,7 @@ describe('Test blueprint api context', () => {
 							sourceLayerId: '',
 							outputLayerId: '',
 							pieceType: IBlueprintPieceType.Normal,
-							lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
+							lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
 							invalid: false,
 							content: {},
 							timelineObjectsString: EmptyPieceTimelineObjectsBlob,
@@ -1873,7 +1873,7 @@ describe('Test blueprint api context', () => {
 						outputLayerId: 'o1',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						content: {
 							timelineObjects: [],
 						},
@@ -2143,7 +2143,7 @@ describe('Test blueprint api context', () => {
 						startPartId: allPartInstances[0].partInstance.part._id,
 						content: {},
 						timelineObjectsString: EmptyPieceTimelineObjectsBlob,
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 						pieceType: IBlueprintPieceType.Normal,
 						invalid: false,
 					},
@@ -2177,7 +2177,11 @@ describe('Test blueprint api context', () => {
 					partInstanceId: currentPartInstance.partInstance._id,
 				})) as PieceInstance
 				expect(pieceInstance).toBeTruthy()
-				expect(pieceInstance.piece.lifespan).toEqual(LegacyPieceLifespan.WithinPart)
+				expect(pieceInstance.piece.lifespan).toEqual({
+					scope: 'part',
+					presence: 'forward-scope',
+					inShadow: 'stop',
+				})
 				expect(pieceInstance.infinite).toBeUndefined()
 
 				await setPartInstances(jobContext, playlistId, currentPartInstance, undefined)
@@ -2186,12 +2190,16 @@ describe('Test blueprint api context', () => {
 					const { service } = await getTestee(jobContext, playoutModel)
 
 					await service.updatePieceInstance(unprotectString(pieceInstance._id), {
-						lifespan: LegacyPieceLifespan.OutOnRundownEnd,
+						lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
 					})
 
 					const updatedPieceInstance = playoutModel.findPieceInstance(pieceInstance._id)?.pieceInstance
 					expect(updatedPieceInstance).toBeTruthy()
-					expect(updatedPieceInstance?.pieceInstance.piece.lifespan).toEqual(LegacyPieceLifespan.OutOnRundownEnd)
+					expect(updatedPieceInstance?.pieceInstance.piece.lifespan).toEqual({
+						scope: 'rundown',
+						presence: 'forward-scope',
+						inShadow: 'persist',
+					})
 					expect(updatedPieceInstance?.pieceInstance.infinite).toBeTruthy()
 					expect(updatedPieceInstance?.pieceInstance.dynamicallyConvertedToInfinite).toBeTruthy()
 				})

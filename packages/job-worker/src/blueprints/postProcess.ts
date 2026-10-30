@@ -10,7 +10,6 @@ import {
 	IBlueprintPiece,
 	TimelineObjectCoreExt,
 	TSR,
-	LegacyPieceLifespan,
 	IBlueprintPieceType,
 	ITranslatableMessage,
 	IBlueprintRundownPiece,
@@ -52,6 +51,11 @@ import { validateTimeline } from 'superfly-timeline'
 import { ReadonlyDeep } from 'type-fest'
 import { translateUserEditPropertiesFromBlueprint, translateUserEditsFromBlueprint } from './context/lib.js'
 import { sanitiseActionBrandingFromBlueprint, sanitisePieceBrandingFromBlueprint } from './postProcessBranding.js'
+import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+
+function normalizePieceLifespan(lifespan: IBlueprintPiece['lifespan']): IBlueprintPiece['lifespan'] {
+	return PieceLifespan.from(lifespan).definition()
+}
 
 function getIdHash(docType: string, usedIds: Map<string, number>, uniqueId: string): string {
 	const count = usedIds.get(uniqueId)
@@ -108,6 +112,7 @@ export function postProcessPieces(
 			pieceType: IBlueprintPieceType.Normal,
 
 			...orgPiece,
+			lifespan: normalizePieceLifespan(orgPiece.lifespan),
 			content: omit(orgPiece.content, 'timelineObjects'),
 
 			_id: protectString(docId),
@@ -123,11 +128,11 @@ export function postProcessPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = LegacyPieceLifespan.WithinPart
+			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = LegacyPieceLifespan.WithinPart
+			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
 		}
 
 		if (!allowNowForPiece && piece.enable.start === 'now')
@@ -253,6 +258,7 @@ export function postProcessAdLibPieces(
 
 		const piece: AdLibPiece = {
 			...orgAdlib,
+			lifespan: normalizePieceLifespan(orgAdlib.lifespan),
 			content: omit(orgAdlib.content, 'timelineObjects'),
 			_id: protectString(docId),
 			rundownId: rundownId,
@@ -421,7 +427,7 @@ export function postProcessGlobalPieces(
 			content: omit(orgPiece.content, 'timelineObjects'),
 
 			pieceType: IBlueprintPieceType.Normal,
-			lifespan: LegacyPieceLifespan.OutOnRundownChange,
+			lifespan: { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
 
 			_id: protectString(docId),
 			startRundownId: rundownId,
@@ -436,11 +442,11 @@ export function postProcessGlobalPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = LegacyPieceLifespan.WithinPart
+			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = LegacyPieceLifespan.WithinPart
+			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
 		}
 
 		if (piece.enable.start === 'now')

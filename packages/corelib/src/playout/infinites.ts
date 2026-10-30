@@ -8,17 +8,18 @@ import {
 	SegmentId,
 	ShowStyleBaseId,
 } from '../dataModel/Ids.js'
-import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { PieceInstance, PieceInstancePiece, rewrapPieceToInstance } from '../dataModel/PieceInstance.js'
 import { DBPartInstance } from '../dataModel/PartInstance.js'
 import { DBRundown } from '../dataModel/Rundown.js'
 import { ReadonlyDeep } from 'type-fest'
-import { assertNever, clone, getRandomId, groupByToMapFunc, normalizeArrayToMapFunc } from '../lib.js'
+import { clone, getRandomId, groupByToMapFunc, normalizeArrayToMapFunc } from '../lib.js'
 import { protectString } from '../protectedString.js'
 import _ from 'underscore'
 import { MongoQuery } from '../mongo.js'
 import { DBSegment, SegmentOrphanedReason } from '../dataModel/Segment.js'
 import { isValidForBranding } from './branding.js'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan } from './pieceLifespan.js'
 
 /**
  * Add a candidate to the infinite Pieces being kept for a source layer, dropping any which can never be shown
@@ -100,6 +101,15 @@ export function buildPiecesStartingInThisPartQuery(part: ReadonlyDeep<DBPart>): 
 	return { startPartId: part._id }
 }
 
+// TODO: this only works for the legacy onEnd infinites
+// PieceInstance
+interface InfinitePieceSet<T> {
+	[LegacyPieceLifespan.OutOnShowStyleEnd]?: ReadonlyDeep<T>[]
+	[LegacyPieceLifespan.OutOnRundownEnd]?: ReadonlyDeep<T>[]
+	[LegacyPieceLifespan.OutOnSegmentEnd]?: ReadonlyDeep<T>[]
+	onChange?: ReadonlyDeep<T>[]
+}
+
 export function buildPastInfinitePiecesForThisPartQuery(
 	part: ReadonlyDeep<DBPart>,
 	partIdsToReceiveOnSegmentEndFrom: PartId[],
@@ -112,11 +122,31 @@ export function buildPastInfinitePiecesForThisPartQuery(
 					// same segment, and previous part
 					lifespan: {
 						$in: [
-							LegacyPieceLifespan.OutOnSegmentEnd,
-							LegacyPieceLifespan.OutOnSegmentChange,
-							LegacyPieceLifespan.OutOnRundownEnd,
-							LegacyPieceLifespan.OutOnRundownChange,
-							LegacyPieceLifespan.OutOnShowStyleEnd,
+							{
+								scope: 'segment' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
+							{
+								scope: 'segment' as const,
+								presence: 'follow-playhead' as const,
+								inShadow: 'stop' as const,
+							},
+							{
+								scope: 'rundown' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
+							{
+								scope: 'rundown' as const,
+								presence: 'follow-playhead' as const,
+								inShadow: 'stop' as const,
+							},
+							{
+								scope: 'showstyle' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
 						],
 					},
 					startRundownId: part.rundownId,
@@ -129,9 +159,21 @@ export function buildPastInfinitePiecesForThisPartQuery(
 					// same rundown, and previous segment
 					lifespan: {
 						$in: [
-							LegacyPieceLifespan.OutOnRundownEnd,
-							LegacyPieceLifespan.OutOnRundownChange,
-							LegacyPieceLifespan.OutOnShowStyleEnd,
+							{
+								scope: 'rundown' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
+							{
+								scope: 'rundown' as const,
+								presence: 'follow-playhead' as const,
+								inShadow: 'stop' as const,
+							},
+							{
+								scope: 'showstyle' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
 						],
 					},
 					startRundownId: part.rundownId,
@@ -142,7 +184,13 @@ export function buildPastInfinitePiecesForThisPartQuery(
 			? {
 					// previous rundown
 					lifespan: {
-						$in: [LegacyPieceLifespan.OutOnShowStyleEnd],
+						$in: [
+							{
+								scope: 'showstyle' as const,
+								presence: 'forward-scope' as const,
+								inShadow: 'persist' as const,
+							},
+						],
 					},
 					startRundownId: { $in: rundownIdsBeforeThisInPlaylist },
 				}
@@ -194,13 +242,8 @@ export function getPlayheadTrackingInfinitesForPart(
 	}
 
 	const canContinueAdlibOnEnds = nextPartIsAfterCurrentPart
-	interface InfinitePieceSet {
-		[LegacyPieceLifespan.OutOnShowStyleEnd]?: ReadonlyDeep<PieceInstance>[]
-		[LegacyPieceLifespan.OutOnRundownEnd]?: ReadonlyDeep<PieceInstance>[]
-		[LegacyPieceLifespan.OutOnSegmentEnd]?: ReadonlyDeep<PieceInstance>[]
-		onChange?: ReadonlyDeep<PieceInstance>[]
-	}
-	const piecesOnSourceLayers = new Map<string, InfinitePieceSet>()
+
+	const piecesOnSourceLayers = new Map<string, InfinitePieceSet<PieceInstance>>()
 
 	const canContinueShowStyleEndInfinites = continueShowStyleEndInfinites(
 		rundownsToReceiveOnShowStyleEndFrom,
@@ -231,22 +274,18 @@ export function getPlayheadTrackingInfinitesForPart(
 			if (lastPieceInstance.plannedStoppedPlayback || lastPieceInstance.userDuration) continue
 
 			// If it is an onChange, then it may want to continue
-			let isUsed = false
-			switch (lastPieceInstance.piece.lifespan) {
-				case LegacyPieceLifespan.OutOnSegmentChange:
-					if (currentPartInstance.segmentId === intoPart.segmentId) {
-						// Still in the same segment
-						isUsed = true
-					}
-					break
-				case LegacyPieceLifespan.OutOnRundownChange:
-					if (lastPieceInstance.rundownId === intoPart.rundownId) {
-						// Still in the same rundown
-						isUsed = true
-					}
-					break
-			}
+			const lifespan = PieceLifespan.from(lastPieceInstance.piece.lifespan)
+			const legacyOnchange = lifespan.tracksPlayhead && !lifespan.persistsInShadow // legacy onChange infinite behavior
 
+			const isUsed =
+				// TODO: handle in legacy way for now, but we should write proper logic tied to each lifespan property to make it less rigid and more flexible
+				legacyOnchange &&
+				((lifespan.inScope('segment') && currentPartInstance.segmentId === intoPart.segmentId) || // same segment
+					(lifespan.inScope('rundown') && lastPieceInstance.rundownId === intoPart.rundownId) || // same rundown
+					(lifespan.inScope('showstyle') &&
+						canContinueShowStyleEndInfinites &&
+						rundownsToShowstyles.get(lastPieceInstance.rundownId) === intoRundown.showStyleBaseId) || // same showstyle
+					lifespan.inScope('playlist')) // playlist scope (which is the same as the legacy showstyle scope, but they should be different, we should handle them differently in the future)
 			if (isUsed) {
 				const pieceSet = piecesOnSourceLayers.get(sourceLayerId) ?? {}
 				pieceSet.onChange = [...(pieceSet.onChange ?? []), lastPieceInstance]
@@ -259,19 +298,15 @@ export function getPlayheadTrackingInfinitesForPart(
 		if (canContinueAdlibOnEnds) {
 			const piecesByInfiniteMode = groupByToMapFunc(
 				pieceInstances.filter((p) => p.dynamicallyInserted || p.dynamicallyConvertedToInfinite),
-				(p) => p.piece.lifespan
+				(p) => PieceLifespan.from(p.piece.lifespan).scope
 			)
-			for (const mode0 of [
-				LegacyPieceLifespan.OutOnRundownEnd,
-				LegacyPieceLifespan.OutOnSegmentEnd,
-				LegacyPieceLifespan.OutOnShowStyleEnd,
-			]) {
-				const mode = mode0 as
-					| LegacyPieceLifespan.OutOnRundownEnd
-					| LegacyPieceLifespan.OutOnSegmentEnd
-					| LegacyPieceLifespan.OutOnShowStyleEnd
-				const pieces = (piecesByInfiniteMode.get(mode) || []).filter(
+			for (const expectedScope of ['rundown', 'segment', 'showstyle']) {
+				const scope = expectedScope as 'rundown' | 'segment' | 'showstyle' // TODO: use the actual type here, but this is a temporary workaround to make TS happy
+				const pieces = (piecesByInfiniteMode.get(scope) || []).filter(
 					(p) =>
+						// TODO: only handle legacy onEnd cases for now, but we should handle all cases in the future
+						PieceLifespan.from(p.piece.lifespan).presence === 'forward-scope' &&
+						PieceLifespan.from(p.piece.lifespan).inShadow === 'persist' &&
 						p.infinite &&
 						(p.infinite.fromPreviousPlayhead || p.dynamicallyInserted || p.dynamicallyConvertedToInfinite)
 				)
@@ -291,14 +326,14 @@ export function getPlayheadTrackingInfinitesForPart(
 
 					// Check this infinite is allowed to continue to this part
 					let isValid = false
-					switch (mode) {
-						case LegacyPieceLifespan.OutOnSegmentEnd:
+					switch (scope) {
+						case 'segment':
 							isValid =
 								currentPartInstance.segmentId === intoPart.segmentId &&
 								!!candidatePiece.piece.startPartId &&
 								partsToReceiveOnSegmentEndFromSet.has(candidatePiece.piece.startPartId)
 							break
-						case LegacyPieceLifespan.OutOnRundownEnd:
+						case 'rundown':
 							isValid =
 								candidatePiece.rundownId === intoPart.rundownId &&
 								(segmentsToReceiveOnRundownEndFromSet.has(currentPartInstance.segmentId) ||
@@ -307,13 +342,20 @@ export function getPlayheadTrackingInfinitesForPart(
 									(allowTestingAdlibsToPersist &&
 										intoSegment.orphaned === SegmentOrphanedReason.ADLIB_TESTING))
 							break
-						case LegacyPieceLifespan.OutOnShowStyleEnd:
+						case 'showstyle':
 							isValid = canContinueShowStyleEndInfinites
 					}
 
-					if (isValid) {
+					const legacyMode = PieceLifespan.from({
+						scope,
+						presence: 'forward-scope',
+						inShadow: 'persist',
+					}).legacyLifespan
+
+					if (isValid && legacyMode) {
 						const pieceSet = piecesOnSourceLayers.get(sourceLayerId) ?? {}
-						pieceSet[mode] = [...(pieceSet[mode] ?? []), candidatePiece]
+						const key = legacyMode as keyof InfinitePieceSet<PieceInstance>
+						pieceSet[key] = [...(pieceSet[key] ?? []), candidatePiece]
 						piecesOnSourceLayers.set(sourceLayerId, pieceSet)
 					}
 				}
@@ -395,17 +437,18 @@ export function isPiecePotentiallyActiveInPart(
 		return true
 	}
 
-	switch (pieceToCheck.lifespan) {
-		case LegacyPieceLifespan.WithinPart:
+	const lifespan = PieceLifespan.from(pieceToCheck.lifespan)
+	switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
+		case 'part:forward-scope:stop':
 			// This must be from another part
 			return false
-		case LegacyPieceLifespan.OutOnSegmentEnd:
+		case 'segment:forward-scope:persist':
 			return (
 				!!pieceToCheck.startPartId &&
 				pieceToCheck.startSegmentId === part.segmentId &&
 				partsToReceiveOnSegmentEndFrom.has(pieceToCheck.startPartId)
 			)
-		case LegacyPieceLifespan.OutOnRundownEnd:
+		case 'rundown:forward-scope:persist':
 			if (
 				pieceToCheck.startRundownId === part.rundownId &&
 				pieceToCheck.startPartId &&
@@ -419,7 +462,7 @@ export function isPiecePotentiallyActiveInPart(
 			} else {
 				return false
 			}
-		case LegacyPieceLifespan.OutOnSegmentChange:
+		case 'segment:follow-playhead:stop':
 			if (previousPartInstance !== undefined) {
 				// This gets handled by getPlayheadTrackingInfinitesForPart
 				// We will only copy the pieceInstance from the previous, never using the original piece
@@ -432,7 +475,7 @@ export function isPiecePotentiallyActiveInPart(
 					partsToReceiveOnSegmentEndFrom.has(pieceToCheck.startPartId)
 				)
 			}
-		case LegacyPieceLifespan.OutOnRundownChange:
+		case 'rundown:follow-playhead:stop':
 			if (previousPartInstance !== undefined) {
 				// This gets handled by getPlayheadTrackingInfinitesForPart
 				// We will only copy the pieceInstance from the previous, never using the original piece
@@ -445,17 +488,17 @@ export function isPiecePotentiallyActiveInPart(
 					segmentsToReceiveOnRundownEndFrom.has(pieceToCheck.startSegmentId)
 				)
 			}
-		case LegacyPieceLifespan.OutOnShowStyleEnd:
-			return previousPartInstance && pieceToCheck.lifespan === LegacyPieceLifespan.OutOnShowStyleEnd
-				? continueShowStyleEndInfinites(
-						rundownsToReceiveOnShowStyleEndFrom,
-						rundownsToShowstyles,
-						previousPartInstance.rundownId,
-						rundown
-					)
-				: false
+		case 'showstyle:forward-scope:persist':
+			return !!(
+				previousPartInstance &&
+				continueShowStyleEndInfinites(
+					rundownsToReceiveOnShowStyleEndFrom,
+					rundownsToShowstyles,
+					previousPartInstance.rundownId,
+					rundown
+				)
+			)
 		default:
-			assertNever(pieceToCheck.lifespan)
 			return false
 	}
 }
@@ -518,21 +561,13 @@ export function getPieceInstancesForPart(
 		}
 	}
 
-	interface InfinitePieceSet {
-		[LegacyPieceLifespan.OutOnShowStyleEnd]?: ReadonlyDeep<Piece>[]
-		[LegacyPieceLifespan.OutOnRundownEnd]?: ReadonlyDeep<Piece>[]
-		[LegacyPieceLifespan.OutOnSegmentEnd]?: ReadonlyDeep<Piece>[]
-		// onChange?: PieceInstance
-	}
-	const piecesOnSourceLayers = new Map<string, InfinitePieceSet>()
+	const piecesOnSourceLayers = new Map<string, InfinitePieceSet<Piece>>()
 
 	// Filter down to the last starting onEnd infinite per layer
 	for (const candidatePiece of possiblePieces) {
 		if (
 			candidatePiece.startPartId !== part._id &&
-			(candidatePiece.lifespan === LegacyPieceLifespan.OutOnShowStyleEnd ||
-				candidatePiece.lifespan === LegacyPieceLifespan.OutOnRundownEnd ||
-				candidatePiece.lifespan === LegacyPieceLifespan.OutOnSegmentEnd)
+			PieceLifespan.from(candidatePiece.lifespan).presence === 'forward-scope'
 		) {
 			const useIt = isPiecePotentiallyActiveInPart(
 				playingPartInstance,
@@ -545,10 +580,12 @@ export function getPieceInstancesForPart(
 				candidatePiece
 			)
 
-			if (useIt) {
+			const legacyLifespan = PieceLifespan.from(candidatePiece.lifespan)
+				.legacyLifespan as keyof InfinitePieceSet<Piece>
+			if (useIt && legacyLifespan) {
 				const pieceSet = piecesOnSourceLayers.get(candidatePiece.sourceLayerId) ?? {}
-				pieceSet[candidatePiece.lifespan] = addInfiniteCandidate(
-					pieceSet[candidatePiece.lifespan] ?? [],
+				pieceSet[legacyLifespan] = addInfiniteCandidate(
+					pieceSet[legacyLifespan] ?? [],
 					candidatePiece,
 					(piece) => !!piece.onlyValidForBranding,
 					doesPieceAStartBeforePieceB
@@ -596,7 +633,8 @@ export function getPieceInstancesForPart(
 			isTemporary
 		)
 
-		if (instance.piece.lifespan !== LegacyPieceLifespan.WithinPart) {
+		// TODO: we are excluding all part scopes here, but we might want to handle these separately.
+		if (PieceLifespan.from(instance.piece.lifespan).scope !== 'part') {
 			const existingPiece = nextPartIsAfterCurrentPart
 				? playingPieceInstancesMap.get(instance.piece._id)
 				: undefined
