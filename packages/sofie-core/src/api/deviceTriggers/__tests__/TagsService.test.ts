@@ -17,6 +17,7 @@ import { ISourceLayer, LegacyPieceLifespan, SourceLayerType } from '@sofie-autom
 import { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { IWrappedAdLib } from '@sofie-automation/meteor-lib/dist/triggers/actionFilterChainCompilers'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const createTestee = () => new TagsService()
 
@@ -98,7 +99,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag0, tag2],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 		},
 		partInstanceId: partInstanceId0,
 	} as PieceInstance)
@@ -108,7 +109,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag1],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 		},
 		partInstanceId: partInstanceId1,
 	} as PieceInstance)
@@ -118,7 +119,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag2],
 			sourceLayerId: sourceLayerId1,
 			enable: { start: 0 },
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 		},
 		partInstanceId: partInstanceId1,
 	} as PieceInstance)
@@ -128,7 +129,7 @@ function createAndPopulateMockCache(): ContentCache {
 			tags: [tag3],
 			sourceLayerId: sourceLayerId0,
 			enable: { start: 0 },
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 		},
 		partInstanceId: partInstanceId2,
 	} as PieceInstance)

@@ -28,6 +28,10 @@ import {
 
 // Setup the mocks
 import * as hashlib from '@sofie-automation/corelib/dist/hash'
+import {
+	DEFAULT_PIECE_LIFESPAN,
+	LEGACY_PIECE_LIFESPAN_PRESETS,
+} from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 const getHashOrig = hashlib.getHash
 const getHashMock = jest.spyOn(hashlib, 'getHash')
 
@@ -329,7 +333,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 				},
 				{
 					_rank: 1,
@@ -340,7 +344,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 				},
 				{
 					_rank: 9,
@@ -351,7 +355,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 				},
 			])
 
@@ -382,7 +386,7 @@ describe('Test blueprint post-process', () => {
 				rundownId: protectString(''),
 				content: {},
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			})
 			ensureAllKeysDefined(tmpObj, res)
 
@@ -422,7 +426,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			})
 
 			const res = postProcessAdLibPieces(jobContext, blueprintId, rundownId, undefined, [piece])
@@ -462,11 +466,7 @@ describe('Test blueprint post-process', () => {
 				false
 			)
 
-			expect(processedPiece.lifespan).toEqual({
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			})
+			expect(processedPiece.lifespan).toEqual(LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd])
 		})
 
 		test('no pieces', () => {
@@ -498,7 +498,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+					lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				},
 				{
 					name: 'test2',
@@ -509,7 +509,7 @@ describe('Test blueprint post-process', () => {
 					content: {
 						timelineObjects: [],
 					},
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 				},
 			])
 
@@ -547,7 +547,7 @@ describe('Test blueprint post-process', () => {
 				startPartId: protectString(''),
 				startSegmentId: protectString(''),
 				startRundownId: protectString(''),
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 				pieceType: IBlueprintPieceType.Normal,
 				content: {},
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
@@ -587,7 +587,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
 			})
 
 			const res = postProcessPieces(
@@ -633,7 +633,7 @@ describe('Test blueprint post-process', () => {
 						}),
 					],
 				},
-				lifespan: { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
 			})
 
 			expect(() => {

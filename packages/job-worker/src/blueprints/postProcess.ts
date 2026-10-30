@@ -13,6 +13,7 @@ import {
 	IBlueprintPieceType,
 	ITranslatableMessage,
 	IBlueprintRundownPiece,
+	LegacyPieceLifespan,
 } from '@sofie-automation/blueprints-integration'
 import {
 	BlueprintId,
@@ -51,7 +52,11 @@ import { validateTimeline } from 'superfly-timeline'
 import { ReadonlyDeep } from 'type-fest'
 import { translateUserEditPropertiesFromBlueprint, translateUserEditsFromBlueprint } from './context/lib.js'
 import { sanitiseActionBrandingFromBlueprint, sanitisePieceBrandingFromBlueprint } from './postProcessBranding.js'
-import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import {
+	PieceLifespan,
+	DEFAULT_PIECE_LIFESPAN,
+	LEGACY_PIECE_LIFESPAN_PRESETS,
+} from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 function normalizePieceLifespan(lifespan: IBlueprintPiece['lifespan']): IBlueprintPiece['lifespan'] {
 	return PieceLifespan.from(lifespan).definition()
@@ -128,11 +133,11 @@ export function postProcessPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
+			piece.lifespan = DEFAULT_PIECE_LIFESPAN
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
+			piece.lifespan = DEFAULT_PIECE_LIFESPAN
 		}
 
 		if (!allowNowForPiece && piece.enable.start === 'now')
@@ -427,7 +432,7 @@ export function postProcessGlobalPieces(
 			content: omit(orgPiece.content, 'timelineObjects'),
 
 			pieceType: IBlueprintPieceType.Normal,
-			lifespan: { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+			lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 
 			_id: protectString(docId),
 			startRundownId: rundownId,
@@ -442,11 +447,11 @@ export function postProcessGlobalPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
+			piece.lifespan = DEFAULT_PIECE_LIFESPAN
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
+			piece.lifespan = DEFAULT_PIECE_LIFESPAN
 		}
 
 		if (piece.enable.start === 'now')

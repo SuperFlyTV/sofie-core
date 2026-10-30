@@ -72,6 +72,8 @@ import { PeripheralDeviceAPIMethods } from '@sofie-automation/server-core-integr
 import { ServerPeripheralDeviceAPIClass } from '../api/peripheralDevice'
 import { getMethodContext } from '../__mocks__/helpers/methods'
 import { startCronjobs } from '../cronjobs'
+import { LEGACY_PIECE_LIFESPAN_PRESETS } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 describe('cronjobs', () => {
 	let env: DefaultEnvironment
@@ -379,7 +381,7 @@ describe('cronjobs', () => {
 					sourceLayerId: '',
 					outputLayerId: '',
 					enable: { start: 0 },
-					lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+					lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 					invalid: false,
 					pieceType: IBlueprintPieceType.Normal,
 				},
@@ -399,7 +401,7 @@ describe('cronjobs', () => {
 					sourceLayerId: '',
 					outputLayerId: '',
 					enable: { start: 0 },
-					lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+					lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 					invalid: false,
 					pieceType: IBlueprintPieceType.Normal,
 				},

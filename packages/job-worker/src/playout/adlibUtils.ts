@@ -481,7 +481,7 @@ export function innerStopPieces(
 		if (pieceInstance.plannedStoppedPlayback && pieceInstance.plannedStoppedPlayback <= stopAt) continue
 
 		const lifespan = PieceLifespan.from(pieceInstance.piece.lifespan)
-		if (!lifespan.isInfinite || lifespan.tracksPlayhead) {
+		if (!lifespan.isInfinite || lifespan.followsPlayhead) {
 			// The PieceInstance is what continues into later parts, so cropping it is enough
 			logger.info(`Blueprint action: Cropping PieceInstance "${pieceInstance._id}" to ${stopAt}`)
 

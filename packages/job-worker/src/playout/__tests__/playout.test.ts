@@ -50,6 +50,8 @@ import { ProcessedShowStyleCompound } from '../../jobs/index.js'
 import { handleOnPlayoutPlaybackChanged } from '../timings/index.js'
 import { sleep } from '@sofie-automation/shared-lib/dist/lib/lib'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
+import { LEGACY_PIECE_LIFESPAN_PRESETS } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 // const mockGetCurrentTime = jest.spyOn(lib, 'getCurrentTime')
 const mockExecutePeripheralDeviceFunction = jest
@@ -1192,7 +1194,7 @@ async function setupRundownWithAutoplayPart0(
 		_id: protectString(rundownId + '_globalAdLib0'),
 		_rank: 0,
 		externalId: 'MOCK_GLOBAL_ADLIB_0',
-		lifespan: { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+		lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 		rundownId: segment0.rundownId,
 		name: 'Global AdLib 0',
 		sourceLayerId: sourceLayerIds[0],
@@ -1205,7 +1207,7 @@ async function setupRundownWithAutoplayPart0(
 		_id: protectString(rundownId + '_globalAdLib1'),
 		_rank: 0,
 		externalId: 'MOCK_GLOBAL_ADLIB_1',
-		lifespan: { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+		lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 		rundownId: segment0.rundownId,
 		name: 'Global AdLib 1',
 		sourceLayerId: sourceLayerIds[1],

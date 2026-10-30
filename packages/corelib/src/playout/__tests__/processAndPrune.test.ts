@@ -12,6 +12,8 @@ import {
 	resolvePrunedPieceInstance,
 } from '../processAndPrune.js'
 import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
+import { DEFAULT_PIECE_LIFESPAN, LEGACY_PIECE_LIFESPAN_PRESETS } from '../pieceLifespan.js'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 describe('processAndPrunePieceInstanceTimings', () => {
 	function createPieceInstance(
@@ -78,16 +80,18 @@ describe('processAndPrunePieceInstanceTimings', () => {
 
 	test('simple seperate layers', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000 }, 'two', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'two',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -108,16 +112,18 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('basic collision', () => {
 		const pieceInstances = [
-			createPieceInstance('one', { start: 0 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'one',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000, duration: 5000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -138,36 +144,37 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('onEnd type override', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('one', { start: 500 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000, duration: 5000 }, 'one', {
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('four', { start: 2000, duration: 2000 }, 'one', {
-				scope: 'part',
-				presence: 'forward-scope',
-				inShadow: 'stop',
-			}),
-			createPieceInstance('three', { start: 3000 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('five', { start: 4000 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'zero',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
+			createPieceInstance(
+				'one',
+				{ start: 500 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000, duration: 5000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+			),
+			createPieceInstance('four', { start: 2000, duration: 2000 }, 'one', DEFAULT_PIECE_LIFESPAN),
+			createPieceInstance(
+				'three',
+				{ start: 3000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'five',
+				{ start: 4000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -212,40 +219,43 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('clear onEnd', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('one', { start: 500 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000 }, 'one', {
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'zero',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
+			createPieceInstance(
+				'one',
+				{ start: 500 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+			),
 			createPieceInstance(
 				'three',
 				{ start: 3000 },
 				'one',
-				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
 				true
 			),
 			createPieceInstance(
 				'two',
 				{ start: 5000 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				true
 			),
 			createPieceInstance(
 				'zero',
 				{ start: 6000 },
 				'one',
-				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 				true
 			),
 		]
@@ -274,40 +284,43 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('clear onEnd; include virtuals', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('one', { start: 500 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000 }, 'one', {
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'zero',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
+			createPieceInstance(
+				'one',
+				{ start: 500 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+			),
 			createPieceInstance(
 				'three',
 				{ start: 3000 },
 				'one',
-				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
 				true
 			),
 			createPieceInstance(
 				'four',
 				{ start: 5000 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				true
 			),
 			createPieceInstance(
 				'five',
 				{ start: 6000 },
 				'one',
-				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 				true
 			),
 		]
@@ -354,36 +367,42 @@ describe('processAndPrunePieceInstanceTimings', () => {
 	})
 	test('stop onSegmentChange with onEnd', () => {
 		const pieceInstances = [
-			createPieceInstance('zero', { start: 0 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('one', { start: 500 }, 'one', {
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('two', { start: 1000 }, 'one', {
-				scope: 'segment',
-				presence: 'follow-playhead',
-				inShadow: 'stop',
-			}),
-			createPieceInstance('three', { start: 2000 }, 'one', {
-				scope: 'rundown',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('four', { start: 5000 }, 'one', {
-				scope: 'segment',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
-			createPieceInstance('five', { start: 6000 }, 'one', {
-				scope: 'showstyle',
-				presence: 'forward-scope',
-				inShadow: 'persist',
-			}),
+			createPieceInstance(
+				'zero',
+				{ start: 0 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
+			createPieceInstance(
+				'one',
+				{ start: 500 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+			),
+			createPieceInstance(
+				'two',
+				{ start: 1000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange]
+			),
+			createPieceInstance(
+				'three',
+				{ start: 2000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
+			),
+			createPieceInstance(
+				'four',
+				{ start: 5000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd]
+			),
+			createPieceInstance(
+				'five',
+				{ start: 6000 },
+				'one',
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]
+			),
 		]
 
 		const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(500, 0))
@@ -432,14 +451,14 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 1000 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				6000
 			),
 			createPieceInstance(
 				'two',
 				{ start: 1000 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				5500
 			),
 		]
@@ -460,28 +479,28 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 1000 },
 				'one',
-				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 				6000
 			),
 			createPieceInstance(
 				'two',
 				{ start: 1000 },
 				'one',
-				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 				5500
 			),
 			createPieceInstance(
 				'three',
 				{ start: 1000 },
 				'one',
-				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 				7000
 			),
 			createPieceInstance(
 				'four',
 				{ start: 1000 },
 				'one',
-				{ scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
 				4000
 			),
 		]
@@ -502,14 +521,14 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 1000 },
 				'one',
-				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 				6000
 			),
 			createPieceInstance(
 				'two',
 				{ start: 1000 },
 				'one',
-				{ scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 				5500
 			),
 		]
@@ -530,7 +549,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 				6000,
 				{
 					fromPreviousPart: true,
@@ -544,7 +563,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'two',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: true,
@@ -577,7 +596,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 				6000,
 				{
 					fromPreviousPart: true,
@@ -591,7 +610,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'two',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: false,
@@ -619,7 +638,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'a',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: true,
@@ -632,7 +651,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'b',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: true,
@@ -662,7 +681,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 0 },
 				'one',
-				{ scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
 				false,
 				{
 					fromPreviousPart: true,
@@ -675,7 +694,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'two',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: false,
@@ -700,7 +719,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'one',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 				false,
 				{
 					fromPreviousPart: true,
@@ -714,7 +733,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				'two',
 				{ start: 0 },
 				'one',
-				{ scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 				false,
 				{
 					fromPreviousPart: false,
@@ -750,21 +769,24 @@ describe('processAndPrunePieceInstanceTimings', () => {
 			const partStart = 8000
 
 			const pieceInstances = [
-				createPieceInstance('one', { start: 0 }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
-				createPieceInstance('two', { start: now + 2000, isAbsolute: true }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
-				createPieceInstance('three', { start: 6000 }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
+				createPieceInstance(
+					'one',
+					{ start: 0 },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
+				createPieceInstance(
+					'two',
+					{ start: now + 2000, isAbsolute: true },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
+				createPieceInstance(
+					'three',
+					{ start: 6000 },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
 			]
 
 			const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(now, partStart))
@@ -795,21 +817,24 @@ describe('processAndPrunePieceInstanceTimings', () => {
 			const partStart = 8000
 
 			const pieceInstances = [
-				createPieceInstance('one', { start: 0 }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
-				createPieceInstance('two', { start: partStart + 2000, isAbsolute: true }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
-				createPieceInstance('three', { start: 2000 }, 'one', {
-					scope: 'rundown',
-					presence: 'follow-playhead',
-					inShadow: 'stop',
-				}),
+				createPieceInstance(
+					'one',
+					{ start: 0 },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
+				createPieceInstance(
+					'two',
+					{ start: partStart + 2000, isAbsolute: true },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
+				createPieceInstance(
+					'three',
+					{ start: 2000 },
+					'one',
+					LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange]
+				),
 			]
 
 			const resolvedInstances = runAndTidyResult(pieceInstances, createPartCurrentTimes(now, partStart))
@@ -870,7 +895,7 @@ describe('resolvePrunedPieceInstances', () => {
 				startPartId: protectString(''),
 				enable: enable,
 				name: '',
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 				sourceLayerId: '',
 				outputLayerId: '',
 				invalid: false,

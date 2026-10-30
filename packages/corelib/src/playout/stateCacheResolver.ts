@@ -42,6 +42,7 @@ import {
 	PiecesFind,
 	ResolvedSegmentResult,
 } from './stateCacheResolverTypes.js'
+import { DEFAULT_PIECE_LIFESPAN } from './pieceLifespan.js'
 
 /** Resolve segment parts/pieces into timeline-friendly UI data. */
 export function getResolvedSegment({
@@ -441,11 +442,7 @@ export function getResolvedSegment({
 						) {
 							// if previousItem is infinite, currentItem caps it within the current part
 							if (previousItem.instance.infinite) {
-								;(previousItem.instance.piece as PieceInstancePiece).lifespan = {
-									scope: 'part',
-									presence: 'forward-scope',
-									inShadow: 'stop',
-								}
+								;(previousItem.instance.piece as PieceInstancePiece).lifespan = DEFAULT_PIECE_LIFESPAN
 								delete (previousItem.instance as PieceInstance).infinite
 							}
 

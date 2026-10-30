@@ -19,6 +19,7 @@ import {
 	EmptyPieceTimelineObjectsBlob,
 	serializePieceTimelineObjectsBlob,
 } from '@sofie-automation/corelib/dist/dataModel/Piece'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const DEFAULT_PLAYOUT_STATE = { isInHold: false, isRehearsal: false }
 
@@ -71,7 +72,7 @@ describe('findLookaheadObjectsForPart', () => {
 			name: '',
 			enable: { start: 0 },
 			invalid: false,
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			pieceType: IBlueprintPieceType.Normal,
 			sourceLayerId: '',
 			outputLayerId: '',

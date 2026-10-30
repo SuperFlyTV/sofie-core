@@ -43,6 +43,7 @@ import {
 import { SupressLogMessages } from '../../__mocks__/suppressLogging'
 import { JSONBlobStringify } from '@sofie-automation/shared-lib/dist/lib/JSONBlob'
 import { PeripheralDeviceCommand } from '@sofie-automation/corelib/dist/dataModel/PeripheralDeviceCommand'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const MeteorCall = makeMeteorCallForTest({
 	methods: PeripheralDeviceAPIMethods,
@@ -136,7 +137,7 @@ describe('test peripheralDevice general API methods', () => {
 			startPartId: protectString('part000'),
 			startSegmentId: segmentID,
 			startRundownId: rundownID,
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			pieceType: IBlueprintPieceType.Normal,
 			invalid: false,
 			content: {},

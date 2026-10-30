@@ -39,6 +39,7 @@ import { PieceDependencies } from '../common'
 import { DEFAULT_MINIMUM_TAKE_SPAN } from '@sofie-automation/shared-lib/dist/core/constants'
 import { PieceContentStatusMessageFactory } from '../messageFactory'
 import { RundownId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const mockMediaObjectsCollection = MongoMock.getInnerMockCollection<MediaObject>(MediaObjects)
 
@@ -195,7 +196,7 @@ describe('lib/mediaObjects', () => {
 					path: '',
 					timelineObjects: [],
 				}),
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			}),
 			literal<ISourceLayer>({
 				_id: '',
@@ -217,7 +218,7 @@ describe('lib/mediaObjects', () => {
 					path: '',
 					timelineObjects: [],
 				}),
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			}),
 			literal<ISourceLayer>({
 				_id: '',
@@ -237,7 +238,7 @@ describe('lib/mediaObjects', () => {
 				content: {
 					timelineObjects: [],
 				},
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			}),
 			literal<ISourceLayer>({
 				_id: '',
@@ -423,7 +424,7 @@ describe('lib/mediaObjects', () => {
 				name: 'Test_file',
 				prerollDuration: 0,
 				externalId: '',
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 				privateData: {},
 				outputLayerId: '',
 				sourceLayerId: '',
@@ -446,7 +447,7 @@ describe('lib/mediaObjects', () => {
 				name: 'Test_file_2',
 				prerollDuration: 0,
 				externalId: '',
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 				privateData: {},
 				outputLayerId: '',
 				sourceLayerId: '',
@@ -469,7 +470,7 @@ describe('lib/mediaObjects', () => {
 				name: 'Test_file_3',
 				prerollDuration: 0,
 				externalId: '',
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 				privateData: {},
 				outputLayerId: '',
 				sourceLayerId: '',
@@ -516,7 +517,7 @@ describe('lib/mediaObjects', () => {
 			name: 'Ignore media status',
 			prerollDuration: 0,
 			externalId: '',
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			privateData: {},
 			outputLayerId: '',
 			sourceLayerId: '',
@@ -644,7 +645,7 @@ describe('lib/mediaObjects', () => {
 			name: 'Test_file',
 			prerollDuration: 0,
 			externalId: '',
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			privateData: {},
 			outputLayerId: '',
 			sourceLayerId: '',
@@ -731,7 +732,7 @@ describe('lib/mediaObjects', () => {
 			name: 'Test_file_2',
 			prerollDuration: 0,
 			externalId: '',
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			privateData: {},
 			outputLayerId: '',
 			sourceLayerId: '',
@@ -747,7 +748,7 @@ describe('lib/mediaObjects', () => {
 			name: 'Test_file_3',
 			prerollDuration: 0,
 			externalId: '',
-			lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+			lifespan: DEFAULT_PIECE_LIFESPAN,
 			privateData: {},
 			outputLayerId: '',
 			sourceLayerId: '',
@@ -908,7 +909,7 @@ describe('lib/mediaObjects', () => {
 					name: 'Split',
 					prerollDuration: 0,
 					externalId: '',
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 					privateData: {},
 					outputLayerId: '',
 					sourceLayerId: '',
@@ -960,7 +961,7 @@ describe('lib/mediaObjects', () => {
 					name: 'Split',
 					prerollDuration: 0,
 					externalId: '',
-					lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+					lifespan: DEFAULT_PIECE_LIFESPAN,
 					privateData: {},
 					outputLayerId: '',
 					sourceLayerId: '',

@@ -15,76 +15,105 @@ const SCOPE_HIERARCHY: Record<PieceLifespanScope, number> = {
 	playlist: 4,
 }
 
+/** The lifespan of a regular, non-infinite piece */
+export const DEFAULT_PIECE_LIFESPAN: Readonly<IPieceLifespan> = Object.freeze({
+	scope: 'part',
+	presence: 'forward-scope',
+	inShadow: 'stop',
+})
+
+/** The new-style definition of each legacy preset */
+export const LEGACY_PIECE_LIFESPAN_PRESETS: Readonly<Record<LegacyPieceLifespan, Readonly<IPieceLifespan>>> =
+	Object.freeze({
+		[LegacyPieceLifespan.WithinPart]: DEFAULT_PIECE_LIFESPAN,
+		[LegacyPieceLifespan.OutOnSegmentChange]: Object.freeze({
+			scope: 'segment',
+			presence: 'follow-playhead',
+			inShadow: 'stop',
+		}),
+		[LegacyPieceLifespan.OutOnRundownChange]: Object.freeze({
+			scope: 'rundown',
+			presence: 'follow-playhead',
+			inShadow: 'stop',
+		}),
+		[LegacyPieceLifespan.OutOnSegmentEnd]: Object.freeze({
+			scope: 'segment',
+			presence: 'forward-scope',
+			inShadow: 'persist',
+		}),
+		[LegacyPieceLifespan.OutOnRundownEnd]: Object.freeze({
+			scope: 'rundown',
+			presence: 'forward-scope',
+			inShadow: 'persist',
+		}),
+		[LegacyPieceLifespan.OutOnShowStyleEnd]: Object.freeze({
+			scope: 'showstyle',
+			presence: 'forward-scope',
+			inShadow: 'persist',
+		}),
+	})
+
 export class PieceLifespan implements IPieceLifespan {
 	readonly scope: PieceLifespanScope
 	readonly presence: PieceLifespanPresence
 	readonly inShadow: PieceLifespanInShadow
 
-	constructor(input: PieceLifespanInfo) {
+	/**
+	 * @param input `undefined` and `null` are accepted, as pieces from blueprints or the database are not guaranteed to have a lifespan.
+	 * They are treated as a regular, non-infinite piece.
+	 */
+	constructor(input?: PieceLifespanInfo) {
+		// Already a PieceLifespan instance, just copy the values
 		if (input instanceof PieceLifespan) {
-			// Already a PieceLifespan instance, just copy the values
 			this.scope = input.scope
 			this.presence = input.presence
 			this.inShadow = input.inShadow
-		} else if (typeof input === 'object' && input !== null) {
-			// New-style definition
-			this.scope = input.scope ?? 'part'
-			this.presence = input.presence ?? 'forward-scope'
-			this.inShadow = input.inShadow ?? 'stop'
-			return
-		} else {
-			// Legacy presets and default finite piece
-			const { scope, presence, inShadow } = input ? PieceLifespan.normalizePreset(input) : {}
-			this.scope = scope ?? 'part'
-			this.presence = presence ?? 'forward-scope'
-			this.inShadow = inShadow ?? 'stop'
+		}
+		// Legacy preset
+		else if (typeof input === 'string') {
+			const { scope, presence, inShadow } = PieceLifespan.normalizePreset(input)
+			this.scope = scope
+			this.presence = presence
+			this.inShadow = inShadow
+		}
+		// New-style definition and defaults
+		else {
+			this.scope = input?.scope ?? DEFAULT_PIECE_LIFESPAN.scope
+			this.presence = input?.presence ?? DEFAULT_PIECE_LIFESPAN.presence
+			this.inShadow = input?.inShadow ?? DEFAULT_PIECE_LIFESPAN.inShadow
 		}
 	}
 
-	/** Creates a new PieceLifespan instance from the given input */
-	static from(input: PieceLifespanInfo): PieceLifespan {
+	/** Returns a PieceLifespan instance from the given input. If it's already an instance, it returns the input. */
+	static from(input?: PieceLifespanInfo): PieceLifespan {
 		return input instanceof PieceLifespan ? input : new PieceLifespan(input)
 	}
 
 	/** Normalizes a legacy preset into a new-style definition */
 	private static normalizePreset(preset: LegacyPieceLifespan): IPieceLifespan {
-		switch (preset) {
-			case LegacyPieceLifespan.WithinPart:
-				return { scope: 'part', presence: 'forward-scope', inShadow: 'stop' }
-			case LegacyPieceLifespan.OutOnSegmentChange:
-				return { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' }
-			case LegacyPieceLifespan.OutOnRundownChange:
-				return { scope: 'rundown', presence: 'follow-playhead', inShadow: 'stop' }
-			case LegacyPieceLifespan.OutOnSegmentEnd:
-				return { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }
-			case LegacyPieceLifespan.OutOnRundownEnd:
-				return { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }
-			case LegacyPieceLifespan.OutOnShowStyleEnd:
-				return { scope: 'showstyle', presence: 'forward-scope', inShadow: 'persist' }
-			default:
-				throw new Error(`Unknown legacy piece lifespan preset: ${String(preset)}`)
-		}
+		const definition = LEGACY_PIECE_LIFESPAN_PRESETS[preset]
+		if (!definition) throw new Error(`Unknown legacy piece lifespan preset: ${String(preset)}`)
+		return definition
 	}
 
 	/** Resolves a new-style definition into a legacy preset if possible. Returns undefined if the behavior cannot be mapped to a legacy preset. */
 	private static resolvePreset(lifespan: IPieceLifespan): LegacyPieceLifespan | undefined {
-		switch (`${lifespan.scope}:${lifespan.presence}:${lifespan.inShadow}`) {
-			case 'part:forward-scope:stop':
-			case 'part:follow-playhead:stop':
-				return LegacyPieceLifespan.WithinPart
-			case 'segment:follow-playhead:stop':
-				return LegacyPieceLifespan.OutOnSegmentChange
-			case 'rundown:follow-playhead:stop':
-				return LegacyPieceLifespan.OutOnRundownChange
-			case 'segment:forward-scope:persist':
-				return LegacyPieceLifespan.OutOnSegmentEnd
-			case 'rundown:forward-scope:persist':
-				return LegacyPieceLifespan.OutOnRundownEnd
-			case 'showstyle:forward-scope:persist':
-				return LegacyPieceLifespan.OutOnShowStyleEnd
-			default:
-				return undefined
-		}
+		const { scope, presence, inShadow } = lifespan
+
+		const isChange = presence === 'follow-playhead' && inShadow === 'stop'
+		const isEnd = presence === 'forward-scope' && inShadow === 'persist'
+
+		if (scope === 'part' && inShadow === 'stop') return LegacyPieceLifespan.WithinPart
+
+		if (scope === 'segment' && isChange) return LegacyPieceLifespan.OutOnSegmentChange
+		if (scope === 'segment' && isEnd) return LegacyPieceLifespan.OutOnSegmentEnd
+
+		if (scope === 'rundown' && isChange) return LegacyPieceLifespan.OutOnRundownChange
+		if (scope === 'rundown' && isEnd) return LegacyPieceLifespan.OutOnRundownEnd
+
+		if (scope === 'showstyle' && isEnd) return LegacyPieceLifespan.OutOnShowStyleEnd
+
+		return undefined
 	}
 
 	/** Returns the legacy piece lifespan if it can be resolved. Falsy if the behavior cannot be mapped to a legacy preset. */
@@ -98,13 +127,13 @@ export class PieceLifespan implements IPieceLifespan {
 	}
 
 	/** Returns true if the piece strictly follows the live playhead */
-	get tracksPlayhead(): boolean {
+	get followsPlayhead(): boolean {
 		return this.presence === 'follow-playhead'
 	}
 
 	/** Returns true if the piece is structurally projected across its scope */
 	get isStatic(): boolean {
-		return !this.tracksPlayhead
+		return !this.followsPlayhead
 	}
 
 	/** Returns true if the piece enters a shadow state and pauses on conflict */

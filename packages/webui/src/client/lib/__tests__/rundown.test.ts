@@ -18,6 +18,11 @@ import type { UIStudio } from '@sofie-automation/corelib/src/dataModel/Studio.js
 import type { PartInstance } from '@sofie-automation/corelib/src/dataModel/PartInstance.js'
 import { convertToUIShowStyleBase } from '@sofie-automation/corelib/src/playout/stateCacheResolver.js'
 import { UIPartInstances } from '../../ui/Collections.js'
+import {
+	DEFAULT_PIECE_LIFESPAN,
+	LEGACY_PIECE_LIFESPAN_PRESETS,
+} from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 const mockRundownPlaylistsCollection = MongoMock.getInnerMockCollection(RundownPlaylists)
 const mockPartInstancesCollection = MongoMock.getInnerMockCollection(UIPartInstances)
@@ -104,7 +109,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+				lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 			}
 
 			mockPiecesCollection.insert(infinitePiece)
@@ -177,7 +182,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -191,7 +196,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			}
 			mockPiecesCollection.insert(croppingPiece)
 
@@ -273,7 +278,7 @@ describe('client/lib/rundown', () => {
 				enable: {
 					start: 1000,
 				},
-				lifespan: { scope: 'segment', presence: 'follow-playhead', inShadow: 'stop' },
+				lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
 			}
 			mockPiecesCollection.insert(infinitePiece)
 
@@ -287,7 +292,7 @@ describe('client/lib/rundown', () => {
 					start: 4000,
 					duration: 1000,
 				},
-				lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+				lifespan: DEFAULT_PIECE_LIFESPAN,
 			}
 			mockPiecesCollection.insert(followingPiece)
 

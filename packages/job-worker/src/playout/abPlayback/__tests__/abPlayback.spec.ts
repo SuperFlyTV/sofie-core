@@ -13,6 +13,7 @@ import { protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { AssignmentResult, resolveAbAssignmentsFromRequests } from '../abPlaybackResolver.js'
 import { calculateSessionTimeRanges } from '../abPlaybackSessions.js'
 import { AbSessionHelper } from '../abSessionHelper.js'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const POOL_NAME = 'clip'
 
@@ -39,7 +40,7 @@ function createBasicResolvedPieceInstance(
 		sourceLayerId: '',
 		outputLayerId: '',
 		privateData: {},
-		lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+		lifespan: DEFAULT_PIECE_LIFESPAN,
 		timelineObjectsString: EmptyPieceTimelineObjectsBlob,
 		content: {},
 		invalid: false,

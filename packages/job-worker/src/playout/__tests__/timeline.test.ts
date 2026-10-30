@@ -18,7 +18,11 @@ import { handleActivateRundownPlaylist, handleDeactivateRundownPlaylist } from '
 import { fixSnapshot } from '../../__mocks__/helpers/snapshot.js'
 import { runJobWithPlayoutModel } from '../lock.js'
 import { updateTimeline } from '../timeline/generate.js'
-import { PieceLifespan } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import {
+	PieceLifespan,
+	DEFAULT_PIECE_LIFESPAN,
+	LEGACY_PIECE_LIFESPAN_PRESETS,
+} from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { getSelectedPartInstances, getSortedPartsForRundown } from './lib.js'
 import { IBlueprintPieceType, Time } from '@sofie-automation/blueprints-integration'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -68,6 +72,7 @@ import { PlayoutPartInstanceModelImpl } from '../model/implementation/PlayoutPar
 import { mock } from 'jest-mock-extended'
 import { QuickLoopService } from '../model/services/QuickLoopService.js'
 import { getCurrentTime } from '../../lib/time.js'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 
 /**
  * An object used to represent the simplified timeline structure.
@@ -1235,7 +1240,7 @@ describe('Timeline', () => {
 								rundownId: currentPartInstance!.partInstance.rundownId,
 								externalId: 'fake',
 								name: 'Adlibbed piece',
-								lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+								lifespan: DEFAULT_PIECE_LIFESPAN,
 								sourceLayerId: sourceLayerIds[0],
 								outputLayerId: outputLayerIds[0],
 								content: {},
@@ -1401,7 +1406,7 @@ describe('Timeline', () => {
 								rundownId: currentPartInstance!.partInstance.rundownId,
 								externalId: 'fake',
 								name: 'Adlibbed piece',
-								lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+								lifespan: DEFAULT_PIECE_LIFESPAN,
 								sourceLayerId: sourceLayerIds[0],
 								outputLayerId: outputLayerIds[0],
 								content: {},
@@ -1522,7 +1527,7 @@ describe('Timeline', () => {
 								piece1: {
 									prerollDuration: 50,
 									sourceLayerId: sourceLayerIds[3],
-									lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+									lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 								},
 							}
 						)
@@ -1916,7 +1921,7 @@ describe('Timeline', () => {
 								piece1: {
 									prerollDuration: 50,
 									sourceLayerId: sourceLayerIds[3],
-									lifespan: { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' },
+									lifespan: LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
 								},
 							}
 						)

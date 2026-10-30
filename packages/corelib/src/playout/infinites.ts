@@ -19,7 +19,7 @@ import { MongoQuery } from '../mongo.js'
 import { DBSegment, SegmentOrphanedReason } from '../dataModel/Segment.js'
 import { isValidForBranding } from './branding.js'
 import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
-import { PieceLifespan } from './pieceLifespan.js'
+import { PieceLifespan, LEGACY_PIECE_LIFESPAN_PRESETS } from './pieceLifespan.js'
 
 /**
  * Add a candidate to the infinite Pieces being kept for a source layer, dropping any which can never be shown
@@ -122,31 +122,11 @@ export function buildPastInfinitePiecesForThisPartQuery(
 					// same segment, and previous part
 					lifespan: {
 						$in: [
-							{
-								scope: 'segment' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
-							{
-								scope: 'segment' as const,
-								presence: 'follow-playhead' as const,
-								inShadow: 'stop' as const,
-							},
-							{
-								scope: 'rundown' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
-							{
-								scope: 'rundown' as const,
-								presence: 'follow-playhead' as const,
-								inShadow: 'stop' as const,
-							},
-							{
-								scope: 'showstyle' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentEnd],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnSegmentChange],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 						],
 					},
 					startRundownId: part.rundownId,
@@ -159,21 +139,9 @@ export function buildPastInfinitePiecesForThisPartQuery(
 					// same rundown, and previous segment
 					lifespan: {
 						$in: [
-							{
-								scope: 'rundown' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
-							{
-								scope: 'rundown' as const,
-								presence: 'follow-playhead' as const,
-								inShadow: 'stop' as const,
-							},
-							{
-								scope: 'showstyle' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownChange],
+							LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd],
 						],
 					},
 					startRundownId: part.rundownId,
@@ -184,13 +152,7 @@ export function buildPastInfinitePiecesForThisPartQuery(
 			? {
 					// previous rundown
 					lifespan: {
-						$in: [
-							{
-								scope: 'showstyle' as const,
-								presence: 'forward-scope' as const,
-								inShadow: 'persist' as const,
-							},
-						],
+						$in: [LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnShowStyleEnd]],
 					},
 					startRundownId: { $in: rundownIdsBeforeThisInPlaylist },
 				}
@@ -275,7 +237,7 @@ export function getPlayheadTrackingInfinitesForPart(
 
 			// If it is an onChange, then it may want to continue
 			const lifespan = PieceLifespan.from(lastPieceInstance.piece.lifespan)
-			const legacyOnchange = lifespan.tracksPlayhead && !lifespan.persistsInShadow // legacy onChange infinite behavior
+			const legacyOnchange = lifespan.followsPlayhead && !lifespan.persistsInShadow // legacy onChange infinite behavior
 
 			const isUsed =
 				// TODO: handle in legacy way for now, but we should write proper logic tied to each lifespan property to make it less rigid and more flexible

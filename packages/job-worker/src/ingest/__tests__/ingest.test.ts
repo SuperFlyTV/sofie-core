@@ -51,6 +51,7 @@ import { PlayoutPartInstanceModel } from '../../playout/model/PlayoutPartInstanc
 import { NrcsIngestCacheType } from '@sofie-automation/corelib/dist/dataModel/NrcsIngestDataCache'
 import { wrapGenericIngestJob, wrapGenericIngestJobWithPrecheck } from '../jobWrappers.js'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
+import { DEFAULT_PIECE_LIFESPAN } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 
 const handleRemovedRundownWrapped = wrapGenericIngestJob(handleRemovedRundown)
 const handleUpdatedRundownWrapped = wrapGenericIngestJob(handleUpdatedRundown)
@@ -1603,7 +1604,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: {
 											timelineObjects: [],
 										},
@@ -1623,7 +1624,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: {
 											timelineObjects: [],
 										},
@@ -1783,7 +1784,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: {
 											timelineObjects: [],
 										},
@@ -1803,7 +1804,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: {
 											timelineObjects: [],
 										},
@@ -2091,7 +2092,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: { timelineObjects: [] },
 									}),
 								],
@@ -2109,7 +2110,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: { timelineObjects: [] },
 									}),
 								],
@@ -2259,7 +2260,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: { timelineObjects: [] },
 									}),
 								],
@@ -2277,7 +2278,7 @@ describe('Test ingest actions for rundowns and segments', () => {
 										enable: { start: 0 },
 										sourceLayerId: '',
 										outputLayerId: '',
-										lifespan: { scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
+										lifespan: DEFAULT_PIECE_LIFESPAN,
 										content: { timelineObjects: [] },
 									}),
 								],
