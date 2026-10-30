@@ -42,7 +42,7 @@ import {
 import { DBPartInstance } from '@sofie-automation/corelib/dist/dataModel/PartInstance'
 import { ReadonlyDeep } from 'type-fest'
 import { adjustFakeTime, getCurrentTime, useFakeCurrentTime } from '../../__mocks__/time.js'
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import {
 	PlayoutChangedResult,
 	PlayoutChangedType,
@@ -1193,7 +1193,7 @@ async function setupRundownWithAutoplayPart0(
 		_id: protectString(rundownId + '_globalAdLib0'),
 		_rank: 0,
 		externalId: 'MOCK_GLOBAL_ADLIB_0',
-		lifespan: PieceLifespan.OutOnRundownChange,
+		lifespan: LegacyPieceLifespan.OutOnRundownChange,
 		rundownId: segment0.rundownId,
 		name: 'Global AdLib 0',
 		sourceLayerId: sourceLayerIds[0],
@@ -1206,7 +1206,7 @@ async function setupRundownWithAutoplayPart0(
 		_id: protectString(rundownId + '_globalAdLib1'),
 		_rank: 0,
 		externalId: 'MOCK_GLOBAL_ADLIB_1',
-		lifespan: PieceLifespan.OutOnRundownChange,
+		lifespan: LegacyPieceLifespan.OutOnRundownChange,
 		rundownId: segment0.rundownId,
 		name: 'Global AdLib 1',
 		sourceLayerId: sourceLayerIds[1],

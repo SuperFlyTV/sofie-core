@@ -6,7 +6,7 @@ import { protectString } from '@sofie-automation/corelib/dist/protectedString'
 import { SnapshotType } from '@sofie-automation/meteor-lib/dist/collections/Snapshots'
 import {
 	IBlueprintPieceType,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	PlaylistTimingType,
 	StatusCode,
 	TSR,
@@ -385,7 +385,7 @@ describe('cronjobs', () => {
 					sourceLayerId: '',
 					outputLayerId: '',
 					enable: { start: 0 },
-					lifespan: PieceLifespan.OutOnSegmentChange,
+					lifespan: LegacyPieceLifespan.OutOnSegmentChange,
 					invalid: false,
 					pieceType: IBlueprintPieceType.Normal,
 				},
@@ -405,7 +405,7 @@ describe('cronjobs', () => {
 					sourceLayerId: '',
 					outputLayerId: '',
 					enable: { start: 0 },
-					lifespan: PieceLifespan.OutOnSegmentChange,
+					lifespan: LegacyPieceLifespan.OutOnSegmentChange,
 					invalid: false,
 					pieceType: IBlueprintPieceType.Normal,
 				},

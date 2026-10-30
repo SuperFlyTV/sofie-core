@@ -1,7 +1,7 @@
 import { PieceId } from '@sofie-automation/corelib/dist/dataModel/Ids'
 import { PieceInstance, PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
-import { PieceLifespan, IBlueprintPieceType } from '@sofie-automation/blueprints-integration/dist'
+import { LegacyPieceLifespan, IBlueprintPieceType } from '@sofie-automation/blueprints-integration/dist'
 import { getRandomId, literal } from '@sofie-automation/corelib/dist/lib'
 import { JobContext } from '../jobs/index.js'
 import { AdLibPiece } from '@sofie-automation/corelib/dist/dataModel/AdLibPiece'
@@ -128,7 +128,7 @@ export function convertAdLibToGenericPiece(
 		pieceType: IBlueprintPieceType.Normal,
 		enable: {
 			start: isBeingQueued ? 0 : 'now',
-			duration: !isBeingQueued && adLibPiece.lifespan === PieceLifespan.WithinPart ? duration : undefined,
+			duration: !isBeingQueued && adLibPiece.lifespan === LegacyPieceLifespan.WithinPart ? duration : undefined,
 		},
 	}
 }
@@ -138,7 +138,7 @@ export function convertAdLibToGenericPiece(
  * @param pieceInstance PieceInstance to setup
  */
 export function setupPieceInstanceInfiniteProperties(pieceInstance: PieceInstance): void {
-	if (pieceInstance.piece.lifespan !== PieceLifespan.WithinPart) {
+	if (pieceInstance.piece.lifespan !== LegacyPieceLifespan.WithinPart) {
 		// Set it up as an infinite
 		pieceInstance.infinite = {
 			infiniteInstanceId: getRandomId(),

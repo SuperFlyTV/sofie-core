@@ -10,7 +10,7 @@ import {
 	IBlueprintPiece,
 	TimelineObjectCoreExt,
 	TSR,
-	PieceLifespan,
+	LegacyPieceLifespan,
 	IBlueprintPieceType,
 	ITranslatableMessage,
 	IBlueprintRundownPiece,
@@ -123,11 +123,11 @@ export function postProcessPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = PieceLifespan.WithinPart
+			piece.lifespan = LegacyPieceLifespan.WithinPart
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = PieceLifespan.WithinPart
+			piece.lifespan = LegacyPieceLifespan.WithinPart
 		}
 
 		if (!allowNowForPiece && piece.enable.start === 'now')
@@ -421,7 +421,7 @@ export function postProcessGlobalPieces(
 			content: omit(orgPiece.content, 'timelineObjects'),
 
 			pieceType: IBlueprintPieceType.Normal,
-			lifespan: PieceLifespan.OutOnRundownChange,
+			lifespan: LegacyPieceLifespan.OutOnRundownChange,
 
 			_id: protectString(docId),
 			startRundownId: rundownId,
@@ -436,11 +436,11 @@ export function postProcessGlobalPieces(
 
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
-			piece.lifespan = PieceLifespan.WithinPart
+			piece.lifespan = LegacyPieceLifespan.WithinPart
 		}
 		if (piece.extendOnHold) {
 			// HOLD pieces must not be infinite, as they become that when being held
-			piece.lifespan = PieceLifespan.WithinPart
+			piece.lifespan = LegacyPieceLifespan.WithinPart
 		}
 
 		if (piece.enable.start === 'now')

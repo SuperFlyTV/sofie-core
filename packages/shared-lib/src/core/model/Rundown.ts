@@ -1,4 +1,4 @@
-export enum PieceLifespan {
+export enum LegacyPieceLifespan {
 	/** The Piece will only exist in it's designated Part. As soon as the playhead leaves the Part, the Piece will stop */
 	WithinPart = 'part-only',
 	/** The Piece will only exist in it's designated Segment. It will begin playing when taken and will stop when the

@@ -14,7 +14,7 @@ import {
 	calculatePartExpectedDurationWithTransition,
 	PartCalculatedTimings,
 } from '@sofie-automation/corelib/dist/playout/timings'
-import { IBlueprintPieceType, PieceLifespan, Time } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, LegacyPieceLifespan, Time } from '@sofie-automation/blueprints-integration'
 import {
 	PlayoutMutatablePart,
 	PlayoutPartInstanceModel,
@@ -324,7 +324,7 @@ export class PlayoutPartInstanceModelImpl implements PlayoutPartInstanceModel {
 
 	insertVirtualPiece(
 		start: number,
-		lifespan: PieceLifespan,
+		lifespan: LegacyPieceLifespan,
 		sourceLayerId: string,
 		outputLayerId: string
 	): PlayoutPieceInstanceModel {

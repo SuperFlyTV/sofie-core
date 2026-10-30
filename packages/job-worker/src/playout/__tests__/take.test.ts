@@ -1,4 +1,4 @@
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import {
 	PeripheralDeviceCategory,
@@ -85,7 +85,7 @@ describe('take', () => {
 						outputLayerId: 'o0',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: PieceLifespan.WithinPart,
+						lifespan: LegacyPieceLifespan.WithinPart,
 						content: {
 							timelineObjects: [],
 						},
@@ -151,7 +151,7 @@ describe('take', () => {
 						outputLayerId: 'o0',
 						externalId: '-',
 						enable: { start: 0 },
-						lifespan: PieceLifespan.WithinPart,
+						lifespan: LegacyPieceLifespan.WithinPart,
 						content: {
 							timelineObjects: [],
 						},
@@ -223,7 +223,7 @@ describe('take', () => {
 					outputLayerId: 'o0',
 					externalId: '-',
 					enable: { start: 0 },
-					lifespan: PieceLifespan.WithinPart,
+					lifespan: LegacyPieceLifespan.WithinPart,
 					content: {
 						timelineObjects: [],
 					},

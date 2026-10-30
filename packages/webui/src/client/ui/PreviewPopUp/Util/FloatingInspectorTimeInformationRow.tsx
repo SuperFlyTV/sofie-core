@@ -1,6 +1,6 @@
 import type { PieceInstancePiece } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import { RundownUtils } from '../../../lib/rundown.js'
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import type { Time } from '@sofie-automation/shared-lib/dist/lib/lib'
@@ -42,17 +42,17 @@ export const FloatingInspectorTimeInformationRow: React.FunctionComponent<IProps
 
 function getLifeSpanText(t: TFunction, piece: ReadonlyDeep<Omit<PieceInstancePiece, 'timelineObjectsString'>>): string {
 	switch (piece.lifespan) {
-		case PieceLifespan.WithinPart:
+		case LegacyPieceLifespan.WithinPart:
 			return t('Until next take')
-		case PieceLifespan.OutOnSegmentChange:
+		case LegacyPieceLifespan.OutOnSegmentChange:
 			return t('Until next segment')
-		case PieceLifespan.OutOnSegmentEnd:
+		case LegacyPieceLifespan.OutOnSegmentEnd:
 			return t('Until end of segment')
-		case PieceLifespan.OutOnRundownChange:
+		case LegacyPieceLifespan.OutOnRundownChange:
 			return t('Until next rundown')
-		case PieceLifespan.OutOnRundownEnd:
+		case LegacyPieceLifespan.OutOnRundownEnd:
 			return t('Until end of rundown')
-		case PieceLifespan.OutOnShowStyleEnd:
+		case LegacyPieceLifespan.OutOnShowStyleEnd:
 			return t('Until end of showstyle')
 		default:
 			return ''

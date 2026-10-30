@@ -1,4 +1,4 @@
-import { ISourceLayer, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { ISourceLayer, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import { literal } from '@sofie-automation/shared-lib/dist/lib/lib'
 import { PieceInstance, ResolvedPieceInstance } from '../dataModel/PieceInstance.js'
 import { SourceLayers } from '../dataModel/ShowStyleBase.js'
@@ -260,7 +260,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 
 	for (const piece of pieces) {
 		switch (piece.piece.lifespan) {
-			case PieceLifespan.OutOnShowStyleEnd:
+			case LegacyPieceLifespan.OutOnShowStyleEnd:
 				if (!res.onShowStyleEnd || isCandidateBetterToBeContinued(res.onShowStyleEnd, piece)) {
 					res.onShowStyleEnd = {
 						...piece,
@@ -268,7 +268,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case PieceLifespan.OutOnRundownEnd:
+			case LegacyPieceLifespan.OutOnRundownEnd:
 				if (!res.onRundownEnd || isCandidateBetterToBeContinued(res.onRundownEnd, piece)) {
 					res.onRundownEnd = {
 						...piece,
@@ -276,7 +276,7 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case PieceLifespan.OutOnSegmentEnd:
+			case LegacyPieceLifespan.OutOnSegmentEnd:
 				if (!res.onSegmentEnd || isCandidateBetterToBeContinued(res.onSegmentEnd, piece)) {
 					res.onSegmentEnd = {
 						...piece,
@@ -284,9 +284,9 @@ function findPieceInstancesOnInfiniteLayers(pieces: ReadonlyDeep<PieceInstance[]
 					}
 				}
 				break
-			case PieceLifespan.OutOnRundownChange:
-			case PieceLifespan.OutOnSegmentChange:
-			case PieceLifespan.WithinPart:
+			case LegacyPieceLifespan.OutOnRundownChange:
+			case LegacyPieceLifespan.OutOnSegmentChange:
+			case LegacyPieceLifespan.WithinPart:
 				if (!res.other || isCandidateBetterToBeContinued(res.other, piece)) {
 					res.other = {
 						...piece,

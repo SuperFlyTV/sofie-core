@@ -5,7 +5,7 @@ import { SourceLayers } from '@sofie-automation/corelib/dist/dataModel/ShowStyle
 import { ReadonlyDeep } from 'type-fest'
 import { protectString } from '@sofie-automation/shared-lib/dist/lib/protectedString'
 import { getRandomId } from '@sofie-automation/corelib/dist/lib'
-import { IBlueprintPieceType, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import {
 	PieceInstance,
 	PieceInstancePiece,
@@ -81,7 +81,7 @@ describe('Resolved Pieces', () => {
 				pieceType: IBlueprintPieceType.Normal,
 				sourceLayerId,
 				outputLayerId: '',
-				lifespan: piecePartial?.lifespan ?? PieceLifespan.WithinPart,
+				lifespan: piecePartial?.lifespan ?? LegacyPieceLifespan.WithinPart,
 				enable,
 				virtual: piecePartial?.virtual ?? false,
 				timelineObjectsString: EmptyPieceTimelineObjectsBlob,
@@ -91,7 +91,7 @@ describe('Resolved Pieces', () => {
 			userDuration: instancePartial?.userDuration,
 		}
 
-		if (piece.piece.lifespan !== PieceLifespan.WithinPart) {
+		if (piece.piece.lifespan !== LegacyPieceLifespan.WithinPart) {
 			setupPieceInstanceInfiniteProperties(piece)
 		}
 
@@ -179,12 +179,12 @@ describe('Resolved Pieces', () => {
 			const piece0 = createPieceInstance(
 				sourceLayerId,
 				{ start: 1000 },
-				{ lifespan: PieceLifespan.OutOnRundownEnd }
+				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd }
 			)
 			const piece1 = createPieceInstance(
 				sourceLayerId,
 				{ start: 4000 },
-				{ lifespan: PieceLifespan.OutOnSegmentEnd }
+				{ lifespan: LegacyPieceLifespan.OutOnSegmentEnd }
 			)
 			const piece2 = createPieceInstance(sourceLayerId, { start: 8000, duration: 2000 })
 
@@ -216,12 +216,12 @@ describe('Resolved Pieces', () => {
 			const piece0 = createPieceInstance(
 				sourceLayerId,
 				{ start: 1000 },
-				{ lifespan: PieceLifespan.OutOnRundownEnd }
+				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd }
 			)
 			const piece1 = createPieceInstance(
 				sourceLayerId,
 				{ start: 4000 },
-				{ lifespan: PieceLifespan.OutOnRundownEnd, virtual: true }
+				{ lifespan: LegacyPieceLifespan.OutOnRundownEnd, virtual: true }
 			)
 
 			const resolvedPieces = getResolvedPiecesInner(sourceLayers, null, [piece0, piece1])
@@ -596,14 +596,14 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 			const infinite2 = createPieceInstance(
 				sourceLayerId,
 				{ start: 5000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 
@@ -724,7 +724,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 
@@ -778,7 +778,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 
@@ -786,7 +786,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 0 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				},
 				{
 					userDuration: {
@@ -900,7 +900,7 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 
@@ -961,14 +961,14 @@ describe('Resolved Pieces', () => {
 				sourceLayerId,
 				{ start: 1000 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				}
 			)
 			const continuingInfinitePiece = createPieceInstance(
 				sourceLayerId,
 				{ start: 0 },
 				{
-					lifespan: PieceLifespan.OutOnSegmentEnd,
+					lifespan: LegacyPieceLifespan.OutOnSegmentEnd,
 				},
 				{
 					userDuration: {

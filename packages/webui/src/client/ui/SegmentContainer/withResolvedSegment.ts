@@ -1,6 +1,6 @@
 import type * as React from 'react'
 import _ from 'underscore'
-import { type ISourceLayer, type NoteSeverity, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { type ISourceLayer, type NoteSeverity, LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
 import type { RundownViewPlaylist } from '../../lib/rundownPlaylistProjection.js'
 import { withTracker } from '../../lib/ReactMeteorData/react-meteor-data.js'
 import type { IContextMenuContext } from '../RundownView.js'
@@ -147,9 +147,9 @@ export function withResolvedSegment<T extends IResolvedSegmentProps, IState = {}
 				'infinite.fromPreviousPart': false,
 				'piece.lifespan': {
 					$in: [
-						PieceLifespan.OutOnRundownEnd,
-						PieceLifespan.OutOnRundownChange,
-						PieceLifespan.OutOnShowStyleEnd,
+						LegacyPieceLifespan.OutOnRundownEnd,
+						LegacyPieceLifespan.OutOnRundownChange,
+						LegacyPieceLifespan.OutOnShowStyleEnd,
 					],
 				},
 				reset: {
