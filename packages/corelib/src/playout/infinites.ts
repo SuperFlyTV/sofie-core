@@ -19,6 +19,7 @@ import _ from 'underscore'
 import { MongoQuery } from '../mongo.js'
 import { DBSegment, SegmentOrphanedReason } from '../dataModel/Segment.js'
 import { isShadowPiece, PieceLifespan } from './pieceLifespan.js'
+import { isValidForBranding } from './branding.js'
 
 /*
  * Infinites
@@ -215,11 +216,17 @@ function resolveContinuedInfinites(params: PieceInstancesForPartParams): {
 	}
 
 	const replayPlayingPartInstance = (playing: PlayingPartInstance, isOnPath: boolean) => {
-		const layersWithShadow = new Set(
-			playing.pieceInstances.filter((p) => isShadowPiece(p.piece)).map((p) => p.piece.sourceLayerId)
+		// A piece hidden by the Branding is not playing, so it neither continues nor stops anything
+		const pieceInstances = playing.pieceInstances.filter((p) =>
+			isValidForBranding(p.piece, playing.partInstance.brandingId)
 		)
+		const layersWithShadow = new Set(
+			pieceInstances.filter((p) => isShadowPiece(p.piece)).map((p) => p.piece.sourceLayerId)
+		)
+		// When the pieces started in this PartInstance started, to tell which of them start together
+		const liveStarts = new Map<ReadonlyDeep<PieceInstance>, number | 'now'>()
 
-		for (const { instance, start } of getPieceInstancesInOrder(playing)) {
+		for (const { instance, start } of getPieceInstancesInOrder({ ...playing, pieceInstances })) {
 			const layer = getLayer(instance.piece.sourceLayerId)
 			const lifespan = PieceLifespan.from(instance.piece.lifespan)
 			const isOpenEnded = !instance.userDuration && typeof instance.piece.enable.duration !== 'number'
@@ -249,26 +256,41 @@ function resolveContinuedInfinites(params: PieceInstancesForPartParams): {
 				continue
 			}
 
-			layer.live = stopLiveInfinites(layer.live, lifespan, isOpenEnded, isShadow, !isUnplanned)
+			const isLimited = isLimitedToBranding(instance.piece)
+			layer.live = stopLiveInfinites(
+				layer.live,
+				lifespan,
+				isOpenEnded,
+				isShadow,
+				isLimited,
+				(p) => isLimitedToBranding(p.piece) && isSameStart(liveStarts.get(p), start),
+				!isUnplanned
+			)
 
 			// The planned Pieces of the playing Part are replayed with the plan, but an adlib changes the plan
 			// Only the ones started before it though, the later planned pieces of this Part are newer
 			if (isOnPath && isAdlib) {
+				const isInPart = (p: ReadonlyDeep<Piece>) => p.startPartId === playing.partInstance.part._id
 				const isLaterInPart = (p: ReadonlyDeep<Piece>) =>
-					p.startPartId === playing.partInstance.part._id && compareStarts(p.enable.start, start) > 0
+					isInPart(p) && compareStarts(p.enable.start, start) > 0
 				layer.planned = [
 					...stopShadowedInfinites(
 						layer.planned.filter((p) => !isLaterInPart(p)),
 						(p) => p.lifespan,
 						lifespan,
 						isOpenEnded,
-						isShadow
+						isShadow,
+						isLimited,
+						(p) => isLimitedToBranding(p) && isInPart(p) && isSameStart(p.enable.start, start)
 					),
 					...layer.planned.filter(isLaterInPart),
 				]
 			}
 
-			if (continuesFromHere) layer.live.push(instance)
+			if (continuesFromHere) {
+				layer.live.push(instance)
+				liveStarts.set(instance, start)
+			}
 		}
 	}
 
@@ -293,9 +315,22 @@ function resolveContinuedInfinites(params: PieceInstancesForPartParams): {
 
 		const isOpenEnded = typeof piece.enable.duration !== 'number'
 		const isShadow = isShadowPiece(piece)
-		layer.planned = stopShadowedInfinites(layer.planned, (p) => p.lifespan, lifespan, isOpenEnded, isShadow)
+		const isLimited = isLimitedToBranding(piece)
+		layer.planned = stopShadowedInfinites(
+			layer.planned,
+			(p) => p.lifespan,
+			lifespan,
+			isOpenEnded,
+			isShadow,
+			isLimited,
+			(p) =>
+				isLimitedToBranding(p) &&
+				p.startPartId === piece.startPartId &&
+				isSameStart(p.enable.start, piece.enable.start)
+		)
 		if (hasReplayedPlaying && playheadTravelsThrough) {
-			layer.live = stopLiveInfinites(layer.live, lifespan, isOpenEnded, isShadow, true)
+			// The live infinites started in the playing Part, so they never start together with a later planned piece
+			layer.live = stopLiveInfinites(layer.live, lifespan, isOpenEnded, isShadow, isLimited, () => false, true)
 		}
 
 		// Only forward scoped infinites continue from the plan. One following the playhead becomes an infinite once the
@@ -336,18 +371,27 @@ function resolveContinuedInfinites(params: PieceInstancesForPartParams): {
  * A new piece on a layer stops the infinites that stop in shadow. When it persists in shadow, it also ends the ones of
  * its own scope if it has no end, or if they are `legacy-persist`. Otherwise they resume once the new piece ends.
  * A shadow ends none of them.
+ *
+ * A piece limited to some Brandings ends none of them either, as it is hidden while another Branding is selected. The
+ * Branding can change after these PieceInstances have been created, so which one is shown is left to playout.
+ * For the same reason a piece limited to some Brandings is kept when an unlimited one starts at the same time.
  */
 function stopShadowedInfinites<T>(
 	active: T[],
 	getLifespan: (entry: T) => ReadonlyDeep<Piece['lifespan']>,
 	newLifespan: PieceLifespan,
 	newIsOpenEnded: boolean,
-	newIsShadow: boolean
+	newIsShadow: boolean,
+	newIsLimitedToBranding: boolean,
+	isLimitedAndStartingTogether: (entry: T) => boolean
 ): T[] {
 	// A shadow only obstructs the layer, every infinite keeps being continued under it
 	if (newIsShadow) return active
+	if (newIsLimitedToBranding) return active
 
 	return active.filter((entry) => {
+		if (isLimitedAndStartingTogether(entry)) return true
+
 		const lifespan = PieceLifespan.from(getLifespan(entry))
 		if (!lifespan.persistsInShadow) return false
 
@@ -366,9 +410,19 @@ function stopLiveInfinites(
 	newLifespan: PieceLifespan,
 	newIsOpenEnded: boolean,
 	newIsShadow: boolean,
+	newIsLimitedToBranding: boolean,
+	isLimitedAndStartingTogether: (entry: ReadonlyDeep<PieceInstance>) => boolean,
 	newIsPlanned: boolean
 ): ReadonlyDeep<PieceInstance>[] {
-	const remaining = stopShadowedInfinites(live, (p) => p.piece.lifespan, newLifespan, newIsOpenEnded, newIsShadow)
+	const remaining = stopShadowedInfinites(
+		live,
+		(p) => p.piece.lifespan,
+		newLifespan,
+		newIsOpenEnded,
+		newIsShadow,
+		newIsLimitedToBranding,
+		isLimitedAndStartingTogether
+	)
 	if (!newIsPlanned) return remaining
 
 	return live.filter(
@@ -453,6 +507,19 @@ function compareStarts(a: number | 'now', b: number | 'now'): number {
 	if (a === 'now') return b === 'now' ? 0 : 1
 	if (b === 'now') return -1
 	return a - b
+}
+
+/**
+ * Whether two pieces in the same Part start at the same time.
+ * Pieces starting 'now' never do, as they are ordered by when they were started
+ */
+function isSameStart(a: number | 'now' | undefined, b: number | 'now'): boolean {
+	return typeof a === 'number' && typeof b === 'number' && a === b
+}
+
+/** Whether a piece is limited to some Brandings, so it is hidden while another one is selected */
+function isLimitedToBranding(piece: ReadonlyDeep<Pick<Piece, 'onlyValidForBranding'>>): boolean {
+	return !!piece.onlyValidForBranding
 }
 
 /** Whether an infinite continuing from the given segment/rundown reaches the target Part */

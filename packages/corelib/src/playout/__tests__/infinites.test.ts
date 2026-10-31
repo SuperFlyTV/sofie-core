@@ -624,6 +624,206 @@ describe('Infinites', () => {
 		})
 	})
 
+	describe('Branding', () => {
+		const segmentLegacyPersist: IPieceLifespan = {
+			scope: 'segment',
+			presence: 'forward-scope',
+			inShadow: 'legacy-persist',
+		}
+		const rundownLegacyPersist: IPieceLifespan = {
+			scope: 'rundown',
+			presence: 'forward-scope',
+			inShadow: 'legacy-persist',
+		}
+
+		function limitTo(piece: Piece, onlyValidForBranding: string[]): Piece {
+			return { ...piece, onlyValidForBranding }
+		}
+
+		describe('the playing PartInstance', () => {
+			/** Play the PieceInstances in part0 with the Branding selected, and return the ids of those continued into part1 */
+			function getContinuedIds(pieceInstances: PieceInstance[], brandingId: string | null = null): string[] {
+				const playing = createPlaying('part0', pieceInstances)
+				const branded = { ...playing, partInstance: { ...playing.partInstance, brandingId } }
+				return getContinuedPieceIds(getParams('part1', [], branded)).sort()
+			}
+
+			function createOnChange(id: string, start: number | 'now', onlyValidForBranding?: string[]): PieceInstance {
+				const piece = createPiece(id, 'part0', 0, 'layer', rundownPlayhead)
+				return createPieceInstance(onlyValidForBranding ? limitTo(piece, onlyValidForBranding) : piece, {
+					piece: { enable: { start } },
+				})
+			}
+
+			function createAdlibbedOnEnd(id: string, start: number | 'now'): PieceInstance {
+				return createPieceInstance(createPiece(id, 'part0', 0, 'layer', rundownLegacyPersist), {
+					dynamicallyConvertedToInfinite: 1,
+					piece: { enable: { start } },
+				})
+			}
+
+			test('the onChange piece starting last is the one continued', () => {
+				expect(getContinuedIds([createOnChange('early', 1000), createOnChange('late', 2000)])).toEqual(['late'])
+			})
+
+			test('the onChange piece starting last is chosen regardless of the order they are considered in', () => {
+				expect(getContinuedIds([createOnChange('late', 2000), createOnChange('early', 1000)])).toEqual(['late'])
+			})
+
+			test("an onChange piece starting 'now' starts later than any planned start", () => {
+				expect(getContinuedIds([createOnChange('planned', 2000), createOnChange('now', 'now')])).toEqual([
+					'now',
+				])
+			})
+
+			test('the adlibbed onEnd piece starting last is the one continued', () => {
+				expect(
+					getContinuedIds([createAdlibbedOnEnd('early', 1000), createAdlibbedOnEnd('late', 2000)])
+				).toEqual(['late'])
+			})
+
+			test("an adlibbed onEnd piece starting 'now' starts later than any planned start", () => {
+				expect(
+					getContinuedIds([createAdlibbedOnEnd('planned', 2000), createAdlibbedOnEnd('now', 'now')])
+				).toEqual(['now'])
+			})
+
+			test('a piece hidden by the Branding is not continued, as it is not playing', () => {
+				// Without the Branding it would have stopped the other, as it starts later
+				expect(
+					getContinuedIds(
+						[createOnChange('shown', 1000), createOnChange('hidden', 2000, ['brandingB'])],
+						'brandingA'
+					)
+				).toEqual(['shown'])
+			})
+
+			test('a piece used with the selected Branding is continued', () => {
+				expect(getContinuedIds([createOnChange('limited', 1000, ['brandingA'])], 'brandingA')).toEqual([
+					'limited',
+				])
+			})
+
+			test('a piece limited to a Branding is stopped by a later unlimited one', () => {
+				const limited = createOnChange('limited', 1000, ['brandingA'])
+				const later = createOnChange('later', 2000)
+
+				expect(getContinuedIds([limited, later], 'brandingA')).toEqual(['later'])
+				expect(getContinuedIds([later, limited], 'brandingA')).toEqual(['later'])
+			})
+
+			test('a piece limited to a Branding does not stop an earlier unlimited one', () => {
+				const early = createOnChange('early', 1000)
+				const limited = createOnChange('limited', 2000, ['brandingA'])
+
+				expect(getContinuedIds([early, limited], 'brandingA')).toEqual(['early', 'limited'])
+				expect(getContinuedIds([limited, early], 'brandingA')).toEqual(['early', 'limited'])
+			})
+
+			test('a piece limited to a Branding is kept when an unlimited one starts at the same time', () => {
+				const limited = createOnChange('limited', 1000, ['brandingA'])
+				const unlimited = createOnChange('unlimited', 1000)
+
+				expect(getContinuedIds([limited, unlimited], 'brandingA')).toEqual(['limited', 'unlimited'])
+				expect(getContinuedIds([unlimited, limited], 'brandingA')).toEqual(['limited', 'unlimited'])
+			})
+		})
+
+		describe('planned pieces', () => {
+			/** The ids of the planned Pieces continued into part2, the last Part in segment0 */
+			function getKeptIds(pieces: Piece[]): string[] {
+				return getContinuedPieceIds(getParams('part2', pieces)).sort()
+			}
+
+			function createInfinite(id: string, partId: string, sourceLayerId = 'layer'): Piece {
+				return createPiece(id, partId, 0, sourceLayerId, segmentLegacyPersist)
+			}
+
+			test('without Branding, only the last starting infinite on a layer is kept', () => {
+				expect(getKeptIds([createInfinite('early', 'part0'), createInfinite('late', 'part1')])).toEqual([
+					'late',
+				])
+			})
+
+			test('an infinite limited to a Branding does not stop the one before it', () => {
+				expect(
+					getKeptIds([
+						createInfinite('early', 'part0'),
+						limitTo(createInfinite('late', 'part1'), ['brandingA']),
+					])
+				).toEqual(['early', 'late'])
+			})
+
+			test('infinites limited to different Brandings are all kept', () => {
+				expect(
+					getKeptIds([
+						limitTo(createInfinite('early', 'part0'), ['brandingB']),
+						limitTo(createInfinite('late', 'part1'), ['brandingA']),
+					])
+				).toEqual(['early', 'late'])
+			})
+
+			test('an infinite limited to a Branding is stopped by a later unlimited one', () => {
+				expect(
+					getKeptIds([
+						limitTo(createInfinite('early', 'part0'), ['brandingA']),
+						createInfinite('late', 'part1'),
+					])
+				).toEqual(['late'])
+			})
+
+			test('an infinite limited to a Branding is stopped by a later unlimited one, in either order', () => {
+				expect(
+					getKeptIds([
+						createInfinite('late', 'part1'),
+						limitTo(createInfinite('early', 'part0'), ['brandingA']),
+					])
+				).toEqual(['late'])
+			})
+
+			test('an infinite limited to a Branding is kept when it starts at the same time as an unlimited one', () => {
+				// Neither is preferred, so this has to be left to be resolved during playout
+				const limited = limitTo(createInfinite('limited', 'part1'), ['brandingA'])
+				const unlimited = createInfinite('unlimited', 'part1')
+
+				expect(getKeptIds([limited, unlimited])).toEqual(['limited', 'unlimited'])
+				expect(getKeptIds([unlimited, limited])).toEqual(['limited', 'unlimited'])
+			})
+
+			test('a later unlimited infinite stops both the limited and the unlimited ones before it', () => {
+				expect(
+					getKeptIds([
+						createInfinite('early', 'part0'),
+						limitTo(createInfinite('limited', 'part0'), ['brandingA']),
+						createInfinite('latest', 'part1'),
+					])
+				).toEqual(['latest'])
+			})
+
+			test('an unlimited infinite is kept when everything after it is limited', () => {
+				expect(
+					getKeptIds([
+						createInfinite('early', 'part0'),
+						limitTo(createInfinite('late', 'part1'), ['brandingA']),
+						limitTo(createInfinite('latest', 'part1'), ['brandingB']),
+					])
+				).toEqual(['early', 'late', 'latest'])
+			})
+
+			test('an override does not affect the selection, as it cannot move the Piece between layers', () => {
+				const late: Piece = { ...createInfinite('late', 'part1'), branding: { brandingA: { name: 'branded' } } }
+
+				expect(getKeptIds([createInfinite('early', 'part0'), late])).toEqual(['late'])
+			})
+
+			test('infinites on separate layers never compete', () => {
+				expect(
+					getKeptIds([createInfinite('early', 'part0', 'layer0'), createInfinite('late', 'part1', 'layer1')])
+				).toEqual(['early', 'late'])
+			})
+		})
+	})
+
 	describe('queries', () => {
 		const part = getPart('part1')
 
