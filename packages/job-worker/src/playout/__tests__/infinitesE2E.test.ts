@@ -24,7 +24,10 @@ import { sleep } from '@sofie-automation/shared-lib/dist/lib/lib'
 import { wrapDefaultObject } from '@sofie-automation/corelib/dist/settings/objectWithOverrides'
 import { IPieceLifespan } from '@sofie-automation/shared-lib/dist/core/model/Rundown'
 import { LegacyPieceLifespan } from '@sofie-automation/blueprints-integration'
-import { LEGACY_PIECE_LIFESPAN_PRESETS } from '@sofie-automation/corelib/dist/playout/pieceLifespan'
+import {
+	DEFAULT_PIECE_LIFESPAN,
+	LEGACY_PIECE_LIFESPAN_PRESETS,
+} from '@sofie-automation/corelib/dist/playout/pieceLifespan'
 import { adjustFakeTime, useFakeCurrentTime } from '../../__mocks__/time.js'
 
 jest.spyOn(peripheralDeviceLib, 'executePeripheralDeviceFunction').mockImplementation(async () => sleep(10))
@@ -297,13 +300,10 @@ describe('Infinites through playout', () => {
 		await take(playlistId)
 
 		for (const layer of ['layerS', 'layerP']) {
-			await insertOnAir(
-				playlistId,
-				`Shadow ${layer}`,
-				{ scope: 'part', presence: 'forward-scope', inShadow: 'stop' },
-				layer,
-				{ enable: { start: 'now', duration: 1000 }, virtualMode: 'shadow' }
-			)
+			await insertOnAir(playlistId, `Shadow ${layer}`, DEFAULT_PIECE_LIFESPAN, layer, {
+				enable: { start: 'now', duration: 1000 },
+				virtualMode: 'shadow',
+			})
 		}
 
 		const shadows = (await context.mockCollections.PieceInstances.findFetch()).filter((p) =>

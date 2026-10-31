@@ -216,14 +216,9 @@ describe('processAndPrunePieceInstanceTimings', () => {
 				fromPreviousPart: true,
 			})
 		const shadow = (enable: Piece['enable']): PieceInstance => {
-			const instance = createPieceInstance('shadow', enable, 'one', {
-				scope: 'part',
-				presence: 'forward-scope',
-				inShadow: 'stop',
-			})
+			const instance = createPieceInstance('shadow', enable, 'one', partOnlyLifespan)
 			return { ...instance, piece: { ...instance.piece, virtual: true, virtualMode: 'shadow' } }
 		}
-		const rundownPersist: IPieceLifespan = { scope: 'rundown', presence: 'forward-scope', inShadow: 'persist' }
 
 		test('an adlib taken before a shadow stays under it, wherever the playhead is', () => {
 			const adlib = {
@@ -292,7 +287,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 		test('a legacy-persist piece is cut by a shadow, and resumes after it', () => {
 			const resolvedInstances = runAndTidyResult(
 				[
-					continuation('incoming', { ...rundownPersist, inShadow: 'legacy-persist' }),
+					continuation('incoming', LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]),
 					shadow({ start: 2000, duration: 3000 }),
 				],
 				createPartCurrentTimes(500, 0)
@@ -348,8 +343,7 @@ describe('processAndPrunePieceInstanceTimings', () => {
 
 		test('a clear virtual which does not end a persisting piece obstructs it while active, as a shadow', () => {
 			const clear = createPieceInstance('clear', { start: 2000, duration: 3000 }, 'one', partOnlyLifespan, true)
-			const segmentPersist: IPieceLifespan = { scope: 'segment', presence: 'forward-scope', inShadow: 'persist' }
-			const legacyPersist: IPieceLifespan = { ...rundownPersist, inShadow: 'legacy-persist' }
+			const legacyPersist = LEGACY_PIECE_LIFESPAN_PRESETS[LegacyPieceLifespan.OutOnRundownEnd]
 
 			expect(
 				runAndTidyResult([continuation('incoming', segmentPersist), clear], createPartCurrentTimes(500, 0))

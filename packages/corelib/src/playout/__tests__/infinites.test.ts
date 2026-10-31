@@ -554,10 +554,9 @@ describe('Infinites', () => {
 			const virtualEnder = (id: string, lifespan: IPieceLifespan) =>
 				createPieceInstance({ ...createPiece(`${id}_end`, 'part1', 0, id, lifespan), virtual: true })
 
-			const legacyPersist: IPieceLifespan = { ...rundownPersist, inShadow: 'legacy-persist' }
 			const playing = createPlaying('part1', [
-				continuedAdlib('legacy', legacyPersist),
-				virtualEnder('legacy', legacyPersist),
+				continuedAdlib('legacy', rundownLegacy),
+				virtualEnder('legacy', rundownLegacy),
 				continuedAdlib('persist', rundownPersist),
 				virtualEnder('persist', rundownPersist),
 			])
