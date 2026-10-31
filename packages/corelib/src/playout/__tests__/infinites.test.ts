@@ -307,6 +307,26 @@ describe('Infinites', () => {
 			).toEqual(['legacy'])
 		})
 
+		test('a shadow ends no infinite, they all continue under it', () => {
+			const stop = createPiece('stop', 'part0', 0, 'layerA', segmentStop)
+			const persist = createPiece('persist', 'part0', 0, 'layerB', rundownPersist)
+			const shadow = (layer: string) => ({
+				...createPiece(`shadow_${layer}`, 'part1', 0, layer, segmentPersist),
+				virtual: true,
+				virtualMode: 'shadow' as const,
+			})
+			const pieces = [stop, persist, shadow('layerA'), shadow('layerB')]
+
+			// The shadows continue for their own scope, the infinites are still there under them
+			expect(getContinuedPieceIds(getParams('part2', pieces)).sort()).toEqual([
+				'persist',
+				'shadow_layerA',
+				'shadow_layerB',
+				'stop',
+			])
+			expect(getContinuedPieceIds(getParams('part3', pieces))).toEqual(['persist'])
+		})
+
 		test('later pieces in the same part are applied in order of their start', () => {
 			const finite = createPiece('finite', 'part0', 0, 'layer', partOnly)
 			const infinite = createPiece('infinite', 'part0', 1000, 'layer', segmentStop)
@@ -419,6 +439,24 @@ describe('Infinites', () => {
 			expect(getContinuedPieceIds(getParams('part2', [infinite], withAdlib))).toEqual([])
 		})
 
+		test('an infinite which stopped playing while hidden by a shadow is still continued', () => {
+			const playhead = createPiece('playhead', 'part0', 0, 'layer', segmentPlayhead)
+			const shadow = {
+				...createPiece('shadow', 'part0', 2000, 'layer', partOnly),
+				enable: { start: 2000, duration: 3000 },
+				virtual: true,
+				virtualMode: 'shadow' as const,
+			}
+			// Playout reports the piece as stopped when the shadow cuts it, and the slice resuming after it is not it
+			const stoppedPlayhead = createPieceInstance(playhead, { plannedStoppedPlayback: 2000 })
+
+			const withShadow = createPlaying('part0', [stoppedPlayhead, createPieceInstance(shadow)])
+			expect(getContinuedPieceIds(getParams('part1', [], withShadow))).toEqual(['playhead'])
+
+			const withoutShadow = createPlaying('part0', [stoppedPlayhead])
+			expect(getContinuedPieceIds(getParams('part1', [], withoutShadow))).toEqual([])
+		})
+
 		test('a planned infinite which was stopped in the playing part is not continued', () => {
 			const infinite = createPiece('infinite', 'part0', 0, 'layer', segmentPersist)
 
@@ -499,6 +537,55 @@ describe('Infinites', () => {
 				'playheadStop',
 				'occludingStop',
 			])
+		})
+
+		test('a planned piece does not end an adlibbed legacy-persist infinite, as it did not before', () => {
+			const continuedAdlib = (id: string, lifespan: IPieceLifespan) =>
+				createPieceInstance(createPiece(id, 'part0', 0, id, lifespan), {
+					dynamicallyInserted: 1,
+					infinite: {
+						infiniteInstanceId: protectString(`${id}_chain`),
+						infiniteInstanceIndex: 1,
+						infinitePieceId: protectString(id),
+						fromPreviousPart: true,
+						fromPreviousPlayhead: true,
+					},
+				})
+			const virtualEnder = (id: string, lifespan: IPieceLifespan) =>
+				createPieceInstance({ ...createPiece(`${id}_end`, 'part1', 0, id, lifespan), virtual: true })
+
+			const legacyPersist: IPieceLifespan = { ...rundownPersist, inShadow: 'legacy-persist' }
+			const playing = createPlaying('part1', [
+				continuedAdlib('legacy', legacyPersist),
+				virtualEnder('legacy', legacyPersist),
+				continuedAdlib('persist', rundownPersist),
+				virtualEnder('persist', rundownPersist),
+			])
+
+			expect(getContinuedPieceIds(getParams('part2', [], playing))).toEqual(['legacy'])
+		})
+
+		test('an adlib is ordered by when it was taken against the planned pieces of its part', () => {
+			const planned = createPiece('planned', 'part1', 5000, 'layer', segmentPersist)
+			const adlib = createPiece('adlib', 'part1', 0, 'layer', segmentPersist)
+			const playing = (takenAt: number) => {
+				const instance = createPlaying('part1', [
+					createPieceInstance(planned),
+					createPieceInstance(adlib, {
+						dynamicallyInserted: 100000 + takenAt,
+						piece: { enable: { start: 'now' } },
+					}),
+				])
+				return {
+					...instance,
+					partInstance: { ...instance.partInstance, timings: { plannedStartedPlayback: 100000 } },
+				}
+			}
+
+			// Taken at 3s: the planned piece at 5s is newer, of the same scope and has no end, so it ends the adlib
+			expect(getContinuedPieceIds(getParams('part2', [planned], playing(3000)))).toEqual(['planned'])
+			// Taken at 7s: the adlib is newer, and replaces the planned piece
+			expect(getContinuedPieceIds(getParams('part2', [planned], playing(7000)))).toEqual(['adlib'])
 		})
 
 		describe('AdlibTesting', () => {

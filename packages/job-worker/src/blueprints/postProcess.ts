@@ -131,6 +131,10 @@ export function postProcessPieces(
 		}
 		sanitisePieceBrandingFromBlueprint(piece, blueprintId, `Piece "${piece.externalId}"`)
 
+		if (piece.virtualMode === 'shadow') {
+			// a shadow only obstructs its layer, it can't have any contents
+			piece.virtual = true
+		}
 		if (piece.pieceType !== IBlueprintPieceType.Normal) {
 			// transition pieces must not be infinite, lets enforce that
 			piece.lifespan = DEFAULT_PIECE_LIFESPAN
