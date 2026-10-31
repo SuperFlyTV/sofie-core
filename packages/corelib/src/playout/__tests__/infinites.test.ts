@@ -625,17 +625,6 @@ describe('Infinites', () => {
 	})
 
 	describe('Branding', () => {
-		const segmentLegacyPersist: IPieceLifespan = {
-			scope: 'segment',
-			presence: 'forward-scope',
-			inShadow: 'legacy-persist',
-		}
-		const rundownLegacyPersist: IPieceLifespan = {
-			scope: 'rundown',
-			presence: 'forward-scope',
-			inShadow: 'legacy-persist',
-		}
-
 		function limitTo(piece: Piece, onlyValidForBranding: string[]): Piece {
 			return { ...piece, onlyValidForBranding }
 		}
@@ -656,7 +645,7 @@ describe('Infinites', () => {
 			}
 
 			function createAdlibbedOnEnd(id: string, start: number | 'now'): PieceInstance {
-				return createPieceInstance(createPiece(id, 'part0', 0, 'layer', rundownLegacyPersist), {
+				return createPieceInstance(createPiece(id, 'part0', 0, 'layer', rundownLegacy), {
 					dynamicallyConvertedToInfinite: 1,
 					piece: { enable: { start } },
 				})
@@ -736,7 +725,7 @@ describe('Infinites', () => {
 			}
 
 			function createInfinite(id: string, partId: string, sourceLayerId = 'layer'): Piece {
-				return createPiece(id, partId, 0, sourceLayerId, segmentLegacyPersist)
+				return createPiece(id, partId, 0, sourceLayerId, segmentLegacy)
 			}
 
 			test('without Branding, only the last starting infinite on a layer is kept', () => {
