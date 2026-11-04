@@ -8,7 +8,8 @@ import type { PartInstance } from '@sofie-automation/corelib/dist/dataModel/Part
 import type { Piece } from '@sofie-automation/corelib/dist/dataModel/Piece'
 import type { PieceInstance } from '@sofie-automation/corelib/dist/dataModel/PieceInstance'
 import type { StateCacheResolverDataAccess } from '@sofie-automation/corelib/dist/playout/stateCacheResolverTypes'
-import { RundownId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { PartId, RundownId, SegmentId, ShowStyleBaseId } from '@sofie-automation/corelib/dist/dataModel/Ids'
+import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import { ShowStyleBaseExt } from '../../../../collections/showStyleBaseHandler.js'
 
 type PlaylistState = Pick<
@@ -62,7 +63,15 @@ export type ResolvedPlaylistConversionContext = Readonly<{
 	nextPartInstance: PartInstance | undefined
 
 	accessors: ReturnType<typeof createQueryAdapters>
+
+	/** Values derived per Rundown, filled on first use as they are needed once for every Segment in the Rundown */
+	perRundownCache: Map<string, PerRundownCache>
 }>
+
+interface PerRundownCache {
+	orderedPartIds?: PartId[]
+	segmentIds?: Set<SegmentId>
+}
 
 /**
  * Creates a normalized lookup context used by all resolved-playlist converters.
@@ -116,7 +125,31 @@ export function createResolvedPlaylistConversionContext(
 		currentPartInstance,
 		nextPartInstance,
 		accessors,
+		perRundownCache: new Map(),
 	}
+}
+
+function getPerRundownCache(ctx: ResolvedPlaylistConversionContext, rundownId: string): PerRundownCache {
+	let cache = ctx.perRundownCache.get(rundownId)
+	if (!cache) {
+		cache = {}
+		ctx.perRundownCache.set(rundownId, cache)
+	}
+	return cache
+}
+
+/** The ids of the parts in the rundown, in rundown order. Computed once per rundown. */
+export function getOrderedPartIdsInRundown(ctx: ResolvedPlaylistConversionContext, rundownId: string): PartId[] {
+	const cache = getPerRundownCache(ctx, String(rundownId))
+	cache.orderedPartIds ??= getOrderedPartsInRundown(ctx, rundownId).map((p) => p._id)
+	return cache.orderedPartIds
+}
+
+/** The ids of all the segments in the rundown. Computed once per rundown. */
+export function getSegmentIdsInRundown(ctx: ResolvedPlaylistConversionContext, rundownId: string): Set<SegmentId> {
+	const cache = getPerRundownCache(ctx, String(rundownId))
+	cache.segmentIds ??= new Set((ctx.segmentsByRundownId.get(String(rundownId)) ?? []).map((s) => s._id))
+	return cache.segmentIds
 }
 
 function groupByRundownId<T extends { rundownId: unknown }>(items: T[]): Map<string, T[]> {
@@ -180,6 +213,83 @@ export function findNextPartInstance(
 	return partInstancesInPlaylistState.find((pi) => pi._id === playlist.nextPartInfo?.partInstanceId)
 }
 
+/**
+ * Group documents by the value of one field, keeping each group in the original document order.
+ */
+function groupByField<T, K extends keyof T>(items: readonly T[], key: K): Map<T[K], T[]> {
+	const map = new Map<T[K], T[]>()
+	for (const item of items) {
+		const value = item[key]
+		const list = map.get(value)
+		if (list) list.push(item)
+		else map.set(value, [item])
+	}
+	return map
+}
+
+/**
+ * If the selector requires `key` to equal a single plain value, return that value.
+ * Returns `undefined` when the selector constrains the field in any other way (or not at all).
+ */
+function getRequiredEqualValue(selector: unknown, key: string): string | number | undefined {
+	if (!selector || typeof selector !== 'object') return undefined
+	let value = (selector as Record<string, unknown>)[key]
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		const operators = Object.keys(value)
+		if (operators.length !== 1 || operators[0] !== '$eq') return undefined
+		value = (value as Record<string, unknown>).$eq
+	}
+	return typeof value === 'string' || typeof value === 'number' ? value : undefined
+}
+
+/**
+ * Narrow `allItems` to the bucket of `index` that `selector` is restricted to by `key`, if it is restricted to
+ * a single value. The full selector must still be applied to the result.
+ */
+function narrowByIndex<T>(
+	allItems: readonly T[],
+	index: ReadonlyMap<unknown, T[]>,
+	selector: unknown,
+	key: string
+): readonly T[] {
+	const value = getRequiredEqualValue(selector, key)
+	if (value === undefined) return allItems
+	return index.get(value) ?? []
+}
+
+/**
+ * Whether the selector can only match Pieces with a lifespan other than `WithinPart`: it restricts `lifespan` to
+ * values which don't include it, either directly, or in every branch of an `$or` (or any part of an `$and`).
+ * The query for the infinites which may continue into a part has this shape, and is run for every part.
+ */
+function excludesWithinPartLifespan(selector: unknown): boolean {
+	if (!selector || typeof selector !== 'object') return false
+	const { lifespan, $or, $and } = selector as Record<string, unknown>
+
+	if (lifespan !== undefined) {
+		const isOtherLifespan = (value: unknown) =>
+			typeof value === 'string' && value !== (PieceLifespan.WithinPart as string)
+		if (isOtherLifespan(lifespan)) return true
+		if (lifespan && typeof lifespan === 'object') {
+			const operators = lifespan as Record<string, unknown>
+			if (isOtherLifespan(operators.$eq)) return true
+			if (Array.isArray(operators.$in) && operators.$in.every(isOtherLifespan)) return true
+		}
+	}
+
+	if (Array.isArray($or) && $or.length > 0 && $or.every(excludesWithinPartLifespan)) return true
+	if (Array.isArray($and) && $and.some(excludesWithinPartLifespan)) return true
+
+	return false
+}
+
+/**
+ * The resolver looks documents up once per Segment and once per Part, so scanning the whole playlist for each lookup
+ * makes the build quadratic. Index the collections by the fields it looks up by, and only run the selector against
+ * the documents in the matching bucket.
+ * The full selector is always applied to the narrowed set, so a selector of any other shape still gives the right
+ * answer, just without the speedup.
+ */
 function createQueryAdapters({
 	segmentsState,
 	partsState,
@@ -193,41 +303,95 @@ function createQueryAdapters({
 	piecesInPlaylistState: Piece[]
 	pieceInstancesInPlaylistState: PieceInstance[]
 }): StateCacheResolverDataAccess {
+	const segmentsById = groupByField(segmentsState, '_id')
+	const partsBySegmentId = groupByField(partsState, 'segmentId')
+
+	const activePartInstances = partInstancesInPlaylistState.filter((pi) => pi.reset !== true)
+	const activePartInstancesBySegmentId = groupByField(activePartInstances, 'segmentId')
+
+	const piecesById = groupByField(piecesInPlaylistState, '_id')
+	const piecesByStartPartId = groupByField(piecesInPlaylistState, 'startPartId')
+	/** Pieces which may continue beyond the Part they start in. Usually a small fraction of all Pieces */
+	const infinitePieces = piecesInPlaylistState.filter((p) => p.lifespan !== PieceLifespan.WithinPart)
+
+	const pieceInstancesById = groupByField(pieceInstancesInPlaylistState, '_id')
+	const pieceInstancesByPartInstanceId = groupByField(pieceInstancesInPlaylistState, 'partInstanceId')
+
+	const filterNarrowed = <T extends Record<string, any>>(candidates: readonly T[], selector: unknown): T[] =>
+		mongoWhereFilter(candidates as T[], selector as never)
+
 	// Adapter surface expected by `getResolvedSegment`
 	return {
 		segmentsFindOne: (selector, _options): DBSegment | undefined => {
 			if (!selector) return undefined
-			if (typeof selector === 'string') {
-				const normalizedSelectorId = unprotectString(selector as any)
-				return segmentsState.find((s) => unprotectString(s._id) === normalizedSelectorId)
-			}
+			if (typeof selector === 'string') return segmentsById.get(selector)?.[0]
 
-			return mongoWhereFilter(segmentsState, selector as never)[0]
+			return filterNarrowed(narrowByIndex(segmentsState, segmentsById, selector, '_id'), selector)[0]
 		},
 		getSegmentsAndPartsSync: (playlistPick, segmentsQuery, partsQuery) => {
-			const rundownIds = new Set(playlistPick.rundownIdsInOrder ?? [])
-			const segmentsInRundowns = segmentsState.filter((s) => rundownIds.has(s.rundownId))
-			const partsInRundowns = partsState.filter((p) => rundownIds.has(p.rundownId))
-			return {
-				segments: segmentsQuery
-					? mongoWhereFilter(segmentsInRundowns, segmentsQuery as never)
-					: segmentsInRundowns,
-				parts: partsQuery ? mongoWhereFilter(partsInRundowns, partsQuery as never) : partsInRundowns,
+			const rundownIds = playlistPick.rundownIdsInOrder ?? []
+			const rundownIdSet = new Set(rundownIds)
+
+			let segments: DBSegment[]
+			if (segmentsQuery) {
+				const candidates = narrowByIndex(segmentsState, segmentsById, segmentsQuery, '_id')
+				segments = filterNarrowed(
+					candidates.filter((s) => rundownIdSet.has(s.rundownId)),
+					segmentsQuery
+				)
+			} else {
+				segments = segmentsState.filter((s) => rundownIdSet.has(s.rundownId))
 			}
+
+			let parts: DBPart[]
+			if (partsQuery) {
+				const candidates = narrowByIndex(partsState, partsBySegmentId, partsQuery, 'segmentId')
+				parts = filterNarrowed(
+					candidates.filter((p) => rundownIdSet.has(p.rundownId)),
+					partsQuery
+				)
+			} else {
+				parts = partsState.filter((p) => rundownIdSet.has(p.rundownId))
+			}
+
+			return { segments, parts }
 		},
 		getActivePartInstances: (_playlistPick: Pick<DBRundownPlaylist, '_id'>, selector?: unknown) => {
-			const mergedSelector = selector ? { ...(selector as any), reset: { $ne: true } } : { reset: { $ne: true } }
-			return mongoWhereFilter(partInstancesInPlaylistState, mergedSelector as never)
+			if (!selector) return activePartInstances.slice()
+			// The reset check always wins over anything the selector says about `reset`
+			const mergedSelector = { ...(selector as any), reset: { $ne: true } }
+			return filterNarrowed(
+				narrowByIndex(activePartInstances, activePartInstancesBySegmentId, selector, 'segmentId'),
+				mergedSelector
+			)
 		},
 		piecesFind: (selector) => {
 			if (!selector) return piecesInPlaylistState
-			if (typeof selector === 'string') return piecesInPlaylistState.filter((p) => p._id === selector)
-			return mongoWhereFilter(piecesInPlaylistState, selector as never)
+			if (typeof selector === 'string') return piecesById.get(selector)?.slice() ?? []
+
+			let candidates = narrowByIndex(piecesInPlaylistState, piecesById, selector, '_id')
+			if (candidates === piecesInPlaylistState) {
+				candidates = narrowByIndex(piecesInPlaylistState, piecesByStartPartId, selector, 'startPartId')
+			}
+			if (candidates === piecesInPlaylistState && excludesWithinPartLifespan(selector)) {
+				candidates = infinitePieces
+			}
+			return filterNarrowed(candidates, selector)
 		},
 		pieceInstancesFind: (selector) => {
 			if (!selector) return pieceInstancesInPlaylistState
-			if (typeof selector === 'string') return pieceInstancesInPlaylistState.filter((pi) => pi._id === selector)
-			return mongoWhereFilter(pieceInstancesInPlaylistState, selector as never)
+			if (typeof selector === 'string') return pieceInstancesById.get(selector)?.slice() ?? []
+
+			let candidates = narrowByIndex(pieceInstancesInPlaylistState, pieceInstancesById, selector, '_id')
+			if (candidates === pieceInstancesInPlaylistState) {
+				candidates = narrowByIndex(
+					pieceInstancesInPlaylistState,
+					pieceInstancesByPartInstanceId,
+					selector,
+					'partInstanceId'
+				)
+			}
+			return filterNarrowed(candidates, selector)
 		},
 	}
 }

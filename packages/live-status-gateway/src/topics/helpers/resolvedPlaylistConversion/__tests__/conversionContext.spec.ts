@@ -1,4 +1,7 @@
 import { protectString } from '@sofie-automation/corelib/dist/protectedString'
+import { mongoWhereFilter } from '@sofie-automation/corelib/dist/mongo'
+import { buildPastInfinitePiecesForThisPartQuery } from '@sofie-automation/corelib/dist/playout/infinites'
+import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import {
 	createResolvedPlaylistConversionContext,
 	findCurrentPartInstance,
@@ -14,6 +17,7 @@ import {
 	makeRundown,
 	makeSegment,
 	makeTestShowStyleBaseExt,
+	makeLargeActivePlaylist,
 } from './resolvedPlaylistConversionTestUtils.js'
 
 describe('conversionContext', () => {
@@ -188,5 +192,154 @@ describe('conversionContext', () => {
 		expect(
 			findNextPartInstance(playlist, [makePartInstance('pi1', 'part1', 'segment0', 'rundown0')])
 		).toBeUndefined()
+	})
+})
+
+describe('conversionContext accessors', () => {
+	// The accessors look documents up through indexes. They must return exactly what a plain scan of the whole
+	// playlist would, in the same order, for any selector.
+	const props = makeLargeActivePlaylist({
+		rundowns: 2,
+		segmentsPerRundown: 4,
+		partsPerSegment: 3,
+		piecesPerPart: 4,
+		playedParts: 5,
+		now: 1_700_000_000_000,
+	})
+	const ctx = createResolvedPlaylistConversionContext(props)
+	const playlist = props.playlistState as any
+	const ids = (docs: Array<{ _id: unknown }> | undefined) => (docs ?? []).map((d) => String(d._id))
+
+	const segment = props.segmentsState[1]
+	const part = props.partsState[7]
+	const partInstance = props.partInstancesInPlaylistState.find((pi) => !pi.reset && pi.segmentId === segment._id)
+	if (!partInstance) throw new Error('Fixture has no PartInstance in the chosen segment')
+
+	it('segmentsFindOne', () => {
+		const reference = (selector: any) => mongoWhereFilter(props.segmentsState, selector)[0]
+		const selectors: any[] = [
+			{ _id: segment._id },
+			{ _id: { $eq: segment._id } },
+			{ _id: segment._id, rundownId: protectString('rundown_other') },
+			{ _id: protectString('missing') },
+			{ _rank: 2 },
+		]
+		for (const selector of selectors) {
+			expect(ctx.accessors.segmentsFindOne(selector, {})?._id).toEqual(reference(selector)?._id)
+		}
+		expect(ctx.accessors.segmentsFindOne(segment._id, {})?._id).toEqual(segment._id)
+		expect(ctx.accessors.segmentsFindOne(protectString('missing'), {})).toBeUndefined()
+	})
+
+	it('getSegmentsAndPartsSync', () => {
+		const reference = (rundownIds: unknown[], segmentsQuery?: any, partsQuery?: any) => {
+			const segments = props.segmentsState.filter((s) => rundownIds.includes(s.rundownId))
+			const parts = props.partsState.filter((p) => rundownIds.includes(p.rundownId))
+			return {
+				segments: segmentsQuery ? mongoWhereFilter(segments, segmentsQuery) : segments,
+				parts: partsQuery ? mongoWhereFilter(parts, partsQuery) : parts,
+			}
+		}
+		const cases: Array<[unknown[], any, any]> = [
+			[playlist.rundownIdsInOrder, undefined, undefined],
+			[playlist.rundownIdsInOrder, { _id: segment._id }, { segmentId: segment._id }],
+			// A segment outside of the rundowns asked for must not be returned, even when selected by id
+			[[playlist.rundownIdsInOrder[0]], { _id: segment._id }, { segmentId: segment._id }],
+			[playlist.rundownIdsInOrder, { _rank: { $gte: 2 } }, { segmentId: { $in: [segment._id, part.segmentId] } }],
+		]
+		for (const [rundownIds, segmentsQuery, partsQuery] of cases) {
+			const result = ctx.accessors.getSegmentsAndPartsSync(
+				{ ...playlist, rundownIdsInOrder: rundownIds },
+				segmentsQuery,
+				partsQuery
+			)
+			const expected = reference(rundownIds, segmentsQuery, partsQuery)
+			expect(ids(result.segments)).toEqual(ids(expected.segments))
+			expect(ids(result.parts)).toEqual(ids(expected.parts))
+		}
+	})
+
+	it('getActivePartInstances', () => {
+		const reference = (selector?: any) =>
+			mongoWhereFilter(props.partInstancesInPlaylistState, { ...selector, reset: { $ne: true } })
+		const selectors: any[] = [
+			undefined,
+			{ segmentId: segment._id },
+			{ segmentId: { $eq: segment._id } },
+			// The reset check wins over the selector
+			{ segmentId: segment._id, reset: true },
+			{ rundownId: segment.rundownId },
+		]
+		for (const selector of selectors) {
+			expect(ids(ctx.accessors.getActivePartInstances(playlist, selector))).toEqual(ids(reference(selector)))
+		}
+		expect(ids(ctx.accessors.getActivePartInstances(playlist, undefined))).not.toHaveLength(0)
+	})
+
+	it('piecesFind', () => {
+		const reference = (selector?: any) =>
+			selector ? mongoWhereFilter(props.piecesInPlaylistState, selector) : props.piecesInPlaylistState
+		const laterPart = props.partsState[11]
+		const selectors: any[] = [
+			undefined,
+			{ startPartId: part._id },
+			{ startPartId: { $eq: part._id } },
+			{ _id: props.piecesInPlaylistState[3]._id },
+			{ sourceLayerId: 'sl1' },
+			// Selectors which can only match infinite pieces only look at those
+			{ lifespan: PieceLifespan.OutOnSegmentEnd },
+			{ lifespan: { $in: [PieceLifespan.OutOnRundownEnd, PieceLifespan.OutOnShowStyleEnd] } },
+			{ $and: [{ lifespan: { $eq: PieceLifespan.OutOnRundownEnd } }, { sourceLayerId: 'sl2' }] },
+			// ... but these may match WithinPart pieces too
+			{ lifespan: PieceLifespan.WithinPart },
+			{ lifespan: { $in: [PieceLifespan.WithinPart, PieceLifespan.OutOnSegmentEnd] } },
+			{ $or: [{ lifespan: PieceLifespan.OutOnSegmentEnd }, { sourceLayerId: 'sl1' }] },
+			{ lifespan: { $ne: PieceLifespan.OutOnSegmentEnd } },
+			// The query used to find the infinites that may continue into a part
+			buildPastInfinitePiecesForThisPartQuery(
+				laterPart,
+				props.partsState
+					.filter((p) => p.segmentId === laterPart.segmentId && p._rank < laterPart._rank)
+					.map((p) => p._id),
+				props.segmentsState.filter((s) => s.rundownId === laterPart.rundownId).map((s) => s._id),
+				[playlist.rundownIdsInOrder[0]]
+			),
+		]
+		for (const selector of selectors) {
+			expect(ids(ctx.accessors.piecesFind(selector))).toEqual(ids(reference(selector)))
+		}
+		const pieceId = props.piecesInPlaylistState[3]._id
+		expect(ids(ctx.accessors.piecesFind(pieceId))).toEqual([String(pieceId)])
+	})
+
+	it('pieceInstancesFind', () => {
+		const reference = (selector?: any) =>
+			selector
+				? mongoWhereFilter(props.pieceInstancesInPlaylistState, selector)
+				: props.pieceInstancesInPlaylistState
+		const selectors: any[] = [
+			undefined,
+			{ partInstanceId: partInstance._id },
+			{ partInstanceId: { $eq: partInstance._id } },
+			{ partInstanceId: partInstance._id, reset: { $ne: true } },
+			{ _id: props.pieceInstancesInPlaylistState[2]._id },
+			{ rundownId: partInstance.rundownId },
+		]
+		for (const selector of selectors) {
+			expect(ids(ctx.accessors.pieceInstancesFind(selector))).toEqual(ids(reference(selector)))
+		}
+		const pieceInstanceId = props.pieceInstancesInPlaylistState[2]._id
+		expect(ids(ctx.accessors.pieceInstancesFind(pieceInstanceId))).toEqual([String(pieceInstanceId)])
+	})
+
+	it('results can be modified without affecting later lookups', () => {
+		const first = ctx.accessors.pieceInstancesFind(props.pieceInstancesInPlaylistState[2]._id)
+		first.length = 0
+		expect(ctx.accessors.pieceInstancesFind(props.pieceInstancesInPlaylistState[2]._id)).toHaveLength(1)
+
+		const all = ctx.accessors.getActivePartInstances(playlist, undefined)
+		const count = all.length
+		all.pop()
+		expect(ctx.accessors.getActivePartInstances(playlist, undefined)).toHaveLength(count)
 	})
 })
